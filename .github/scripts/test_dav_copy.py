@@ -29,6 +29,8 @@ class Fake:
         self.colls = {}  # chemin -> {"kind", "name", "objs": {nom: texte}}
         self.log = []
         self.fail_puts = 0  # nombre de PUT à refuser en 404 (juste après MKCALENDAR)
+        self.redirect = None  # Location renvoyée en 302 sur toute requête
+        self.no_etag = set()  # objets listés sans getetag (207 partiel)
         fake = self
 
         class H(http.server.BaseHTTPRequestHandler):
@@ -53,7 +55,10 @@ class Fake:
 
             def handle_one(self):
                 m, path = self.command, self.path
-                fake.log.append((m, path))
+                fake.log.append((m, path, self.headers.get("Authorization")))
+                if fake.redirect:
+                    self.body()
+                    return self.send(302, headers={"Location": fake.redirect})
                 parts = path.strip("/").split("/")
                 if m == "PROPFIND":
                     self.body()
@@ -77,7 +82,8 @@ class Fake:
                     if c is None:
                         return self.send(404)
                     items = [(path, "<d:resourcetype><d:collection/></d:resourcetype>")]
-                    items += [(path + n, f"<d:getetag>{fake.etag(t)}</d:getetag>") for n, t in c["objs"].items()]
+                    items += [(path + n, "" if n in fake.no_etag else f"<d:getetag>{fake.etag(t)}</d:getetag>")
+                              for n, t in c["objs"].items()]
                     return self.multistatus(items)
                 cpath = "/" + "/".join(parts[:-1]) + "/"
                 c = fake.colls.get(cpath)
@@ -89,7 +95,8 @@ class Fake:
                     return self.send(404)
                 name = parts[-1]
                 if m == "GET":
-                    return self.send(200, c["objs"][name].encode()) if name in c["objs"] else self.send(404)
+                    t = c["objs"].get(name)
+                    return self.send(404) if t is None else self.send(200, t if isinstance(t, bytes) else t.encode())
                 if m == "PUT":
                     data = self.body()
                     if fake.fail_puts > 0:
@@ -103,6 +110,9 @@ class Fake:
                     c["objs"][name] = data
                     return self.send(201, headers={"ETag": fake.etag(data)})
                 if m == "DELETE":
+                    im = self.headers.get("If-Match")
+                    if im and (name not in c["objs"] or fake.etag(c["objs"][name]) != im):
+                        return self.send(412)
                     c["objs"].pop(name, None)
                     return self.send(204)
                 self.send(405)
@@ -115,7 +125,7 @@ class Fake:
 
     @staticmethod
     def etag(text):
-        return '"' + hashlib.md5(text.encode()).hexdigest() + '"'
+        return '"' + hashlib.md5(text if isinstance(text, bytes) else text.encode()).hexdigest() + '"'
 
     def add(self, kind, slug, name, objs, **kw):
         home = "calendars" if kind == "calendar" else "addressbooks"
@@ -205,31 +215,130 @@ class Copy(Base):
 
 
 class Deletions(Base):
-    def fill(self, n_dest_extra):
-        self.s.add("calendar", "a", "Agenda", {f"{i}.ics": ics(f"u{i}") for i in range(20)})
-        objs = {f"{i}.ics": ics(f"u{i}") for i in range(20)}
-        objs.update({f"gone{i}.ics": ics(f"g{i}") for i in range(n_dest_extra)})
-        self.d.add("calendar", "a", "A", objs)
+    """Le fichier d'état dit ce que l'outil a écrit : seul cela peut être supprimé ou réécrit."""
+    SRC, DST = "/dav/calendars/u/a/", "/dav/calendars/u/a/"
+
+    def fill(self, n_gone, preexisting=0):
+        self.s.add("calendar", "a", "Agenda", {f"{i}.ics": ics(f"u{i}") for i in range(20 + n_gone)})
+        self.d.add("calendar", "a", "A", {f"pre{i}.ics": ics(f"p{i}") for i in range(preexisting)})
+        self.state = {}
+        self.go(self.CAL, self.state, apply=True)  # l'outil crée les 20 + n_gone objets
+        for i in range(20, 20 + n_gone):
+            del self.s.colls[self.SRC]["objs"][f"{i}.ics"]
+        self.d.log.clear()
+
+    def dest(self):
+        return self.d.colls[self.DST]["objs"]
 
     def test_listed_but_not_deleted_without_flag(self):
         self.fill(1)
-        (r,) = self.go(self.CAL, apply=True)
+        (r,) = self.go(self.CAL, self.state, apply=True)
         self.assertEqual((r["to_delete"], r["deleted"], r["errors"]), (1, 0, []))
-        self.assertIn("gone0.ics", self.d.colls["/dav/calendars/u/a/"]["objs"])
+        self.assertIn("20.ics", self.dest())
 
     def test_deleted_with_flag(self):
         self.fill(1)
-        (r,) = self.go(self.CAL, apply=True, delete=True)
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True)
         self.assertEqual((r["deleted"], r["errors"]), (1, []))
-        self.assertNotIn("gone0.ics", self.d.colls["/dav/calendars/u/a/"]["objs"])
+        self.assertNotIn("20.ics", self.dest())
 
     def test_guard_skips_collection(self):
         self.fill(5)  # 5 sur 25 = 20 % > 10 %
-        (r,) = self.go(self.CAL, apply=True, delete=True)
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True)
         self.assertEqual(len(r["errors"]), 1)
         self.assertIn("garde-fou", r["errors"][0])
         self.assertEqual(self.d.writes(), [])
-        self.assertEqual(len(self.d.colls["/dav/calendars/u/a/"]["objs"]), 25)
+        self.assertEqual(len(self.dest()), 25)
+
+    def test_preexisting_objects_never_deleted(self):
+        """Constat réel : 677 objets déjà dans l'agenda par défaut d'Infomaniak, pas venus de l'outil."""
+        self.fill(1, preexisting=30)
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True, max_delete_pct=100)
+        self.assertEqual((r["to_delete"], r["deleted"], r["errors"]), (1, 1, []))
+        self.assertEqual(sum(n.startswith("pre") for n in self.dest()), 30)
+        (r,) = self.go(self.CAL, {}, apply=True, delete=True, max_delete_pct=100)  # état perdu : rien à supprimer
+        self.assertEqual((r["to_delete"], r["deleted"]), (0, 0))
+        self.assertEqual(len(self.dest()), 50)
+
+    def test_empty_source_listing_deletes_nothing(self):
+        self.fill(0)
+        self.s.colls[self.SRC]["objs"].clear()
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True, max_delete_pct=100)
+        self.assertIn("garde-fou", r["errors"][0])
+        self.assertEqual((len(self.dest()), self.d.writes()), (20, []))
+
+    def test_partial_source_listing_skips_collection(self):
+        self.fill(0)
+        self.s.no_etag = {f"{i}.ics" for i in range(10)}  # 207 où la moitié des objets n'a pas d'ETag
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True, max_delete_pct=100)
+        self.assertTrue(r["errors"])
+        self.assertEqual((r["deleted"], len(self.dest()), self.d.writes()), (0, 20, []))
+
+    def test_object_edited_at_destination_not_deleted(self):
+        self.fill(1)
+        self.dest()["20.ics"] = ics("u20", "DESCRIPTION:retouché chez Infomaniak\r\n")
+        (r,) = self.go(self.CAL, self.state, apply=True, delete=True)
+        self.assertEqual(r["deleted"], 0)
+        self.assertIn("20.ics", self.dest())
+
+    def test_state_keyed_by_destination(self):
+        """Changer la cible d'une source ne donne aucun droit sur les objets de la nouvelle cible."""
+        self.fill(1)
+        self.d.add("calendar", "b", "B", {"20.ics": ics("autre")})
+        (r,) = self.go({"calendars": [{"source": "a", "dest": "B"}]}, self.state, apply=True, delete=True,
+                       max_delete_pct=100)
+        self.assertEqual(r["deleted"], 0)
+        self.assertEqual(self.d.colls["/dav/calendars/u/b/"]["objs"]["20.ics"], ics("autre"))
+
+
+class Overwrite(Base):
+    def test_foreign_object_with_same_name_not_overwritten(self):
+        self.s.add("calendar", "a", "Agenda", {"1.ics": ics("u1")})
+        self.d.add("calendar", "a", "A", {"1.ics": ics("autre")})
+        (r,) = self.go(self.CAL, {}, apply=True)
+        self.assertIn("conflit", r["errors"][0])
+        self.assertEqual((self.d.writes(), self.d.colls["/dav/calendars/u/a/"]["objs"]["1.ics"]), ([], ics("autre")))
+
+    def test_split_utf8_in_fold_not_corrupted(self):
+        raw = ics("u1", "SUMMARY:caf\xe9\r\n").encode()
+        i = raw.index(b"\xa9")  # coupe le « é » (c3 a9) par un repliage
+        self.s.add("calendar", "a", "Agenda", {})
+        self.d.add("calendar", "a", "A", {})
+        self.s.colls["/dav/calendars/u/a/"]["objs"]["1.ics"] = raw[:i] + b"\r\n " + raw[i:]
+        (r,) = self.go(self.CAL, {}, apply=True)
+        self.assertEqual(r["errors"], [])
+        out = self.d.colls["/dav/calendars/u/a/"]["objs"]["1.ics"]
+        self.assertIn("café", out)
+        self.assertNotIn("�", out)
+
+
+class Network(Base):
+    def test_redirect_not_followed_and_credentials_stay(self):
+        self.s.redirect = self.d.url + "calendars/u/"
+        src = dc.Dav(self.s.url, "u", "x", read_only=True, allow_http=True)
+        self.assertEqual(src.request("GET", "/dav/x.ics")[0], 302)
+        self.assertEqual(self.d.log, [])
+
+    def test_foreign_host_refused(self):
+        src = dc.Dav(self.s.url, "u", "x", read_only=True, allow_http=True)
+        with self.assertRaises(ValueError):
+            src.request("PROPFIND", self.d.url + "calendars/u/")
+        self.assertEqual(self.d.log, [])
+
+
+class Main(unittest.TestCase):
+    def test_apply_requires_state(self):
+        with self.assertRaises(SystemExit):
+            dc.main(["--source-config", "x", "--dest-config", "y", "--collections", "z", "--apply"])
+
+    def test_state_written_atomically_0600(self):
+        with tempfile.TemporaryDirectory() as t:
+            p = os.path.join(t, "s.json")
+            Path(p).write_text("{}")
+            os.chmod(p, 0o644)
+            dc.save_state(p, {"k": {"n": ["a", "b", True]}})
+            self.assertEqual(os.stat(p).st_mode & 0o777, 0o600)
+            self.assertEqual(os.listdir(t), ["s.json"])
 
 
 class AddressBooks(Base):
@@ -258,7 +367,7 @@ class AddressBooks(Base):
 class ScheduleAgent(unittest.TestCase):
     def agents(self, text):
         return [(n, ps.get("SCHEDULE-AGENT")) for l, _ in dc.logical_lines(text) for n, ps, _v in [dc.parse_prop(l)]
-                if n in ("ORGANIZER", "ATTENDEE")]
+                if n.upper() in ("ORGANIZER", "ATTENDEE")]
 
     def test_added_everywhere_including_folded_and_existing(self):
         long_cn = "x" * 90
@@ -273,6 +382,16 @@ class ScheduleAgent(unittest.TestCase):
         self.assertIn("mailto:a@x.fr", "".join(l.lstrip(" ") for l in out.split("\r\n")))
         self.assertEqual(dc.add_schedule_agent(out), out)  # idempotent
         self.assertIn('CN="a;b:c"', out)
+
+    def test_todo_exception_lowercase_and_utf8_fold(self):
+        text = ("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:r\r\nRRULE:FREQ=DAILY\r\norganizer:mailto:o@x.fr\r\nEND:VEVENT\r\n"
+                "BEGIN:VEVENT\r\nUID:r\r\nRECURRENCE-ID:20260101T100000Z\r\n"
+                f"ATTENDEE;CN={'é' * 50};schedule-agent=server:mailto:a@x.fr\r\nEND:VEVENT\r\n"
+                "BEGIN:VTODO\r\nUID:t\r\nATTENDEE:mailto:b@x.fr\r\nEND:VTODO\r\nEND:VCALENDAR\r\n")
+        out = dc.add_schedule_agent(text)
+        self.assertEqual([a for _, a in self.agents(out)], [["CLIENT"]] * 3)
+        self.assertTrue(all(len(l.encode()) <= 75 for l in out.split("\r\n")))
+        self.assertIn("é" * 50, "".join(l[1:] if l.startswith(" ") else l for l in out.split("\r\n")))
 
     def test_untouched_outside_event_and_todo(self):
         text = ics("u").replace("END:VEVENT", "END:VEVENT\r\nBEGIN:VJOURNAL\r\nORGANIZER:mailto:o@x.fr\r\nEND:VJOURNAL")
