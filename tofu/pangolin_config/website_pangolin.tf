@@ -5,17 +5,17 @@
 # sites still answer.
 #
 # The hostname is pangolin_dashboard_url in ansible/host_vars/pangolin (hall.,
-# since the rename), pinned by a test. A plain status monitor rather than the inverted keyword: the
-# dashboard is not a pangolin_resource, so it has no maintenance page and a
-# dead dashboard does fail (see maintenance.tf). `/` redirects to the login
-# page, which Uptime Kuma follows.
+# since the rename), pinned by a test. A plain status monitor rather than the
+# inverted keyword: the dashboard is not a pangolin_resource, so it has no
+# maintenance page and a dead dashboard does fail (see maintenance.tf). `/`
+# redirects to the login page, which Uptime Kuma follows.
 resource "uptimekuma_monitor_http" "pangolin_dashboard" {
   name = "Dashboard Pangolin"
 
   # Grouped under the Self-hosted folder. See uptime_globals.tf.
   parent = uptimekuma_monitor_group.self_hosted.id
 
-  url             = "https://hall.sylvain.cloud"
+  url             = "https://${local.pangolin_dashboard_host}"
   interval        = local.http_probe.interval
   timeout         = 30
   max_retries     = local.http_probe.max_retries
@@ -40,7 +40,7 @@ resource "uptimekuma_monitor_http" "pangolin_dashboard_legacy_api" {
 
   parent = uptimekuma_monitor_group.self_hosted.id
 
-  url             = "https://pangolin.sylvain.cloud/api/v1/"
+  url             = "https://${local.pangolin_dashboard_legacy_host}/api/v1/"
   interval        = local.http_probe.interval
   timeout         = 30
   max_retries     = local.http_probe.max_retries
