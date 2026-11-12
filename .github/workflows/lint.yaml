@@ -284,6 +284,11 @@ jobs:
       # fichier d'exigences avec hachages, plus qu'une ligne).
       # renovate: datasource=pypi depName=zizmor
       ZIZMOR_VERSION: 1.30.1
+      # Le verrou .github/workflows/actions.lock (ADR 0036). Binaire installé
+      # par son tag (`gh extension install --pin` n'accepte pas de somme),
+      # suivi par Renovate (gestionnaire regex des workflows), sans automerge.
+      # renovate: datasource=github-releases depName=github/gh-actions-lock
+      GH_ACTIONS_LOCK_VERSION: v0.4.1
 
     steps:
       - name: Checkout
@@ -318,4 +323,15 @@ jobs:
 
       - name: Run hadolint
         run: /tmp/hadolint ansible/molecule/_shared/Dockerfile
+
+      # Dans ce job (check requis de main) et pas dans un workflow à part : un
+      # PR de Renovate qui laisse le verrou en retard ne doit pas s'automerger.
+      # --ignore-local-actions : les composites de .github/actions restent en
+      # `./` (actionlint refuse `$/`). Pas de --no-narrow : --verify n'écrit rien.
+      - name: Verify the actions lock
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh extension install github/gh-actions-lock --pin "$GH_ACTIONS_LOCK_VERSION"
+          gh actions-lock --verify --ignore-local-actions
 
