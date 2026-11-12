@@ -1,6 +1,6 @@
 # MCP Papra (lecture, tags)
 
-Serveur MCP stdio d'environ 170 lignes (bibliothèque standard, aucune
+Serveur MCP stdio d'environ 200 lignes (bibliothèque standard, aucune
 dépendance), lancé par Claude Code sur le poste, comme `scripts/homebox-mcp/`.
 Rien n'est ouvert de plus, pas d'OAuth.
 

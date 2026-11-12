@@ -89,6 +89,14 @@ class PapraMcpTest(unittest.TestCase):
         r = m.handle({"id": 1, "method": "tools/call", "params": {"name": "get_document_text", "arguments": {}}}, call)
         self.assertEqual(json.loads(r["result"]["content"][0]["text"]), {"content": "texte OCR"})
 
+    def test_redirects_are_refused_and_odd_tool_names_are_not_fatal(self):
+        self.assertIsNone(m.NoRedirect().redirect_request(None, None, 302, "Found", {}, "http://elsewhere"))
+        self.assertIn("error", m.handle({"id": 8, "method": "tools/call", "params": {"name": ["x"]}}, None))
+
+    def test_long_answer_is_marked_truncated(self):
+        r = m.handle({"id": 9, "method": "tools/call", "params": {"name": "list_tags"}}, lambda *a: {"t": "x" * 200000})
+        self.assertTrue(r["result"]["content"][0]["text"].endswith("[... tronqué]"))
+
     def test_notification_gets_no_reply(self):
         self.assertIsNone(m.handle({"method": "notifications/initialized"}, None))
 
