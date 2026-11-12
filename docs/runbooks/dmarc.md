@@ -7,7 +7,7 @@ fournisseur publie sa clé (Infomaniak, SimpleLogin).
 
 | Zone | Envoie par | DKIM | DMARC |
 |---|---|---|---|
-| sylvainmetayer.fr | Infomaniak (boîte, et tous les hôtes et applis via `pangolin_smtp_user`) | `20230615._domainkey` (Infomaniak) | `p=none`, rapports |
+| sylvainmetayer.fr | Infomaniak (boîte, et tous les hôtes et applis via `pangolin_smtp_user`) | `20230615._domainkey` (Infomaniak) | `p=quarantine; pct=25` depuis le 12/11/2026, rapports |
 | sylvain.dev | SimpleLogin (alias, réponses) | `dkim`, `dkim02`, `dkim03` (CNAME vers simplelogin.co) | `p=quarantine` strict, rapports |
 | metayer.dev | SimpleLogin | idem | `p=quarantine` strict, rapports |
 | sylvain.cloud | rien | aucun | `p=reject`, `v=spf1 -all` (MX nul en option, voir plus bas) |
@@ -130,10 +130,10 @@ rapports d'au moins Google et Microsoft :
 
 Les crans, dans `local.dmarc_policies` (`tofu/dns/mail.tf`) :
 
-1. `p = "none"` : on observe, rien n'est filtré (sylvainmetayer.fr au
-   départ).
+1. `p = "none"` : on observe, rien n'est filtré (sylvainmetayer.fr jusqu'au
+   12/11/2026).
 2. `p = "quarantine", pct = 25` : un quart des messages en échec part en
-   spam. Deux semaines.
+   spam. Deux semaines (sylvainmetayer.fr depuis le 12/11/2026).
 3. `p = "quarantine", pct = 100` (sylvain.dev, metayer.dev aujourd'hui).
 4. `p = "reject"` (sylvain.cloud) : refusés à la réception.
 
