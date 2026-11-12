@@ -13,7 +13,8 @@ locals {
     backup    = true
 
     # Paused since 2026-11-11 (docs/runbooks/app-en-pause.md): flip (4 GiB) has
-    # no memory to spare for the demo beside OpenPost and production. Moves with demo_planning_enabled in ansible/host_vars/flip.
+    # no memory to spare for the demo beside OpenPost and production. Moves with
+    # demo_planning_enabled in ansible/host_vars/flip.
     enabled = false
 
     # Its link on Homepage (homepage_links output, website_homepage.tf).
