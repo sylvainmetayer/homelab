@@ -91,6 +91,13 @@ class GrocyMcpTest(unittest.TestCase):
         self.assertEqual(seen, [("GET", "/stock", {})])
         self.assertEqual(m.handle({"id": 7, "method": "initialize", "params": None}, None)["result"]["serverInfo"]["name"], "grocy")
 
+    def test_non_string_tool_name_is_not_fatal(self):
+        self.assertIn("error", m.handle({"id": 8, "method": "tools/call", "params": {"name": ["x"]}}, None))
+
+    def test_long_answer_is_marked_truncated(self):
+        r = m.handle({"id": 9, "method": "tools/call", "params": {"name": "stock"}}, lambda *a: {"x": "a" * 200000})
+        self.assertTrue(r["result"]["content"][0]["text"].endswith("[... tronqué]"))
+
     def test_tool_error_is_not_fatal(self):
         def boom(*a):
             raise OSError("down")
