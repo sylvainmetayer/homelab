@@ -45,7 +45,7 @@ Docker ne marque un conteneur « arrêté à la main » que hors arrêt du démo
 ## Action
 
 - Rôle `pangolin` : drop-in `docker.service.d/pangolin.conf`,
-  `ExecStartPost=-docker start gerbil traefik`. Après chaque démarrage du démon
+  `ExecStartPost=-docker start pangolin gerbil traefik crowdsec`. Après chaque démarrage du démon
   (mise à jour, redémarrage, boot), ce qui n'est pas lancé l'est. Aucun
   conteneur recréé au déploiement.
 - [mises-a-jour-hotes.md](../runbooks/mises-a-jour-hotes.md) : vérifier Traefik

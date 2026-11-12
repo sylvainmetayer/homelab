@@ -104,7 +104,7 @@
       ansible.builtin.assert:
         that:
           - "'[Service]' in pangolin_dropin_lines"
-          - "'ExecStartPost=-/usr/bin/timeout 60 /usr/bin/docker start gerbil traefik' in pangolin_dropin_lines"
+          - "'ExecStartPost=-/usr/bin/timeout 30 /usr/bin/docker start pangolin gerbil traefik crowdsec' in pangolin_dropin_lines"
         fail_msg: /etc/systemd/system/docker.service.d/pangolin.conf inattendu
 
     # --- configuration Pangolin (porte le secret serveur) ---
