@@ -46,7 +46,7 @@ Every public Pangolin resource only lets FR and DE through (`tofu/pangolin_confi
 mise exec -- tofu -chdir=tofu/pangolin_config import pangolin_org.this <org_id>
 ```
 
-`prevent_destroy` stops a destroy or a replacement (`subnet` and `utility_subnet` cannot change). It does **not** stop a plan run from a checkout older than `org.tf`, which would say « destroy, not in configuration »: never apply a plan that touches `pangolin_org.this` other than « update in-place ». `ssh_ca_private_key` comes back from the API into the state (encrypted).
+`prevent_destroy` stops a destroy or a replacement (`subnet` and `utility_subnet` cannot change). It does **not** stop a plan run from a checkout older than `org.tf`, which would say « destroy, not in configuration »: never apply a plan that touches `pangolin_org.this` other than « update in-place ». Reverting the PR or deleting `org.tf` plans the same destroy: to stop managing the organisation, `tofu state rm pangolin_org.this` first (or a `removed` block with `lifecycle { destroy = false }`), never the bare file removal. `ssh_ca_private_key` comes back from the API into the state (encrypted).
 
 ## Secrets and state
 

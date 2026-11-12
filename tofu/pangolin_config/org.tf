@@ -7,6 +7,8 @@
 # Il ne protège PAS d'un plan lancé depuis un checkout d'avant ce fichier, qui
 # proposerait « destroy, not in configuration » : ne jamais appliquer un plan
 # qui touche pangolin_org.this autrement qu'en « update in-place ».
+# Retirer ce fichier (ou revert) planifie la même destruction : d'abord
+# `tofu state rm pangolin_org.this`.
 #
 # Tous les attributs optional+computed sont déclarés (règle du module) ;
 # password_expiry_days reste absent : le serveur le rend nul (pas d'expiration)
