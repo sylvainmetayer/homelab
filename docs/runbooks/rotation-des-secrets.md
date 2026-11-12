@@ -137,8 +137,11 @@ Seules la clé et le secret d'application restent à la main : l'API OVH ne
 crée pas d'application (voir « Reste manuel » plus bas). Créer une nouvelle
 application avec les **mêmes droits** que l'ancienne (les relire avant :
 console OVH, ou `GET /me/api/credential` dans la console d'API). La consumer
-key, elle, se renouvelle par `ovh_credentials.py` (« Pas à pas » plus bas), qui
-la range par `sops set`, sans passer par le terminal. Après la bascule : pour
+key de Tofu (`OVH_CONSUMER_KEY`, seule clé que connaît le script) se renouvelle
+par `ovh_credentials.py` (« Pas à pas » plus bas), qui la range par `sops set`,
+sans passer par le terminal ; celles du NAS et de Pangolin se refont à la main
+par le lien `createToken` de `nas_proxy` ou `pangolin` (`defaults/main.yml`),
+puis `sops set`. Après la bascule : pour
 la première, un `plan` vide dans chacun des modules cités ; pour la seconde,
 `ansible-playbook nas.yml --tags nas_proxy` et un renouvellement de
 certificat réussi dans les logs de `nas-proxy` ; pour la troisième,
@@ -147,7 +150,9 @@ réussi (voir plus haut).
 
 **Ne jamais révoquer** les applications des jokers TLS (`pangolin_ovh_*`,
 `nas_ovh_*`) ni celle du plugin ACME de Proxmox : leur suppression coupe
-l'émission des certificats. N'y toucher qu'en les remplaçant, pas à pas.
+l'émission des certificats. Leur ancien identifiant ne se révoque qu'une fois
+leur remplaçant validé par un renouvellement réussi, jamais pendant la
+rotation de Tofu.
 L'ancienne application de Tofu se supprime dans la console OVH une fois la
 nouvelle validée (voir « Reste manuel »).
 
@@ -393,17 +398,30 @@ identifiants.
   donc un accès au bucket redonne les anciens secrets. Elles contiennent tout
   le fichier racine `secrets/secrets.sops.yaml`, que l'ancien
   `data "sops_file"` y écrivait (commentaire de `mise.toml`, audit sc1) :
-  **tout ce fichier est à tourner**, pas seulement les clés S3. Le geste : lister
-  les versions de l'objet `homelab/pangolin_config.tfstate`
-  (`aws s3api list-object-versions --bucket homelab-tf-state-sylvain
-  --prefix homelab/pangolin_config.tfstate`, endpoint
-  `https://s3.eu-west-par.io.cloud.ovh.net`, avec la clé admin), puis supprimer
-  chaque version antérieure au 12/11/2026 par
-  `aws s3api delete-object --version-id <id>`, **sans** la version courante ni
-  les marqueurs. Commandes non testées ici (calquées sur
-  `tofu/keepass_backup/README.md`, « Restaurer un objet écrasé »). Vérifier
-  ensuite par un nouveau `list-object-versions` : seules des versions
-  chiffrées restent.
+  **tout ce fichier est à tourner**, pas seulement les clés S3. **Non testé.**
+  Aucune clé actuelle ne liste les versions de ce bucket : la politique de
+  `tf_state` (`tofu/s3_state/user.tf`) n'a pas `s3:ListBucketVersions`, et la
+  clé admin de `tofu/keepass_backup` est limitée à son propre bucket. Passer
+  par la console OVH (bucket, versions de l'objet), ou ajouter
+  `s3:ListBucketVersions` à `tf_state` le temps de la purge (PR, apply, retrait
+  après). Le geste, sous `mise exec --` avec `--endpoint-url
+  https://s3.eu-west-par.io.cloud.ovh.net` sur chaque commande :
+  1. `aws s3api list-object-versions --bucket homelab-tf-state-sylvain
+     --prefix homelab/pangolin_config.tfstate` ; le préfixe ramène aussi
+     `homelab/pangolin_config.tfstate.tflock` : ne garder que les entrées dont
+     `Key` vaut exactement `homelab/pangolin_config.tfstate`.
+  2. Trier par chiffrement, pas par date (la migration du 12/11 a laissé des
+     versions en clair le même jour) : `aws s3api get-object --bucket … --key
+     homelab/pangolin_config.tfstate --version-id <id> /dev/stdout | jq
+     'has("encrypted_data")'` (OVH lit une version par `GetObject`). Vérifier
+     d'abord `true` pour la version `IsLatest` ; si elle répond `false`, tout
+     arrêter.
+  3. Pour chaque version `false` et elle seule : `aws s3api delete-object
+     --bucket homelab-tf-state-sylvain --key homelab/pangolin_config.tfstate
+     --version-id <id>`. Jamais sans `--version-id` (cela poserait un marqueur
+     de suppression sur le state courant), jamais une autre `Key`.
+  4. Relancer l'étape 1 puis 2 : seules des versions `true` restent, et un
+     `plan` de `tofu/pangolin_config` passe.
 - `state_s3_access_key`, `state_s3_secret_key` (fichier Ansible, utilisateur
   `ansible_state_reader`, lecture du seul state de `pangolin_config`) : même
   méthode sur `tofu/s3_state/user_ansible.tf`, puis un playbook en
