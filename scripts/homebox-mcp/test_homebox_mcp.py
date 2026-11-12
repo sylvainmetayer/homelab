@@ -30,6 +30,12 @@ class HomeboxMcpTest(unittest.TestCase):
             with self.assertRaises(ValueError, msg=(method, path)):
                 m.call_homebox(method, path, {}, "http://x", "k")
 
+    def test_dot_ids_are_refused(self):
+        for oid in ["..", ".", "", "a/b", "../tags"]:
+            for method, path in [("GET", "/entities/{id}"), ("PUT", "/entities/{id}")]:
+                with self.assertRaises(ValueError, msg=(method, oid)):
+                    m.call_homebox(method, path, {"id": oid}, "http://x", "k")
+
     def test_update_merges_into_current(self):
         b = m.merge_update(ITEM, {"quantity": 3})
         self.assertEqual((b["quantity"], b["name"], b["notes"]), (3, "Perceuse", "n"))
