@@ -124,12 +124,12 @@ l'heure de l'hôte).
 
 ### Docker seul
 
-Le cas courant : `unattended-upgrades` a pris le reste, seul Docker attend (le
-12/11/2026 : `docker-ce` 29.9.0 sur la VM docker, 29.9.2 sur le Pi, flip et
-Pangolin, 29.9.3 proposé). Ne monter que lui, un hôte à la fois, de jour :
+Le cas courant : `unattended-upgrades` a pris le reste, seul Docker attend (les
+versions installées diffèrent d'un hôte à l'autre : `docker --version` et le
+message ntfy du lundi). Ne monter que lui, un hôte à la fois, de jour :
 
 ```bash
-sudo apt install --only-upgrade docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin
+sudo apt install --only-upgrade 'docker-*' 'containerd*'
 ```
 
 Ordre, du moins gênant au plus gênant : Pi (le second Blocky prend le relais),
