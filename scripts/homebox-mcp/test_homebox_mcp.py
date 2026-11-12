@@ -1,8 +1,6 @@
 import io
 import json
-import threading
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
 from unittest import mock
 
 import homebox_mcp as m
@@ -88,42 +86,11 @@ class HomeboxMcpTest(unittest.TestCase):
         r = m.handle({"id": 3, "method": "tools/call", "params": {"name": "list_tags"}}, boom)
         self.assertTrue(r["result"]["isError"])
 
-    def test_redirect_is_an_error_and_keeps_the_credentials_home(self):
-        # Une 3xx ne doit pas rejouer la clé d'API ni le jeton Pangolin ailleurs.
-        received = []
-
-        class Elsewhere(BaseHTTPRequestHandler):
-            def do_GET(self):
-                received.append(self.headers.get("Authorization"))
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write(b"{}")
-
-            def log_message(self, *args):
-                pass
-
-        elsewhere = HTTPServer(("127.0.0.1", 0), Elsewhere)
-
-        class Redirect(BaseHTTPRequestHandler):
-            def do_GET(self):
-                self.send_response(302)
-                self.send_header("Location", f"http://127.0.0.1:{elsewhere.server_address[1]}/x")
-                self.end_headers()
-
-            def log_message(self, *args):
-                pass
-
-        redirect = HTTPServer(("127.0.0.1", 0), Redirect)
-        for server in (elsewhere, redirect):
-            threading.Thread(target=server.serve_forever, daemon=True).start()
-        try:
-            with self.assertRaisesRegex(RuntimeError, "HTTP 302 : http://127.0.0.1"):
-                m.call_homebox("GET", "/tags", {}, f"http://127.0.0.1:{redirect.server_address[1]}", "k")
-        finally:
-            for server in (elsewhere, redirect):
-                server.shutdown()
-                server.server_close()
-        self.assertEqual(received, [])
+    def test_redirects_are_refused(self):
+        # Une 3xx rejouerait la clé d'API et le jeton Pangolin ailleurs. Le
+        # parcours complet (deux serveurs HTTP) est testé dans immich-mcp.
+        self.assertIn(m._NoRedirect, [type(h) for h in m._OPENER.handlers])
+        self.assertIsNone(m._NoRedirect().redirect_request(None, None, 302, "", {}, "http://ailleurs/"))
 
 
 if __name__ == "__main__":
