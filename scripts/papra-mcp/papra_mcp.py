@@ -99,6 +99,15 @@ SHAPE = {
 }
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Pas de redirection : urllib rejouerait Authorization et P-Access-Token vers
+    l'hôte cible (le mur SSO de Pangolin renvoie un 302 si le jeton est refusé) et
+    changerait un POST en GET."""
+
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
 def check_allowed(method, path):
     if not any(m == method and re.fullmatch(p, path) for m, p in ALLOWED):
         raise ValueError("appel refusé : %s %s" % (method, path))
@@ -160,12 +169,14 @@ def handle(msg, call):
     elif method == "tools/call":
         params = msg.get("params") or {}
         name, args = params.get("name"), params.get("arguments") or {}
-        if name not in TOOLS:
+        if not isinstance(name, str) or name not in TOOLS:
             return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "outil inconnu : %s" % name}}
         try:
             data = call(TOOLS[name][2], TOOLS[name][3], args)
             text = json.dumps(SHAPE.get(name, lambda d: d)(data), ensure_ascii=False)
-            result = {"content": [{"type": "text", "text": text[:100000]}]}
+            if len(text) > 100000:
+                text = text[:100000] + " [... tronqué]"
+            result = {"content": [{"type": "text", "text": text}]}
         except Exception as e:  # erreur d'outil : renvoyée au modèle, pas fatale
             result = {"isError": True, "content": [{"type": "text", "text": "Erreur Papra : %s" % e}]}
     else:
@@ -175,6 +186,7 @@ def handle(msg, call):
 
 def main():
     base, key = os.environ["PAPRA_URL"], os.environ["PAPRA_API_KEY"]
+    urllib.request.install_opener(urllib.request.build_opener(NoRedirect))
     extra = {}
     if os.environ.get("PAPRA_PANGOLIN_TOKEN") and os.environ.get("PAPRA_PANGOLIN_TOKEN_ID"):
         extra = {
