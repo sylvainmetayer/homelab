@@ -12,9 +12,10 @@ the export, removed on 2026-10-29) was its only consumer. Its last version
 is in git history (`git show c945b564:ansible/roles/nginx_demo/tasks/main.yml`,
 same for `defaults/`, `meta/`, `templates/compose.yaml` and
 `ansible/molecule/nginx_demo/`); the snippets at the end are taken from it.
-Nothing applies the role and no export exists (`nas_storage_export` is empty,
-the role fails until it is set): the first app on the NAS creates the share and
-its export (`host_vars/nas`). The rules:
+Nothing applies the role and no export exists for it (`nas_storage_export` is
+empty, the role fails until it is set; the one export of `host_vars/nas`,
+`/volume1/pve-backup`, is the Proxmox host's vzdump storage): the first app on
+the NAS creates the share and its export (`host_vars/nas`). The rules:
 
 - Declare `dependencies: [{role: nas_storage}]` in the app's `meta/main.yml`
   (not in `docker.yml`): it mounts `/mnt/nas/apps` (`hard`,

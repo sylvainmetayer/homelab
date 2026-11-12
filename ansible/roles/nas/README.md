@@ -11,10 +11,11 @@ d'UGOS, jamais ici. Joué par `ansible/nas.yml`, à la main (jamais en CI).
   `conf_tool` en régénère `/etc/nfs.conf` à chaque démarrage de `nfs-server`,
   une modification de `nfs.conf` à la main serait écrasée. Réécrit seulement si
   la valeur diffère (l'interface reformate le fichier à chaque enregistrement).
-- Ses exports dans `/etc/exports.d/homelab.exports` (`nas_nfs_exports`, vide
-  aujourd'hui), pas dans `/etc/exports` qui reste à UGOS. Chaque dossier doit
-  exister (contrôle avant toute modification), les clients sont des IP, jamais
-  un sous-réseau.
+- Ses exports dans `/etc/exports.d/homelab.exports` (`nas_nfs_exports`, vide par
+  défaut ; `host_vars/nas` n'en porte qu'un aujourd'hui : `/volume1/pve-backup`,
+  les sauvegardes vzdump de l'hôte Proxmox, client `192.168.1.26`), pas dans
+  `/etc/exports` qui reste à UGOS. Chaque dossier doit exister (contrôle avant
+  toute modification), les clients sont des IP, jamais un sous-réseau.
 - Un contrôle de l'état de `nfs-server` et des exports actifs
   (`nas_manage_services: false` pour Molecule : pas de nfsd en conteneur).
 
