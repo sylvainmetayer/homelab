@@ -49,10 +49,12 @@
       changed_when: security_sysctl_guard.stdout == '1'
 
     # Un service de poste de travail et son socket, comme cups ou avahi sur le
-    # Pi : le rôle doit les arrêter et les masquer tous les deux.
+    # Pi : le rôle doit les arrêter et les masquer tous les deux. Dans
+    # /usr/lib/systemd/system comme ceux d'un paquet : `systemctl mask` refuse
+    # (« already exists and is a regular file ») un fichier de /etc/systemd/system.
     - name: Install a fake workstation service and its socket
       ansible.builtin.copy:
-        dest: "/etc/systemd/system/molecule-workstation.{{ item.key }}"
+        dest: "/usr/lib/systemd/system/molecule-workstation.{{ item.key }}"
         mode: "0644"
         content: "{{ item.value }}"
       loop:
