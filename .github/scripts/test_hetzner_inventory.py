@@ -79,6 +79,16 @@ class HetznerInventory(unittest.TestCase):
         self.assertTrue(host["ansible_ssh_common_args"].endswith("known_hosts.bench"))
         self.assertNotIn("known_hosts.bench", inv["_meta"]["hostvars"]["flip"]["ansible_ssh_common_args"])
 
+    def test_bench_with_a_public_address_is_in_no_group(self):
+        state = {"values": {"outputs": {}, "root_module": {"resources": [
+            server("pangolin", "203.0.113.1"),
+            server("flip-bench-cx23", "203.0.113.5", {"role": "bench"}, private_ip="10.0.1.30"),
+        ]}}}
+        inv = self.inventory(state)
+        self.assertEqual(inv["bench"]["hosts"], [])
+        self.assertNotIn("flip-bench-cx23", inv["hetzner"]["hosts"])
+        self.assertNotIn("flip-bench-cx23", inv["_meta"]["hostvars"])
+
     def test_without_drill_the_group_is_empty(self):
         state = {"values": {"root_module": {"resources": [server("pangolin", "203.0.113.1")]}}}
         inv = self.inventory(state)
