@@ -120,6 +120,8 @@ def call_grocy(method, path, args, base, key, extra_headers=None):
         args = check_body(BODY["%s %s" % (method, template)], args)
         if not args and "shopping_list" in path:  # une corvée se marque faite sans champ
             raise ValueError("rien à écrire")
+        if method == "POST" and "shopping_list" in path:
+            args.setdefault("amount", 1)  # sans quantité Grocy enregistre 0 (colonne DEFAULT 0)
     url = base.rstrip("/") + "/api" + path
     data = None
     headers = {"GROCY-API-KEY": key, "Accept": "application/json", **(extra_headers or {})}
@@ -189,7 +191,10 @@ def main():
                 msg = json.loads(line)
             except ValueError:  # ligne illisible : ignorée, le serveur reste vivant
                 continue
-            reply = handle(msg, call) if isinstance(msg, dict) else None
+            try:
+                reply = handle(msg, call) if isinstance(msg, dict) else None
+            except Exception:  # params d'un autre type qu'un objet, etc. : ne pas tuer le serveur
+                reply = {"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": -32600, "message": "requête invalide"}} if msg.get("id") is not None else None
             if reply:
                 print(json.dumps(reply, ensure_ascii=False), flush=True)
 

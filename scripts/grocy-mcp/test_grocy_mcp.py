@@ -67,6 +67,22 @@ class GrocyMcpTest(unittest.TestCase):
             m.call_grocy("POST", "/chores/{id}/execute", {"id": 2}, "http://h", "k")
         self.assertEqual((sent[0][0], sent[0][1], sent[0][2]), ("POST", "http://h/api/chores/2/execute", b"{}"))
 
+    def test_new_shopping_line_defaults_to_amount_one(self):
+        sent = []
+        with mock.patch("urllib.request.urlopen", fake_urlopen(sent)):
+            m.call_grocy("POST", "/objects/shopping_list", {"product_id": 3}, "http://h", "k")
+            m.call_grocy("POST", "/objects/shopping_list", {"product_id": 3, "amount": 2}, "http://h", "k")
+        self.assertEqual([json.loads(s[2])["amount"] for s in sent], [1, 2])
+
+    def test_non_object_params_do_not_kill_the_server(self):
+        msg = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": ["x"]})
+        out = io.StringIO()
+        with mock.patch("sys.stdin", io.StringIO(msg + "\n")), mock.patch("sys.stdout", out), mock.patch.dict(
+            "os.environ", {"GROCY_URL": "http://h", "GROCY_API_KEY": "k"}
+        ):
+            m.main()
+        self.assertIn('"error"', out.getvalue())
+
     def test_get_query(self):
         sent = []
         with mock.patch("urllib.request.urlopen", fake_urlopen(sent)):
