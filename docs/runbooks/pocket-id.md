@@ -118,8 +118,9 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      connexion, un défi demande le mot de passe Dawarich ; un compte avec 2FA
      est alors relié mais renvoyé vers la page de login, à refaire une fois.
      **Admin / utilisateur : réglé dans Dawarich** (Administration,
-     Utilisateurs) : Dawarich 1.19.0 ne lit aucun rôle dans l'OIDC, pas de
-     groupe `dawarich-admin`. Les traceurs gardent leur clé d'API.
+     Utilisateurs) : la 1.19.0 (constat du 06/11/2026) ne lisait aucun rôle
+     dans l'OIDC, d'où pas de groupe `dawarich-admin` ; l'image est en 1.22.0 :
+     à revérifier sur 1.22.0 (notes de version sans mention d'OIDC). Les traceurs gardent leur clé d'API.
    - **Immich** (le foyer, groupe `immich` ; admins aussi dans `immich-admin`,
      qui porte le claim `immich_role: admin`, relu à chaque connexion ; sans
      lui, Immich garde le rôle déjà posé) : réglé dans l'interface
@@ -278,7 +279,8 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    jusqu'au 06/11) n'est jamais synchronisé : le supprimer dans Pangolin, il
    revient à la connexion suivante. Le compte interne n'est ni lié ni modifié.
    **Licence Enterprise activée exigée** (page Licence de Pangolin) : sans
-   elle, Pangolin 1.25.3 ne garde que le premier rôle, sans prévenir.
+   elle, Pangolin ne garde que le premier rôle, sans prévenir (constat sur la
+   1.25.3 ; l'image est en `ee-1.26.0`, licence EE activée).
 
 **Test de restauration rouge, attendu.** Dès le merge, le test planifié échoue
 pour Pocket ID : aucune archive avant l'étape 2 et la seconde passe de
@@ -314,7 +316,7 @@ dans Pangolin coupe le compte externe) et évalue ses expressions de rôle (JMES
 chaînes entre `'`) sur le jeton **à chaque login** ; un rôle inexistant, ou aucune
 règle qui correspond, donne « No policies matched ». Plusieurs rôles par
 utilisateur : licence EE activée seulement (`fullRbac`, lu dans
-`validateOidcCallback.ts` de la 1.25.3 : sans elle, seul le premier nom est
+`validateOidcCallback.ts` (lu sur la 1.25.3 ; image en `ee-1.26.0`, à revérifier sur 1.26.0) : sans elle, seul le premier nom est
 gardé). Dans ce même code : la règle peut rendre une liste de noms, les noms
 sans rôle Pangolin sont ignorés, et les rôles ne sont réécrits que pour un
 utilisateur créé par Pangolin lui-même (`auto_provision`). La règle
@@ -347,7 +349,7 @@ un contrôle échoue.
   `redirect_uri` piégées, codes entre clients, rejeu de code, refresh après
   rotation et après retrait du groupe.
 
-Résultats connus de la v2.19.1 (06/11/2026), à ne pas reprendre pour une
+Résultats connus de la v2.19.1 (06/11/2026 ; l'image est en v2.19.2, non rejoués), à ne pas reprendre pour une
 régression : PKCE `plain` accepté (activé en dur), ancien refresh token
 valable une minute après rotation (période de grâce voulue). Les en-têtes
 `nosniff`, `Referrer-Policy`, `Permissions-Policy` et CORP sont posés par le

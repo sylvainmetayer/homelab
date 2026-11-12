@@ -129,8 +129,9 @@
     - role: flip_planning
       tags: demo_planning,app
       vars:
-        # PAUSED since 2026-11-11 (docs/runbooks/app-en-pause.md), stopped for the
-        # Postiz trial and left so: demo_planning_enabled, host_vars/flip. Moves with
+        # PAUSED since 2026-11-11 (docs/runbooks/app-en-pause.md): flip (4 GiB) has
+        # no memory to spare for the demo beside OpenPost and production.
+        # demo_planning_enabled, host_vars/flip. Moves with
         # `enabled = false` in tofu/pangolin_config/website_demo_planning.tf.
         flip_planning_enabled: "{{ demo_planning_enabled }}"
         flip_planning_service: demo_planning
