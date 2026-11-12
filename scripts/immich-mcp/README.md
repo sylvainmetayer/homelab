@@ -17,7 +17,7 @@ garde-fou. API de la version épinglée (v3.4.0) : `album.controller.ts`,
 | Clé d'API | `claude-mcp` | `claude-mcp-ecriture` |
 | Outils | 9 | 14 |
 
-**Lecture** : `search_smart`, `search_metadata`, `list_albums`, `get_album`,
+**Lecture** : `search_smart`, `search_metadata`, `get_album`,
 `list_people`, `get_asset`, `asset_statistics`, plus trois outils composés,
 `list_albums` (liste compacte triée par nom : id, nom, nombre d'assets, dates de
 début et de fin, partagé ou non ; `contains` filtre sur le nom, casse ignorée),
@@ -147,12 +147,14 @@ essai, en lecture d'abord (`find_duplicate_albums`, `assets_without_album`) :
 - le corps de `DELETE /albums/{id}/assets` (`{"ids": [...]}`) et la forme des
   résultats par asset (`id`, `success`, `error`), lus dans le code amont.
 
-## Test
-
-`cd scripts/immich-mcp && python3 -I -m unittest -v`
+## Sortie trop longue
 
 Une sortie d'outil de plus de 100 000 caractères est coupée et finit par
 ` [... tronqué]` (comme papra-mcp et grocy-mcp) : le JSON n'est alors plus
 valide, mais le modèle est prévenu. Restent à risque : `search_*` et
 `assets_without_album` avec un grand `size`, `list_people` sur une grande
 bibliothèque ; réduire `size` ou paginer.
+
+## Test
+
+`cd scripts/immich-mcp && python3 -I -m unittest -v`
