@@ -78,8 +78,11 @@ compte rendu dit quelle collection.
 
 `remove-app` ne s'applique pas (pas de conteneur) :
 
-1. `sudo systemctl disable --now dav-copy.timer`, puis, après un dernier passage
-   voulu, supprimer `/etc/systemd/system/dav-copy.{service,timer}`,
+1. `sudo systemctl disable --now dav-copy.timer` **et** sortir l'état
+   (`sudo mv /var/lib/dav-copy/state.json /root/dav-copy-state.json`) : tant que
+   l'état est là, le prochain déploiement de `docker.yml` (CI comprise)
+   rallumerait le timer ; sans lui, le rôle le laisse éteint et l'unité saute.
+   Puis, après la PR de retrait, supprimer `/etc/systemd/system/dav-copy.{service,timer}`,
    `/usr/local/libexec/dav_copy.py`, `/usr/local/libexec/dav-copy-run.sh`,
    `/etc/dav-copy/` et `/var/lib/dav-copy/` sur la VM (`systemctl daemon-reload`).
 2. Dans une PR : retirer l'entrée `dav_copy` de `ansible/docker.yml`, le
