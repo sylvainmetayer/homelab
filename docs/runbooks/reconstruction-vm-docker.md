@@ -123,9 +123,9 @@ borgmatic ; les images se tirent ici : c'est le temps de téléchargement, mesur
 ansible-playbook docker.yml -e drill_target=drill -e docker_drill_key_file="$XDG_RUNTIME_DIR/drill_borg_key"
 ```
 
-Puis `sudo drill-check` sur la copie (ses sondes font naître la base de Grocy,
-créée au premier appel seulement ; les contrôles de données échouent, c'est
-attendu), et **une seconde fois, même commande avec `--tags app`**, une fois les
+Puis `sudo drill-check grocy` sur la copie : la sonde HTTP doit passer (elle
+fait naître la base de Grocy, créée au premier appel seulement) ; le contrôle
+de la table `users` échoue encore, c'est attendu. Et **une seconde fois, même commande avec `--tags app`**, une fois les
 applis démarrées : Ansible ne repère une base SQLite (à exclure, à copier avant
 sauvegarde) que sur le disque ; au premier passage elle n'existe pas encore, et
 la configuration de l'appli ne la liste pas. Sans ce second passage,
@@ -212,7 +212,7 @@ en cours de route) :
 - **Grocy, encore** : `drill-check` à vide sondait `/robots.txt`, un fichier
   statique qui ne fait pas naître `grocy.db` ; le second passage ne trouvait
   qu'un fichier vide. La sonde vise maintenant `/` (PHP), et la procédure place
-  `drill-check` entre les deux passages du T3. À confirmer au prochain exercice.
+  `drill-check grocy` entre les deux passages du T3. À confirmer au prochain exercice.
 - Beszel et HealthLog restent exclus de la copie, par conception.
 
 ### Constats de l'exercice (09/11/2026)

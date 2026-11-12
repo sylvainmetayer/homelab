@@ -4,7 +4,8 @@
     drill-check [appli ...]        (en root ; sans argument, toutes)
 
 Par appli (dépôt borgmatic, /etc/borgmatic.d/<dépôt>.yaml) :
-  - HTTP : la sonde de Pangolin (tofu/pangolin_config/website_*.tf), envoyée à
+  - HTTP : la sonde de Pangolin (tofu/pangolin_config/website_*.tf ; Grocy : `/`,
+    pas son `/robots.txt` statique), envoyée à
     l'IP du conteneur sur le réseau `newt`, sans suivre de redirection (elle
     pourrait mener à l'adresse de production) ; 200 à 399 passe ;
   - données : ce que contrôle le test de restauration de la CI
