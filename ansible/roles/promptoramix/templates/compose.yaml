@@ -11,7 +11,7 @@ services:
     # Image de notre propre dépôt (sylvainmetayer/promptoramix), publiée par sa
     # CI à chaque push sur main. Renovate épingle et met à jour le digest
     # (renovate.json) : dc@ ne retélécharge jamais un tag déjà présent.
-    image: ghcr.io/sylvainmetayer/promptoramix:main@sha256:feb7856eea1f5f579a6d5af036bc9905b5a573930feb68c4aef4a88a7bce2034
+    image: ghcr.io/sylvainmetayer/promptoramix:main@sha256:6db975a474e3f6257b0f162df7472299ebd6815677a244404c3966ae2d47da48
     container_name: promptoramix
     # L'image tourne déjà en `nobody`, écoute sur 8080 et n'écrit que son
     # journal des coups : aucune capacité, racine en lecture seule.
