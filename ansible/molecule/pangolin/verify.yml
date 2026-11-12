@@ -459,6 +459,7 @@
         pangolin_config: "{{ pangolin_config_raw.content | b64decode | from_yaml }}"
         both_hosts: "(Host(`{{ pangolin_dashboard_url }}`) || Host(`{{ pangolin_dashboard_legacy_url }}`))"
         routers: "{{ dynamic_config.http.routers }}"
+        redirect: "{{ dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex }}"
       ansible.builtin.assert:
         that:
           - pangolin_dashboard_url != pangolin_dashboard_legacy_url
@@ -470,9 +471,9 @@
           # Au-dessus de next-router (priorité par défaut = longueur de la règle).
           - routers['legacy-dashboard-router'].priority > (routers['next-router'].rule | length)
           - routers['legacy-dashboard-router'].middlewares == ['legacy-dashboard-redirect']
-          - dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.regex == '^https://' ~ (pangolin_dashboard_legacy_url | regex_escape) ~ '/(.*)'
-          - dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.replacement == 'https://' ~ pangolin_dashboard_url ~ '/${1}'
-          - not dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.permanent
+          - redirect.regex == '^https://' ~ (pangolin_dashboard_legacy_url | regex_escape) ~ '/(.*)'
+          - redirect.replacement == 'https://' ~ pangolin_dashboard_url ~ '/${1}'
+          - not redirect.permanent
           - pangolin_config.app.dashboard_url == 'https://' ~ pangolin_dashboard_url
           - pangolin_config.gerbil.base_endpoint == pangolin_gerbil_endpoint
           - pangolin_config.server.cors.origins == ['https://' ~ pangolin_dashboard_url, 'https://' ~ pangolin_dashboard_legacy_url]
