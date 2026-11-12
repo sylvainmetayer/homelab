@@ -203,7 +203,10 @@ def main():
                 msg = json.loads(line)
             except ValueError:  # ligne illisible : ignorée, le serveur reste vivant
                 continue
-            reply = handle(msg, call) if isinstance(msg, dict) else None
+            try:
+                reply = handle(msg, call) if isinstance(msg, dict) else None
+            except Exception:  # params d'un autre type qu'un objet, etc. : ne pas tuer le serveur
+                reply = {"jsonrpc": "2.0", "id": msg.get("id"), "error": {"code": -32600, "message": "requête invalide"}} if msg.get("id") is not None else None
             if reply:
                 print(json.dumps(reply, ensure_ascii=False), flush=True)
 
