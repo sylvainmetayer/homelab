@@ -94,6 +94,9 @@ quelle des deux côtés).
 | TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) |
 | Pinterest, Telegram, bot Discord | — | pas dans le formulaire : JSON `OPENPOST_PROVIDER_APPS`, non câblé dans le rôle |
 
+Pas à pas de Facebook (app Meta, permissions, test, dépannage) :
+`docs/runbooks/openpost-reseaux-sociaux.md`.
+
 Bluesky (mot de passe d'application), Mastodon et les autres réseaux fédérés se
 branchent depuis l'espace de travail, sans app développeur.
 
