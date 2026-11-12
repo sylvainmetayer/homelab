@@ -18,6 +18,12 @@ key through GlobalKnownHostsFile=ansible/known_hosts.drill, a git-ignored file
 written from the drill_known_hosts_line output (docs/runbooks/reconstruction-vm-docker.md).
 StrictHostKeyChecking stays on: no ssh-keyscan.
 
+A server labelled role=bench (the throwaway solver bench of Flip Planning,
+tofu/pangolin/bench.tf) is private-only like flip, reached through the same
+bastion, but goes into the group `bench` and nowhere else; its host key comes
+from the bench_known_hosts_lines output, in the git-ignored
+ansible/known_hosts.bench.
+
 Environment:
   HETZNER_BASTION   name of the server to jump through (default: pangolin)
 """
@@ -32,6 +38,8 @@ BASTION = os.environ.get("HETZNER_BASTION", "pangolin")
 KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts")
 # Clé d'hôte de la copie jetable, hors dépôt (ligne tirée du state de tofu/pangolin).
 DRILL_KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts.drill")
+# Idem pour les serveurs de mesure du solveur (tofu/pangolin/bench.tf).
+BENCH_KNOWN_HOSTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "known_hosts.bench")
 
 
 def get_tofu_state():
@@ -63,12 +71,15 @@ def get_inventory():
             "hostvars": {}
         },
         "all": {
-            "children": ["hetzner", "drill"]
+            "children": ["hetzner", "drill", "bench"]
         },
         "hetzner": {
             "hosts": []
         },
         "drill": {
+            "hosts": []
+        },
+        "bench": {
             "hosts": []
         }
     }
@@ -145,7 +156,10 @@ def get_inventory():
         if not bastion:
             print(f"hetzner.py: no public bastion {BASTION!r} to reach {name!r}, skipping", file=sys.stderr)
             continue
-        inventory["hetzner"]["hosts"].append(name)
+        # Serveur de mesure du solveur : son seul groupe est `bench` (aucun
+        # playbook ne le vise), sa clé d'hôte vient du state.
+        bench = (values.get("labels") or {}).get("role") == "bench"
+        inventory["bench" if bench else "hetzner"]["hosts"].append(name)
         inventory["_meta"]["hostvars"][name] = {
             "ansible_host": private_ip,
             "ansible_user": "sylvain",
@@ -155,6 +169,7 @@ def get_inventory():
             "ansible_ssh_common_args": (
                 f'-o ProxyCommand="ssh -o UserKnownHostsFile={KNOWN_HOSTS} '
                 f'-o StrictHostKeyChecking=yes -W %h:%p sylvain@{bastion}"'
+                + (f" -o GlobalKnownHostsFile={BENCH_KNOWN_HOSTS}" if bench else "")
             ),
             "server_type": values.get("server_type"),
             "location": values.get("location"),

@@ -38,6 +38,7 @@ STATE = {
                 server("pangolin", "203.0.113.1", {"managed_by": "opentofu"}),
                 server("flip", None, {"managed_by": "opentofu"}, private_ip="10.0.1.10"),
                 server("docker-drill", "203.0.113.9", {"role": "drill"}),
+                server("flip-bench-ccx13", None, {"role": "bench"}, private_ip="10.0.1.30"),
             ]
         },
     }
@@ -66,6 +67,17 @@ class HetznerInventory(unittest.TestCase):
         self.assertTrue(host["ansible_ssh_common_args"].endswith("known_hosts.drill"))
         self.assertNotIn("StrictHostKeyChecking=no", host["ansible_ssh_common_args"])
         self.assertNotIn("ProxyCommand", host["ansible_ssh_common_args"])
+
+    def test_bench_is_only_in_the_bench_group_behind_the_bastion(self):
+        inv = self.inventory()
+        self.assertEqual(inv["bench"]["hosts"], ["flip-bench-ccx13"])
+        self.assertNotIn("flip-bench-ccx13", inv["hetzner"]["hosts"])
+        self.assertIn("flip", inv["hetzner"]["hosts"])
+        host = inv["_meta"]["hostvars"]["flip-bench-ccx13"]
+        self.assertEqual(host["ansible_host"], "10.0.1.30")
+        self.assertIn("sylvain@203.0.113.1", host["ansible_ssh_common_args"])
+        self.assertTrue(host["ansible_ssh_common_args"].endswith("known_hosts.bench"))
+        self.assertNotIn("known_hosts.bench", inv["_meta"]["hostvars"]["flip"]["ansible_ssh_common_args"])
 
     def test_without_drill_the_group_is_empty(self):
         state = {"values": {"root_module": {"resources": [server("pangolin", "203.0.113.1")]}}}
