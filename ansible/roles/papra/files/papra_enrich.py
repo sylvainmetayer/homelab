@@ -62,6 +62,16 @@ def papra_url(container):
     return f"http://{out.stdout.strip()}:{PAPRA_PORT}"  # NOSONAR
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Aucune redirection suivie : urllib rejouerait le Bearer (Papra ou passerelle) vers
+# la cible ; la 3xx lève HTTPError et arrête le passage.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def call(url, key, body=None, method=None):
     # URL faite de la configuration (0600, écrite par Ansible) et d'identifiants rendus par Papra.
     request = urllib.request.Request(  # NOSONAR
@@ -70,7 +80,7 @@ def call(url, key, body=None, method=None):
         headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
         method=method,
     )
-    with urllib.request.urlopen(request, timeout=120) as response:  # NOSONAR
+    with _OPENER.open(request, timeout=120) as response:  # NOSONAR
         payload = response.read()
     return json.loads(payload) if payload else None
 

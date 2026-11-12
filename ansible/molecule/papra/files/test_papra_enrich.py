@@ -76,6 +76,12 @@ class Fake(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length") or 0)
         body = json.loads(self.rfile.read(length)) if length else None
         path = self.path.split("?")[0]
+        if path == "/redirect":
+            self.send_response(302)
+            self.send_header("Location", state["location"])
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         state["requests"].append((self.command, self.path, body, self.headers["Authorization"]))
         if path == "/v1/chat/completions":
             if state["ai_status"] != 200:
@@ -209,6 +215,18 @@ class EnrichTest(unittest.TestCase):
         self.assertIn("HTTP 429", printed.call_args.args[0])
         self.assertNotIn("Texte de", printed.call_args.args[0])
         self.assertEqual(len(self.ai_calls()), 1)
+
+    def test_a_redirect_is_an_error_and_keeps_the_bearer_home(self):
+        target = HTTPServer(("127.0.0.1", 0), Fake)
+        target.state = {"requests": []}
+        threading.Thread(target=target.serve_forever, daemon=True).start()
+        self.addCleanup(target.server_close)
+        self.addCleanup(target.shutdown)
+        self.server.state["location"] = f"http://127.0.0.1:{target.server_address[1]}{ORG}/tags"
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            pe.call(f"http://127.0.0.1:{self.server.server_address[1]}/redirect", "papra-test-key")
+        self.assertEqual(caught.exception.code, 302)
+        self.assertEqual(target.state["requests"], [])
 
     def test_dry_run_writes_nothing(self):
         self.run_pass(dry_run=True)
