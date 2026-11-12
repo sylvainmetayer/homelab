@@ -86,8 +86,9 @@ class Fake(BaseHTTPRequestHandler):
         if path == "/v1/chat/completions":
             if state["ai_status"] != 200:
                 return self.reply(state["ai_status"], {"error": "budget"})
-            content = "Voici :\n" + json.dumps(ANSWER)
-            return self.reply(200, {"choices": [{"message": {"content": content}}], "usage": {"total_tokens": 3650}})
+            content = state.get("ai_content", "Voici :\n" + json.dumps(ANSWER))
+            return self.reply(200, {"choices": [{"message": {"content": content}, "finish_reason": "length"}],
+                                    "usage": {"total_tokens": 3650}})
         if path == f"{ORG}/tags":
             return self.reply(200, {"tags": state["tags"]})
         if path == f"{ORG}/custom-properties":
@@ -155,6 +156,14 @@ class EnrichTest(unittest.TestCase):
         # Les exclus et la marque ne sont jamais proposés au modèle.
         allowed = json.loads(self.ai_calls()[0][2]["messages"][1]["content"].split("\n")[0].split(" : ", 1)[1])
         self.assertEqual(allowed, ["Energie", "Facture"])
+
+    def test_empty_answer_stops_the_pass_and_marks_nothing(self):
+        # Réflexion qui mange max_tokens : contenu vide, rien ne doit être marqué IA-faite.
+        self.server.state["ai_content"] = ""
+        with self.assertRaisesRegex(RuntimeError, "sans objet JSON"):
+            self.run_pass()
+        self.assertEqual(len(self.ai_calls()), 1)
+        self.assertEqual([r for r in self.requests() if r[0] != "GET" and r[1].startswith(ORG)], [])
 
     def test_request_has_no_temperature(self):
         # Les modèles Claude 5 refusent `temperature` (HTTP 400, 12/11/2026).
