@@ -360,3 +360,40 @@
         fail_msg: >-
           borgmatic.timer : {{ nas_verify_borgmatic_timer_state.status.UnitFileState }} /
           {{ nas_verify_borgmatic_timer_state.status.ActiveState }}
+
+    # Copie de la configuration d'UGOS avant borgmatic : le script tourne, copie
+    # ce qui existe (ici les exports du rôle), signale ce qui manque sans
+    # échouer, et la config borgmatic lit son staging.
+    - name: Run the UGOS config staging script
+      ansible.builtin.command: "{{ docker_base_path }}/ugos-config/stage.sh"
+      register: nas_verify_ugos_stage
+      changed_when: false
+
+    - name: Stat the staged exports and the staging folder
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ docker_base_path }}/ugos-config/staging"
+        - "{{ docker_base_path }}/ugos-config/staging/etc/exports.d/homelab.exports"
+      register: nas_verify_ugos_staged
+
+    - name: Read the UGOS config borgmatic configuration and drop-in
+      ansible.builtin.slurp:
+        src: "{{ item }}"
+      loop:
+        - "{{ docker_base_path }}/borgmatic/borgmatic.d/ugos_config.yaml"
+        - /etc/systemd/system/borgmatic.service.d/ugos-config.conf
+      register: nas_verify_ugos_raw
+
+    - name: Assert the UGOS config copy
+      vars:
+        nas_verify_ugos_borgmatic: "{{ nas_verify_ugos_raw.results[0].content | b64decode | from_yaml }}"
+      ansible.builtin.assert:
+        that:
+          - nas_verify_ugos_stage.rc == 0
+          - "'/etc/samba/smbshare.conf absent' in nas_verify_ugos_stage.stderr"
+          - nas_verify_ugos_staged.results[0].stat.mode == '0700'
+          - nas_verify_ugos_staged.results[1].stat.mode == '0600'
+          - nas_verify_ugos_borgmatic.source_directories == [docker_base_path ~ '/ugos-config/staging']
+          - ('ExecStartPre=-' ~ docker_base_path ~ '/ugos-config/stage.sh') in (nas_verify_ugos_raw.results[1].content | b64decode)
+        fail_msg: "Copie de la configuration d'UGOS inattendue : {{ nas_verify_ugos_stage.stderr }}"

@@ -1,0 +1,6 @@
+# Généré par le rôle nas : copie de la configuration d'UGOS juste avant
+# borgmatic (le conteneur borgmatic ne voit pas /etc de l'hôte). « - » : un
+# échec ne bloque pas les sauvegardes ; le script signale lui-même chaque
+# fichier absent dans le journal.
+[Service]
+ExecStartPre=-{{ nas_ugos_config_dir }}/stage.sh

@@ -99,3 +99,65 @@
           NFS non conforme (service {{ nas_nfs_server.status.ActiveState }}) :
           {{ nas_exportfs.stdout }}. Une règle de l'interface en « Async » se
           décoche dans Propriétés du dossier → Permissions NFS.
+
+# Configuration système d'UGOS (exports, Samba, cron, sshd) dans Borg : le
+# script de staging tourne avant chaque borgmatic.service, la config
+# borgmatic lit le staging (sous docker_base_path, monté dans le conteneur).
+- name: Remove the UGOS config copy drop-in when its backup is off
+  when: not nas_ugos_config_backup_enabled
+  tags: backup
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/borgmatic.service.d/ugos-config.conf
+    state: absent
+  notify: Reload systemd for the UGOS config copy
+
+- name: Stage the UGOS config before each borgmatic run
+  when: nas_ugos_config_backup_enabled
+  tags: backup
+  become: true
+  block:
+    - name: Create the folder of the UGOS config copy
+      ansible.builtin.file:
+        path: "{{ nas_ugos_config_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Install the UGOS config staging script
+      ansible.builtin.template:
+        src: ugos-config-stage.sh.j2
+        dest: "{{ nas_ugos_config_dir }}/stage.sh"
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Create the borgmatic.service drop-in folder
+      ansible.builtin.file:
+        path: /etc/systemd/system/borgmatic.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Template the UGOS config copy drop-in
+      ansible.builtin.template:
+        src: borgmatic-ugos-config.conf.j2
+        dest: /etc/systemd/system/borgmatic.service.d/ugos-config.conf
+        mode: "0644"
+      notify: Reload systemd for the UGOS config copy
+
+- name: Configure borgmatic backup for the UGOS config
+  when: nas_ugos_config_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: ugos_config
+    borgmatic_app_title: UGOS config
+    borgmatic_app_target: "{{ nas_ugos_config_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ nas_ugos_config_encryption_passphrase }}"
+    borgmatic_app_source_directories:
+      - "{{ nas_ugos_config_dir }}/staging"

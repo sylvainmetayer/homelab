@@ -33,6 +33,7 @@ sur place ».
 | MediaManager (essai) | tombe | configuration et dump de la base dans Borg ([README du rôle](../../ansible/roles/mediamanager/README.md)) |
 | Machine learning d'Immich (`immich_ml`, [README](../../ansible/roles/immich_ml/README.md)) | Immich retombe sur le ML du Pi, plus lent | rien à sauver : modèles retéléchargés ; l'URL du NAS vit dans les réglages d'Immich |
 | Traefik du NAS (`nas_proxy`), Newt du site `nas` | `media.`, `nas.` et `mediamanager.sylvain.cloud` tombent | rien à sauver : certificats redemandés, identifiants Newt dans le state de `pangolin_config` |
+| Configuration d'UGOS (exports, `smb.conf`, `smbshare.conf`, `crontab`, `sshd_config`) | à relire dans l'archive avant de refaire les partages | Borg, `backup/nas/ugos_config` ; **pas** les comptes, droits et règles d'instantanés d'UGOS (base interne), ni la config de la Bbox : à refaire à la main |
 | Borgmatic du NAS (02:30) | plus de sauvegarde Jellyfin | clé et configs sous `/volume1/docker/borgmatic`, refaites par `nas.yml` |
 
 Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi (hors le ML

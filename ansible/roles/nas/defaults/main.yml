@@ -24,3 +24,22 @@ nas_nfs_exports: []
 # false pour Molecule : pas de nfsd dans un conteneur. Saute les redémarrages
 # et les vérifications qui interrogent le serveur NFS.
 nas_manage_services: true
+
+# --- Sauvegarde Borg de la configuration système d'UGOS (README) ---
+# Copiée avant chaque passage de borgmatic (drop-in de borgmatic.service) dans
+# un staging sous docker_base_path, que le conteneur borgmatic monte déjà.
+# Liste fermée : jamais smbpasswd, samba.json, smbglb.conf (mots de passe),
+# clés d'hôte SSH ni /etc/shadow.
+nas_ugos_config_backup_enabled: true
+nas_ugos_config_dir: "{{ docker_base_path }}/ugos-config"
+nas_ugos_config_files:
+  - /etc/exports
+  - /etc/samba/smb.conf
+  - /etc/samba/smbshare.conf
+  - /etc/crontab
+  - /etc/ssh/sshd_config
+# Fichiers directs seulement (pas de sous-dossier).
+nas_ugos_config_dirs:
+  - /etc/exports.d
+nas_ugos_config_borgmatic_target: "{{ backup_storage_box_url }}/ugos_config"
+nas_ugos_config_encryption_passphrase: "{{ backup_passphrase }}"
