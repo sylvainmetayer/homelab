@@ -397,3 +397,88 @@
           - nas_verify_ugos_borgmatic.source_directories == [docker_base_path ~ '/ugos-config/staging']
           - ('ExecStartPre=-' ~ docker_base_path ~ '/ugos-config/stage.sh') in (nas_verify_ugos_raw.results[1].content | b64decode)
         fail_msg: "Copie de la configuration d'UGOS inattendue : {{ nas_verify_ugos_stage.stderr }}"
+
+    # SSH par clé seulement : la clé de sylvain ouvre toujours une session, un
+    # mot de passe n'est plus proposé, et le rôle se refuse sans clé autorisée.
+    - name: Read the effective sshd configuration
+      ansible.builtin.command: /usr/sbin/sshd -T
+      register: nas_verify_sshd
+      changed_when: false
+
+    - name: Log in as sylvain with the key
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -i
+          - /home/sylvain/.ssh/molecule
+          - -o
+          - BatchMode=yes
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - UserKnownHostsFile=/dev/null
+          - sylvain@127.0.0.1
+          - "true"
+      changed_when: false
+
+    - name: Try a password login
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - -o
+          - PubkeyAuthentication=no
+          - -o
+          - StrictHostKeyChecking=no
+          - -o
+          - UserKnownHostsFile=/dev/null
+          - sylvain@127.0.0.1
+          - "true"
+      register: nas_verify_password_login
+      changed_when: false
+      failed_when: false
+
+    - name: Assert sshd takes keys only
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in nas_verify_sshd.stdout_lines"
+          - "'kbdinteractiveauthentication no' in nas_verify_sshd.stdout_lines"
+          - nas_verify_password_login.rc == 255
+          - "'(publickey)' in nas_verify_password_login.stderr"
+          - "'password' not in nas_verify_password_login.stderr"
+
+    # Sans clé autorisée, le rôle échoue avant d'écrire : retour à l'état
+    # d'avant (fichier retiré), mots de passe de nouveau acceptés.
+    - name: Take the drop-in and the keys away
+      loop:
+        - /etc/ssh/sshd_config.d/10-homelab-key-only.conf
+        - /home/sylvain/.ssh/authorized_keys
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+
+    - name: Run the SSH tasks of the role without any key
+      block:
+        - name: Include the SSH tasks
+          ansible.builtin.include_role:
+            name: nas
+            tasks_from: ssh.yml
+        - name: Fail if they went through
+          ansible.builtin.fail:
+            msg: le rôle a continué sans clé autorisée
+      rescue:
+        - name: Keep why the role stopped
+          ansible.builtin.set_fact:
+            nas_verify_nokey_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+    - name: Stat the drop-in
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config.d/10-homelab-key-only.conf
+      register: nas_verify_nokey_dropin
+
+    - name: Assert the role refused and wrote nothing
+      ansible.builtin.assert:
+        that:
+          - "'sans clé' in nas_verify_nokey_msg"
+          - not nas_verify_nokey_dropin.stat.exists

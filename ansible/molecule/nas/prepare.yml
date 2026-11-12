@@ -131,3 +131,43 @@
           ExecStart=
           ExecStart=/bin/sleep infinity
           ExecStop=
+
+    # sshd tel qu'UGOS le laisse : mots de passe acceptés, une clé autorisée
+    # pour sylvain (une vraie, générée ici : aucun littéral dans le dépôt).
+    - name: Install sshd
+      ansible.builtin.apt:
+        name: openssh-server
+        state: present
+
+    - name: Accept passwords as the NAS does
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: PasswordAuthentication yes
+
+    - name: Start sshd
+      ansible.builtin.systemd_service:
+        name: ssh
+        state: restarted
+        enabled: true
+
+    - name: Create the SSH directory of sylvain
+      ansible.builtin.file:
+        path: /home/sylvain/.ssh
+        state: directory
+        owner: sylvain
+        mode: "0700"
+
+    - name: Generate a key for sylvain
+      become_user: sylvain
+      ansible.builtin.command:
+        argv: [ssh-keygen, -q, -t, ed25519, -N, "", -C, molecule, -f, /home/sylvain/.ssh/molecule]
+        creates: /home/sylvain/.ssh/molecule
+
+    - name: Authorize it
+      ansible.builtin.copy:
+        src: /home/sylvain/.ssh/molecule.pub
+        dest: /home/sylvain/.ssh/authorized_keys
+        remote_src: true
+        owner: sylvain
+        mode: "0600"
