@@ -174,3 +174,28 @@
         log_alerts_verify_expected_titles: []
         log_alerts_verify_expected_priorities: []
         log_alerts_verify_expected_messages: []
+
+    # --- tests unitaires du script ---
+    - name: Create a scratch directory for the script tests
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: log_alerts
+      register: log_alerts_unit_tests_dir
+
+    - name: Copy the script and its tests
+      loop:
+        - src: "{{ playbook_dir }}/../../roles/log_alerts/files/log_alerts.py"
+          dest: log_alerts.py
+        - src: "{{ playbook_dir }}/files/test_log_alerts.py"
+          dest: test_log_alerts.py
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ log_alerts_unit_tests_dir.path }}/{{ item.dest }}"
+        mode: "0600"
+
+    # L'état des alertes parties survit à une règle qui plante après elles.
+    - name: Run the script tests
+      ansible.builtin.command: python3 -I -m unittest discover -s . -p 'test_*.py'
+      args:
+        chdir: "{{ log_alerts_unit_tests_dir.path }}"
+      changed_when: false
