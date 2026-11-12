@@ -4,6 +4,16 @@ pangolin_dir: /opt/pangolin
 # Pangolin configuration variables
 # These should be overridden in host_vars/pangolin/variables.yaml or via secrets
 pangolin_dashboard_url: ""
+# Renommage du tableau de bord (docs/runbooks/renommage-pangolin-hall.md) :
+# l'ancien nom, encore servi par les routeurs et le CORS (les Newt et OLM déjà
+# installés l'utilisent), dont les pages renvoient (302) vers pangolin_dashboard_url
+# (la session et le cookie d'état OIDC ne vivent que sous le nom courant). Vide :
+# rien n'est rendu de tout cela, les fichiers sont ceux d'avant le renommage.
+pangolin_dashboard_legacy_url: ""
+# Nom de l'endpoint WireGuard que gerbil (base_endpoint) distribue aux Newt.
+# Pangolin le réécrit en base à chaque démarrage : à laisser sur l'ancien nom
+# pendant le renommage, les Newt gardent leur endpoint.
+pangolin_gerbil_endpoint: "{{ pangolin_dashboard_url }}"
 pangolin_api_url: ""
 pangolin_base_domain: ""
 pangolin_log_level: "info"

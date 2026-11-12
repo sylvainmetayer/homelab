@@ -1,3 +1,11 @@
+{# Noms servis par les routeurs du tableau de bord et de l'API : le nom courant et,
+   pendant un renommage, l'ancien (pangolin_dashboard_legacy_url). Un seul nom :
+   la règle reste Host(`nom`), sans parenthèses, comme avant le renommage. #}
+{% set dashboard_hosts = [pangolin_dashboard_url, pangolin_dashboard_legacy_url] | select | list %}
+{% set dashboard_rule = 'Host(`' ~ dashboard_hosts | join('`) || Host(`') ~ '`)' %}
+{% if dashboard_hosts | length > 1 %}
+{% set dashboard_rule = '(' ~ dashboard_rule ~ ')' %}
+{% endif %}
 http:
   middlewares:
     badger:
@@ -7,6 +15,19 @@ http:
     redirect-to-https:
       redirectScheme:
         scheme: https
+{% if pangolin_dashboard_legacy_url | length > 0 %}
+    # Ancien nom du tableau de bord : ses pages (hors /api/v1) renvoient vers le
+    # nom courant, où vit la session (cookie du seul nom courant, cookie d'état
+    # OIDC propre à l'hôte qui l'a posé : sans cela, boucle de connexion). 302 et
+    # non 301 : un retour arrière ne doit pas rester dans le cache des
+    # navigateurs. Guillemets simples pour la regex : en guillemets doubles, \.
+    # n'est pas un échappement YAML et Traefik refuse tout le fichier.
+    legacy-dashboard-redirect:
+      redirectRegex:
+        regex: '^https://{{ pangolin_dashboard_legacy_url | regex_escape }}/(.*)'
+        replacement: "https://{{ pangolin_dashboard_url }}/${1}"
+        permanent: false
+{% endif %}
     # En-têtes de toutes les réponses HTTPS (entrypoint websecure,
     # traefik_config.yml). HSTS sans includeSubDomains ni preload : nas.,
     # media. et mediamanager.sylvain.cloud sont servis par le Traefik du NAS,
@@ -169,7 +190,7 @@ http:
 
     # HTTP to HTTPS redirect router
     main-app-router-redirect:
-      rule: "Host(`{{ pangolin_dashboard_url }}`)"
+      rule: "{{ dashboard_rule }}"
       service: next-service
       entryPoints:
         - web
@@ -179,7 +200,7 @@ http:
 
     # Next.js router (handles everything except API and WebSocket paths)
     next-router:
-      rule: "Host(`{{ pangolin_dashboard_url }}`) && !PathPrefix(`/api/v1`)"
+      rule: "{{ dashboard_rule }} && !PathPrefix(`/api/v1`)"
       service: next-service
       entryPoints:
         - websecure
@@ -187,9 +208,23 @@ http:
         - badger
       tls: *tls-base-domain
 
+{% if pangolin_dashboard_legacy_url | length > 0 %}
+    # Pages de l'ancien nom -> nom courant. Priorité explicite : au-dessus de
+    # next-router, dont la règle (donc la priorité par défaut) est plus longue.
+    legacy-dashboard-router:
+      rule: "Host(`{{ pangolin_dashboard_legacy_url }}`) && !PathPrefix(`/api/v1`)"
+      priority: 3000
+      service: next-service
+      entryPoints:
+        - websecure
+      middlewares:
+        - legacy-dashboard-redirect
+      tls: *tls-base-domain
+
+{% endif %}
     # API router (handles /api/v1 paths)
     api-router:
-      rule: "Host(`{{ pangolin_dashboard_url }}`) && PathPrefix(`/api/v1`)"
+      rule: "{{ dashboard_rule }} && PathPrefix(`/api/v1`)"
       service: api-service
       entryPoints:
         - websecure
@@ -199,7 +234,7 @@ http:
 
     # WebSocket router
     ws-router:
-      rule: "Host(`{{ pangolin_dashboard_url }}`)"
+      rule: "{{ dashboard_rule }}"
       service: api-service
       entryPoints:
         - websecure

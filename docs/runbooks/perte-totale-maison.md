@@ -145,7 +145,7 @@ Pour `home_ip` : le nouveau site a une nouvelle IP publique. Mettre `home_ip`
 SSO** jusque-là.
 
 **Critère de passage** : le LAN répond (`ping 192.168.1.254`), Internet sort,
-`curl -sSI https://pangolin.sylvain.cloud` répond. Le DHCP annonce encore le
+`curl -sSI https://hall.sylvain.cloud` répond. Le DHCP annonce encore le
 DNS de la box : `192.168.1.200` (Blocky du LXC) et `192.168.1.96` (Pi) ne
 sont annoncés qu'une fois ces deux résolveurs revenus (étage 3 et Immich).
 

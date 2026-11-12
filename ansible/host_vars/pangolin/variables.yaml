@@ -3,8 +3,12 @@
 
 pangolin_base_domain: "sylvain.cloud"
 
-# Pangolin Dashboard URL (without https://)
-pangolin_dashboard_url: "pangolin.{{ pangolin_base_domain }}"
+# Pangolin Dashboard URL (without https://). Renommé de pangolin. en hall. :
+# l'ancien nom reste servi (API pour les Newt et OLM, pages redirigées) et garde
+# l'endpoint WireGuard des Newt. Retrait : docs/runbooks/renommage-pangolin-hall.md.
+pangolin_dashboard_url: "hall.{{ pangolin_base_domain }}"
+pangolin_dashboard_legacy_url: "pangolin.{{ pangolin_base_domain }}"
+pangolin_gerbil_endpoint: "pangolin.{{ pangolin_base_domain }}"
 
 # Pangolin API URL (without https://)
 pangolin_api_url: "pangolin-api.{{ pangolin_base_domain }}"

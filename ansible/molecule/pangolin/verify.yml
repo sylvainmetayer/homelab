@@ -447,6 +447,86 @@
           - "'stsPreload' not in dynamic_config.http.middlewares['security-headers'].headers"
           - "dynamic_config.http.middlewares['security-headers'].headers.customResponseHeaders == {'Server': '', 'X-Powered-By': ''}"
 
+    # Renommage du tableau de bord (docs/runbooks/renommage-pangolin-hall.md) :
+    # host_vars/pangolin pose le nom courant (hall.) et l'ancien (pangolin.).
+    # Les quatre routeurs répondent aux deux noms, les pages de l'ancien
+    # renvoient (302) vers le courant sauf /api/v1 (Newt, OLM), le CORS et la
+    # regex (YAML en guillemets simples, sinon Traefik refuse tout le fichier,
+    # certificat compris) suivent, et l'endpoint WireGuard garde l'ancien nom.
+    - name: Assert the dashboard answers to the current and the legacy name
+      vars:
+        dynamic_config: "{{ pangolin_traefik.results[1].content | b64decode | from_yaml }}"
+        pangolin_config: "{{ pangolin_config_raw.content | b64decode | from_yaml }}"
+        both_hosts: "(Host(`{{ pangolin_dashboard_url }}`) || Host(`{{ pangolin_dashboard_legacy_url }}`))"
+        routers: "{{ dynamic_config.http.routers }}"
+      ansible.builtin.assert:
+        that:
+          - pangolin_dashboard_url != pangolin_dashboard_legacy_url
+          - routers['main-app-router-redirect'].rule == both_hosts
+          - routers['next-router'].rule == both_hosts ~ ' && !PathPrefix(`/api/v1`)'
+          - routers['api-router'].rule == both_hosts ~ ' && PathPrefix(`/api/v1`)'
+          - routers['ws-router'].rule == both_hosts
+          - routers['legacy-dashboard-router'].rule == 'Host(`' ~ pangolin_dashboard_legacy_url ~ '`) && !PathPrefix(`/api/v1`)'
+          # Au-dessus de next-router (priorité par défaut = longueur de la règle).
+          - routers['legacy-dashboard-router'].priority > (routers['next-router'].rule | length)
+          - routers['legacy-dashboard-router'].middlewares == ['legacy-dashboard-redirect']
+          - dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.regex == '^https://' ~ (pangolin_dashboard_legacy_url | regex_escape) ~ '/(.*)'
+          - dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.replacement == 'https://' ~ pangolin_dashboard_url ~ '/${1}'
+          - not dynamic_config.http.middlewares['legacy-dashboard-redirect'].redirectRegex.permanent
+          - pangolin_config.app.dashboard_url == 'https://' ~ pangolin_dashboard_url
+          - pangolin_config.gerbil.base_endpoint == pangolin_gerbil_endpoint
+          - pangolin_config.server.cors.origins == ['https://' ~ pangolin_dashboard_url, 'https://' ~ pangolin_dashboard_legacy_url]
+
+    # Sans ancien nom, le rôle rend ce qu'il rendait avant le renommage : une
+    # seule règle Host par routeur, ni routeur ni middleware de redirection, le
+    # CORS et l'endpoint WireGuard sur le nom courant. Rendu à part, dans un
+    # répertoire jetable, avec le fichier du rôle.
+    - name: Create a scratch directory for the renamed-off render
+      ansible.builtin.tempfile:
+        state: directory
+      register: legacy_scratch
+
+    - name: Render the Traefik and Pangolin configurations without a legacy name
+      vars:
+        pangolin_dashboard_legacy_url: ""
+        pangolin_gerbil_endpoint: "{{ pangolin_dashboard_url }}"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../../roles/pangolin/templates/{{ item }}.j2"
+        dest: "{{ legacy_scratch.path }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - traefik_dynamic_config.yml
+        - pangolin_config.yml
+
+    - name: Read the renders without a legacy name
+      ansible.builtin.slurp:
+        src: "{{ legacy_scratch.path }}/{{ item }}"
+      register: legacy_off
+      loop:
+        - traefik_dynamic_config.yml
+        - pangolin_config.yml
+
+    - name: Assert the render without a legacy name is the one of before the rename
+      vars:
+        dynamic_config: "{{ legacy_off.results[0].content | b64decode | from_yaml }}"
+        pangolin_config: "{{ legacy_off.results[1].content | b64decode | from_yaml }}"
+        one_host: "Host(`{{ pangolin_dashboard_url }}`)"
+      ansible.builtin.assert:
+        that:
+          - dynamic_config.http.routers['main-app-router-redirect'].rule == one_host
+          - dynamic_config.http.routers['next-router'].rule == one_host ~ ' && !PathPrefix(`/api/v1`)'
+          - dynamic_config.http.routers['api-router'].rule == one_host ~ ' && PathPrefix(`/api/v1`)'
+          - dynamic_config.http.routers['ws-router'].rule == one_host
+          - "'legacy-dashboard-router' not in dynamic_config.http.routers"
+          - "'legacy-dashboard-redirect' not in dynamic_config.http.middlewares"
+          - pangolin_config.gerbil.base_endpoint == pangolin_dashboard_url
+          - pangolin_config.server.cors.origins == ['https://' ~ pangolin_dashboard_url]
+
+    - name: Remove the scratch directory of the renamed-off render
+      ansible.builtin.file:
+        path: "{{ legacy_scratch.path }}"
+        state: absent
+
     # Fournisseur d'identité (rôle pocket_id, ADR 0030) : un routeur direct,
     # sans badger (il sert le login du mur SSO), avec la limite de débit, et
     # sans restriction d'IP depuis la fin de la mise en place (pocket_id_setup_phase

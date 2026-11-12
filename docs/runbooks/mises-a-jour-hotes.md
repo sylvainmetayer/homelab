@@ -167,7 +167,7 @@ sudo systemctl start update-notify.service && sudo journalctl -u update-notify.s
 Puis : les moniteurs Uptime Kuma de l'hôte reviennent au vert, l'agent
 Beszel remonte, et le dernier `update-notify` pousse « à jour ». Après
 Pangolin : **Traefik tourne** (`docker ps` ci-dessus, `curl -sI
-https://pangolin.sylvain.cloud` répond), une appli publique au hasard répond, et `flip` (Beszel, planning)
+https://hall.sylvain.cloud` répond), une appli publique au hasard répond, et `flip` (Beszel, planning)
 est revenu, sa sortie Internet passant par Pangolin.
 
 ## Proxmox VE

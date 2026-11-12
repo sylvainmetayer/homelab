@@ -2312,18 +2312,25 @@ run "pangolin_dashboard_monitor_follows_host_vars" {
 
   assert {
     condition = (
-      uptimekuma_monitor_http.pangolin_dashboard.url == "https://pangolin.sylvain.cloud"
+      uptimekuma_monitor_http.pangolin_dashboard.url == "https://hall.sylvain.cloud"
       && uptimekuma_monitor_http.pangolin_dashboard.active == true
+      && uptimekuma_monitor_http.pangolin_dashboard_legacy_api.url == "https://pangolin.sylvain.cloud/api/v1/"
+      && uptimekuma_monitor_http.pangolin_dashboard_legacy_api.active == true
+      && pocketid_client.pangolin.launch_url == "https://hall.sylvain.cloud"
       && strcontains(
         file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
         "\npangolin_base_domain: \"sylvain.cloud\"\n"
       )
       && strcontains(
         file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
-        "\npangolin_dashboard_url: \"pangolin.{{ pangolin_base_domain }}\"\n"
+        "\npangolin_dashboard_url: \"hall.{{ pangolin_base_domain }}\"\n"
+      )
+      && strcontains(
+        file("${path.module}/../../ansible/host_vars/pangolin/variables.yaml"),
+        "\npangolin_dashboard_legacy_url: \"pangolin.{{ pangolin_base_domain }}\"\n"
       )
     )
-    error_message = "Le moniteur du dashboard doit sonder pangolin_dashboard_url (ansible/host_vars/pangolin/variables.yaml), soit https://pangolin.sylvain.cloud."
+    error_message = "Le moniteur du dashboard doit sonder pangolin_dashboard_url (ansible/host_vars/pangolin/variables.yaml), soit https://hall.sylvain.cloud, l'ancien nom (pangolin_dashboard_legacy_url) sondé sur /api/v1/ et le lanceur Pocket ID sur hall."
   }
 }
 
@@ -3316,7 +3323,7 @@ run "monitors_are_filed_and_alert" {
 
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_http_keyword.healthcheck), [uptimekuma_monitor_http.pangolin_dashboard]) :
+      for m in concat(values(uptimekuma_monitor_http_keyword.healthcheck), [uptimekuma_monitor_http.pangolin_dashboard, uptimekuma_monitor_http.pangolin_dashboard_legacy_api]) :
       m.parent == uptimekuma_monitor_group.self_hosted.id
       && toset(m.notification_ids) == toset(local.alert_notification_ids)
     ])

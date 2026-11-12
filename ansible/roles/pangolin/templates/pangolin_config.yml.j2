@@ -1,6 +1,7 @@
 gerbil:
   start_port: 51820
-  base_endpoint: {{ pangolin_dashboard_url }}
+  # Endpoint WireGuard distribué aux Newt : celui qu'ils ont déjà (renommage).
+  base_endpoint: {{ pangolin_gerbil_endpoint }}
 
 app:
   dashboard_url: https://{{ pangolin_dashboard_url }}
@@ -34,7 +35,7 @@ server:
   dashboard_session_length_hours: 168
   resource_session_length_hours: 168
   cors:
-      origins: ["https://{{ pangolin_dashboard_url }}"]
+      origins: [{% for h in [pangolin_dashboard_url, pangolin_dashboard_legacy_url] | select | list %}"https://{{ h }}"{{ ', ' if not loop.last }}{% endfor %}]
       methods: ["GET", "POST", "PUT", "DELETE", "PATCH"]
       allowed_headers: ["X-CSRF-Token", "Content-Type"]
       credentials: false
