@@ -29,7 +29,8 @@ Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there li
 - `pangolin_gerbil_endpoint` (`gerbil.base_endpoint`, l'adresse WireGuard que gerbil donne aux Newt, réécrite en base par Pangolin à chaque démarrage) vaut `pangolin_dashboard_url` par défaut et reste sur l'ancien nom tant que les Newt n'ont pas migré : rien ne bouge pour les tunnels.
 - **Toute regex de Traefik s'écrit entre guillemets simples** dans le fichier dynamique : en guillemets doubles `\.` n'est pas un échappement YAML et Traefik refuse le fichier en entier (banc : plus aucune réponse HTTPS, le certificat venant de ce fichier). Molecule rend le gabarit, le lit comme du YAML et vérifie les règles.
 - Pocket ID : `pocketid_client.pangolin.callback_urls` (`tofu/pangolin_config/pocket_id.tf`) porte les deux URL de retour écrites à la main, `redirect_url` de `pangolin_idp` n'étant jamais relu par le fork du provider.
-- Retrait de l'ancien nom (une autre PR, quand plus aucun Newt, OLM ni poste de support ne l'utilise) : la variable, `pangolin_gerbil_endpoint`, le moniteur `pangolin_dashboard_legacy_api`, la seconde URL de rappel.
+- Garde-fou : première tâche du rôle, avant les écritures du rôle, `pangolin_gerbil_endpoint` doit être le nom du tableau de bord ou l'ancien nom, et l'hôte de `newt_endpoint` (`group_vars/all`, s'il est posé) l'un des deux ou `pangolin_api_url` ; sinon le rôle s'arrête (vider l'ancien nom couperait les tunnels). Molecule vérifie le refus (`molecule/pangolin/tasks/refuse_name.yml`).
+- Retrait de l'ancien nom (une autre PR, quand plus aucun Newt, OLM ni poste de support ne l'utilise ; d'abord `pangolin_gerbil_endpoint` et `newt_endpoint` sur le nom courant, puis la variable vidée, sinon le garde-fou refuse) : la variable, `pangolin_gerbil_endpoint`, le moniteur `pangolin_dashboard_legacy_api`, la seconde URL de rappel.
 
 ## CrowdSec
 

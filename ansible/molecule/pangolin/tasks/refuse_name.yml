@@ -1,0 +1,32 @@
+---
+# Un cas de refus du rôle pangolin (inclus par verify.yml, boucle `case`) : le
+# rôle doit s'arrêter sur son assertion de tête, avant d'avoir écrit quoi que
+# ce soit, avec le message en français.
+- name: Run the role with a name the tunnels still use
+  block:
+    - name: Include the pangolin role  # noqa: var-naming[no-role-prefix]
+      ansible.builtin.include_role:
+        name: pangolin
+      vars:
+        pangolin_dashboard_legacy_url: ""
+        pangolin_gerbil_endpoint: "{{ case.gerbil }}"
+        newt_endpoint: "{{ case.newt }}"
+    - name: Fail if they went through
+      ansible.builtin.fail:
+        msg: le rôle pangolin est allé jusqu'au bout
+  rescue:
+    - name: Keep why the role stopped
+      ansible.builtin.set_fact:
+        pangolin_refuse_msg: "{{ ansible_failed_result.msg | default('') }}"
+
+- name: Read the Traefik configuration the role must not have touched
+  become: true
+  ansible.builtin.slurp:
+    src: "{{ pangolin_dir }}/config/traefik/dynamic_config.yml"
+  register: pangolin_refuse_dynamic
+
+- name: Assert the role refused before writing
+  ansible.builtin.assert:
+    that:
+      - "pangolin_refuse_msg is search('^Nom retiré')"
+      - "'legacy-dashboard-router' in (pangolin_refuse_dynamic.content | b64decode)"
