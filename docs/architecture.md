@@ -204,12 +204,12 @@ gérés dans Pangolin. Procédure et secours :
 
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
-| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS) |
-| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod, démo, démo Keycloak, vitrine publique `exemple-planning` remise à zéro chaque nuit), Promptoramix, OpenPost |
+| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS), Pocket ID (`id.sylvain.cloud`, fournisseur d'identité, voir plus haut) |
+| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod ; en pause, conteneurs arrêtés et données gardées : la démo, la démo Keycloak et la vitrine publique `exemple-planning`), Promptoramix, OpenPost |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
-| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
+| `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe, Kiosk, Power Tools et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent`, `update_notify` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |
-| NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, MediaManager (à l'essai), borgmatic en conteneur ; stockage des sauvegardes vzdump |
+| NAS | Ugreen (UGOS Pro), réseau local, 192.168.1.137 | à la main | `ansible/nas.yml`, à la main seulement | exports NFS, Jellyfin, apprentissage automatique d'Immich (`immich_ml`), Traefik du NAS (`nas_proxy`), Newt du site `nas`, copie de kDrive, MediaManager (à l'essai), borgmatic en conteneur ; stockage des sauvegardes vzdump |
 | `pve` | hôte Proxmox VE, réseau local | à la main | `ansible/pve.yml`, à la main seulement | la VM docker et le LXC newt ; agent Beszel, agent de journaux, alerte de connexion SSH, test de restauration vzdump, avis de mises à jour, durcissement (rôle `pve_hardening` : SSH par clé seule, pare-feu PVE de l'hôte en DROP sauf le LAN sur 22 et 8006, dépôt sans abonnement, zone SDN inutile retirée ; secours : [runbook](runbooks/proxmox-injoignable-apres-durcissement.md)) |
 | PC de Sylvain | poste Fedora, réseau local | à la main | `ansible/pc-support.yml`, à la main seulement (localhost, `-K`) | POC support à distance : Newt du site `pc-sylvain` (`newt.service`, au boot), GNOME Remote Desktop (VNC de la session, RDP de GDM), relais `grd-vnc-relay` (service utilisateur), règles firewalld qui gardent 5900 et 3389 hors du LAN |
 | Storage Box | Hetzner | `tofu/pangolin` | `ansible/backup.yaml` | dépôts Borg |
@@ -386,7 +386,7 @@ flowchart LR
 - Rétention Borg : 7 quotidiennes, 4 hebdomadaires, 6 mensuelles, 1 annuelle.
 - Un modèle unique, `ansible/roles/borgmatic/templates/app.yaml.j2`, appelé
   par chaque rôle via `include_role: borgmatic tasks_from=app.yml`.
-- **Le NAS** (Jellyfin : configuration et base SQLite, jamais les médias,
+- **Le NAS** (Jellyfin et MediaManager : configuration, base SQLite de Jellyfin et dump PostgreSQL de MediaManager, jamais les médias,
   qui n'ont que les instantanés d'UGOS) : rien ne s'installe sous UGOS,
   borgmatic y tourne dans son image officielle (`borgmatic_install:
   container`, `host_vars/nas`). `borgmatic.timer` (02:30) lance
