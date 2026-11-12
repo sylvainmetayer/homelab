@@ -205,7 +205,8 @@ chaque nuit. Vérifier que l'archive suivante contient
    proxmox_backup_job.nightly backup-cbfcde61-8413` (commande de `tofu/proxmox/backup.tf`).
 2. Depuis `ansible/`, avec `--check --diff` d'abord :
    `ansible-playbook pve.yml` (dans cet ordre : sauvegarde de la
-   configuration, agent Beszel, test de restauration, avis de mises à jour,
+   configuration, agent Beszel, agent de journaux, avis de connexion SSH, test de
+   restauration, avis de mises à jour,
    `smart_check`, `thin_pool_check`, `pve_hardening` (une session root de
    secours ouverte), puis la tâche `/etc/vzdump.conf`), et `lxc.yml` (à la main) si le LXC doit être
    remis d'équerre. La sauvegarde de la configuration repart avec une clé
@@ -266,7 +267,7 @@ dépôt ne dit pas.
 - Réseau : `vmbr0` en IP fixe `192.168.1.26/24`, passerelle `192.168.1.254`
   (`/etc/network/interfaces`).
 - Timers : `borgmatic.timer` (01:00, dernier passage la nuit du 11/11),
-  `vzdump-freshness.timer` (07:30), `vzdump-restore-test.timer` (lundi 10:00).
+  `vzdump-freshness.timer` (07:30), `vzdump-restore-test.timer` (les 2 et 16 du mois, 10:00).
 
 Restent à voir sur place : le BIOS (« Restore on AC Power Loss »), les DNS
 annoncés par la Bbox, le moniteur « Backup Proxmox config ».
