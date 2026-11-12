@@ -83,6 +83,9 @@ class ResolveTags(unittest.TestCase):
         role_tags = {"docker_service": ["setup"], "app": ["app_tag", "app"]}
         _, resolved = rdt.resolve_tags(role_tags, {"docker_service", "app"})
         self.assertEqual(resolved, {"setup", "app_tag"})
+        # A role with its own tag next to `setup` keeps only its own.
+        _, resolved = rdt.resolve_tags({"tuning": ["tuning", "setup"]}, {"tuning"})
+        self.assertEqual(resolved, {"tuning"})
 
 
 def flip_playbook():
