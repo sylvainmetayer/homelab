@@ -161,3 +161,10 @@
     borgmatic_app_passphrase: "{{ nas_ugos_config_encryption_passphrase }}"
     borgmatic_app_source_directories:
       - "{{ nas_ugos_config_dir }}/staging"
+
+# En dernier : les garde-fous (clé autorisée, rechargement, nouvelle connexion)
+# ferment la porte au pire, jamais plus tôt que le reste du rôle.
+- name: Restrict sshd to keys
+  when: nas_ssh_key_only
+  tags: nas_ssh
+  ansible.builtin.import_tasks: ssh.yml

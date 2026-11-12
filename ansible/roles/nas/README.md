@@ -18,6 +18,45 @@ d'UGOS, jamais ici. Joué par `ansible/nas.yml`, à la main (jamais en CI).
 - Un contrôle de l'état de `nfs-server` et des exports actifs
   (`nas_manage_services: false` pour Molecule : pas de nfsd en conteneur).
 
+## SSH par clé seulement (tag `nas_ssh`)
+
+`tasks/ssh.yml`, en dernier du rôle : le fichier
+`/etc/ssh/sshd_config.d/10-homelab-key-only.conf` (`nas_ssh_dropin`) pose
+`PasswordAuthentication no` et `KbdInteractiveAuthentication no`, rien d'autre
+(`PermitRootLogin no` est déjà celui d'UGOS ; le reste de `sshd_config`
+appartient à UGOS). Ce n'est pas le rôle `security` : le NAS n'en dépend pas
+(pas de fail2ban, de ufw ni de devsec), et sa liste d'algorithmes n'est pas
+durcie. Garde-fous, dans cet ordre :
+
+1. une clé (ed25519, RSA, ECDSA, sk) doit exister dans
+   `~<nas_ssh_user>/.ssh/authorized_keys` (l'utilisateur d'Ansible) : sinon le
+   rôle échoue **avant** d'écrire (un `AuthorizedKeysFile` non standard fait
+   aussi échouer ce contrôle : l'adapter, ou le mesurer d'abord) ;
+2. le fichier est validé seul (`sshd -t -f`), puis la configuration entière
+   (`sshd -t`) ;
+3. `systemctl reload` (`nas_ssh_service`, `ssh`), jamais restart : les sessions
+   ouvertes restent ;
+4. `sshd -T` doit dire `passwordauthentication no`,
+   `kbdinteractiveauthentication no`, `pubkeyauthentication yes` (il lit les
+   fichiers : il prouve que le fichier est inclus et gagne) ; une connexion
+   `ssh` sans clé vers 127.0.0.1 ne doit proposer que `(publickey)` (cela
+   prouve le démon vivant) ; une connexion Ansible neuve (`reset_connection`,
+   `ping`) doit passer ;
+5. si l'une de ces vérifications échoue après l'écriture : le fichier d'avant
+   est remis (ou supprimé s'il n'existait pas), sshd rechargé, le play échoue.
+
+Le retour arrière d'Ansible suppose une connexion qui marche encore ; si c'est
+la connexion neuve qui est coupée (hôte « unreachable », rien ne tourne plus),
+il faut la main : depuis **la session ssh gardée ouverte pendant le déploiement**,
+`sudo rm /etc/ssh/sshd_config.d/10-homelab-key-only.conf && sudo systemctl reload ssh`.
+
+`nas_ssh_key_only: false` saute ces tâches mais ne défait rien. Les mises à
+jour d'UGOS peuvent réécrire `/etc/ssh` ou l'overlay : refaire
+`ansible-playbook nas.yml --tags nas_ssh` (idempotent) et relire
+`sudo sshd -T | grep -E '^(passwordauth|kbdinteractive)'`. Aucun contrôle
+automatique n'alerte encore si les mots de passe reviennent (à faire : push
+Uptime Kuma hebdomadaire, moniteur dans `tofu/pangolin_config`).
+
 ## Sauvegarde de la configuration d'UGOS
 
 Dépôt Borg `ugos_config` (sous-compte `nas`), par le gabarit partagé du rôle

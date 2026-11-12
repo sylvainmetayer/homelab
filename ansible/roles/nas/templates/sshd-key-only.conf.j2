@@ -1,0 +1,5 @@
+# {{ ansible_managed }} (rôle nas)
+# SSH par clé seulement : Ansible et Sylvain se connectent en `{{ nas_ssh_user }}` par clé.
+# Le reste de la configuration de sshd reste à UGOS.
+PasswordAuthentication no
+KbdInteractiveAuthentication no

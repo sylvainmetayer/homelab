@@ -43,3 +43,12 @@ nas_ugos_config_dirs:
   - /etc/exports.d
 nas_ugos_config_borgmatic_target: "{{ backup_storage_box_url }}/ugos_config"
 nas_ugos_config_encryption_passphrase: "{{ backup_passphrase }}"
+
+# --- SSH par clé seulement (tasks/ssh.yml, tag nas_ssh) ---
+# Un fichier à nous dans sshd_config.d, le reste de sshd restant à UGOS.
+# `false` ne défait rien : supprimer le fichier à la main (README).
+nas_ssh_key_only: true
+nas_ssh_user: "{{ ansible_user }}"
+nas_ssh_dropin: /etc/ssh/sshd_config.d/10-homelab-key-only.conf
+# Nom de l'unité sshd : à vérifier sur le NAS (README, mesures avant déploiement).
+nas_ssh_service: ssh

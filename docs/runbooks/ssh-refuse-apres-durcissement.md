@@ -70,7 +70,7 @@ mention.
 | borgmatic → Storage Box, `backup.yaml`, `restore-test.yaml` | client sortant | non concerné (durcissement serveur seulement ; `ssh_client_hardening: false` laisse `/etc/ssh/ssh_config` tel quel) |
 | Beszel (agent ↔ hub) | son propre protocole sur WebSocket | non concerné (pas de sshd) |
 | `ssh_login_notify` | `pam_exec` de sshd, après l'authentification | non concerné : un client refusé à la négociation ne notifie rien |
-| Proxmox (`tofu/proxmox` en SSH vers `pve`), NAS | hôtes hors rôle `security` | non concernés |
+| Proxmox (`tofu/proxmox` en SSH vers `pve`), NAS | hôtes hors rôle `security` | non concernés par les algorithmes (le NAS n'a que « clé seulement », voir plus bas) |
 
 Clés d'hôte : `ansible/known_hosts` et la CI n'épinglent que l'ed25519 de
 chaque hôte, qui ne change pas. Le `~/.ssh/known_hosts` du poste a aussi les
@@ -127,6 +127,7 @@ revenir en arrière.
 | `pangolin`, `flip` | console Hetzner (Cloud Console → serveur → Console), `sylvain` + son mot de passe |
 | `docker` (VM 100) | interface Proxmox → VM 100 → Console, `sylvain` + son mot de passe |
 | `newt-lxc` (CT 200) | shell du nœud Proxmox : `pct enter 200` (root, sans mot de passe) |
+| `nas` | pas de durcissement d'algorithmes, mais mots de passe refusés par le rôle `nas` (tag `nas_ssh`). Secours : une session ssh déjà ouverte (`sudo rm /etc/ssh/sshd_config.d/10-homelab-key-only.conf && sudo systemctl reload ssh`) ; sinon écran et clavier sur le NAS, ou l'interface web d'UGOS : **à vérifier** (non confirmé par le dépôt ni par la documentation d'Ugreen) qu'elle permet de rouvrir un terminal ou de rétablir les mots de passe |
 | `pi` | écran et clavier, ou le SSD USB (le Pi démarre dessus, sans carte SD : [pi-mort.md](pi-mort.md)) lu sur le poste (`/etc/ssh/sshd_config` sur la partition racine) |
 
 1. Repli immédiat, sur la console : commenter les lignes `KexAlgorithms`,
