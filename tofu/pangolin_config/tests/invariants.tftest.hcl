@@ -3787,6 +3787,8 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_group.homebox.name == "homebox"
       && pocketid_client.pangolin.is_public == false
       && pocketid_client.pangolin.pkce_enabled == true
+      && contains(pocketid_client.pangolin.callback_urls, "https://hall.sylvain.cloud/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback")
+      && contains(pocketid_client.pangolin.callback_urls, "https://pangolin.sylvain.cloud/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback")
       && strcontains(file("${path.module}/../../ansible/roles/homebox/defaults/main.yml"), "terraform_outputs.pocket_id_homebox_client_secret.value")
       && pocketid_client.trek.is_public == false
       && pocketid_client.trek.pkce_enabled == true

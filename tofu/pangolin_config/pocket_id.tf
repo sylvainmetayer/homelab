@@ -11,6 +11,13 @@ locals {
   pocket_id_pangolin_client_id = "pangolin"
   pocket_id_homebox_client_id  = "homebox"
 
+  # Renommage du tableau de bord (docs/runbooks/renommage-pangolin-hall.md) :
+  # le nouveau nom et l'ancien, que les Newt et OLM déjà installés utilisent
+  # encore. Retirer l'ancien (et sa ligne de callback_urls) quand plus aucun
+  # client n'y passe, avec le retrait de pangolin_dashboard_legacy_url du rôle.
+  pangolin_dashboard_host        = "hall.sylvain.cloud"
+  pangolin_dashboard_legacy_host = "pangolin.sylvain.cloud"
+
   # Logos des clients (« Mes applications » et écran de consentement), que
   # Pocket ID télécharge à l'apply : dashboard-icons, comme Homepage, figé sur
   # un commit. Jamais l'adresse de l'appli elle-même : derrière le mur SSO, le
@@ -132,11 +139,21 @@ resource "pocketid_client" "pangolin" {
   # qu'il n'attende pas ce client, l'identifiant est fixé ici (local) plutôt
   # que lu sur la ressource : pas de cycle. Les deux clients fixent le leur
   # (sans client_id, le provider le laisse vide et seul `id` le porte).
-  callback_urls = [pangolin_idp.pocket_id.redirect_url]
-  launch_url    = "https://pangolin.sylvain.cloud"
-  logo_url      = "${local.pocket_id_logo_base}/pangolin.svg"
-  pkce_enabled  = true
-  is_public     = false
+  #
+  # Les deux noms du tableau de bord, écrits à la main : le fork du provider ne
+  # relit jamais redirect_url (figé dans le state), il garderait l'ancienne
+  # adresse après le renommage et Pocket ID refuserait la nouvelle. L'ancienne
+  # reste tant que le tableau de bord répond sous les deux noms (retour arrière
+  # possible, clients pas encore migrés). launch_url garde l'ancien nom jusqu'à
+  # la bascule du rôle pangolin (PR suivante).
+  callback_urls = [
+    "https://${local.pangolin_dashboard_host}/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback",
+    "https://${local.pangolin_dashboard_legacy_host}/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback",
+  ]
+  launch_url   = "https://pangolin.sylvain.cloud"
+  logo_url     = "${local.pocket_id_logo_base}/pangolin.svg"
+  pkce_enabled = true
+  is_public    = false
 }
 
 # TREK : le foyer s'y connecte. Groupe trek pour l'accès, trek-admin pour le
