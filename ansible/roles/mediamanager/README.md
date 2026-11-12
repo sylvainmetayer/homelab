@@ -206,7 +206,7 @@ pour tester sans lui) :
    change le compte (identifiant et mot de passe saisis sur le NAS ; Prowlarr
    n'en a aucun au départ et le formulaire n'en propose pas).
 4. **qBittorrent** : compte `mediamanager`, mot de passe dérivé de
-   `backup_passphrase`, lu sur le NAS :
+   `app_secrets_seed`, lu sur le NAS :
 
    ```bash
    ssh sylvain@192.168.1.137 "sudo sed -n '/^\[torrents.qbittorrent\]/,/^\[/p' /volume1/docker/mediamanager/config/config.toml | grep '^password'"
