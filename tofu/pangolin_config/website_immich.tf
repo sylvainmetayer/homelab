@@ -24,7 +24,10 @@ locals {
 
 resource "pangolin_resource_pincode" "immich" {
   resource_id = pangolin_resource.website["immich"].id
-  pincode     = tostring(local.immich_pin)
+  # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
+  # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
+  pincode_wo         = tostring(local.immich_pin)
+  pincode_wo_version = 1
 }
 
 # The home connection gets in by IP, without SSO, regardless of the geo rules.

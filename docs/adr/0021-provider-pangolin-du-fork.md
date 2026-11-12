@@ -13,7 +13,7 @@ leurs branches restent intactes pour être reproposées une par une.
 
 ## Décision
 
-`tofu/pangolin_config` utilise `1.7.0-sylvain.5`, préversion du fork épinglée
+`tofu/pangolin_config` utilise `1.7.0-sylvain.6`, préversion du fork épinglée
 exactement. `mise run provider-fork` télécharge le zip, vérifie son SHA-256 et
 le pose dans `terraform.d/plugins`, miroir local implicite de `tofu init`. La
 source reste `stackopshq/pangolin` : l'état ne change pas.

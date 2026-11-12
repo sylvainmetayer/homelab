@@ -808,20 +808,24 @@ fournisseur actif**, puis révoquer l'ancienne. Détail :
 
 `immich_pin` du fichier racine est le PIN de la ressource Pangolin d'Immich
 (`tofu/pangolin_config/website_immich.tf`) : nouveau PIN par `sops set`,
-puis `tofu apply` de `pangolin_config`. C'est la seule copie : celle du
+`pincode_wo_version` + 1 dans ce fichier (sans cela rien n'est envoyé et le
+plan reste vide), puis `tofu apply` de `pangolin_config`. C'est la seule copie : celle du
 fichier Ansible, lue par rien, a été retirée le 2026-10-28.
 
 ### Code PIN Flip Planning
 
 `flip_planning_pin` du fichier racine est le PIN de la ressource Pangolin de
 Flip Planning (`tofu/pangolin_config/website_flip_planning.tf`) : nouveau PIN
-par `sops set`, puis `tofu apply` de `pangolin_config`.
+par `sops set`, `pincode_wo_version` + 1 dans ce fichier (sans cela rien n'est
+envoyé et le plan reste vide), puis `tofu apply` de `pangolin_config`.
 
 ### Code PIN Neonova
 
 `neonova_pin` du fichier racine est le PIN des ressources Pangolin de la démo et
 du site d'aide (`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
-`sops set`, puis `tofu apply` de `pangolin_config`.
+`sops set`, `pincode_wo_version` + 1 sur les deux ressources de ce fichier (sans
+cela rien n'est envoyé et le plan reste vide), puis `tofu apply` de
+`pangolin_config`.
 
 ### Secrets du site sylvain.dev
 

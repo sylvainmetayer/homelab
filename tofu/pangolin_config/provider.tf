@@ -6,7 +6,7 @@ terraform {
     # dans terraform.d/plugins avant `tofu init` (ADR 0021).
     pangolin = {
       source  = "stackopshq/pangolin"
-      version = "= 1.7.0-sylvain.5"
+      version = "= 1.7.0-sylvain.6"
     }
     uptimekuma = {
       source  = "breml/uptimekuma"

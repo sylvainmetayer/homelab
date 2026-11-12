@@ -113,7 +113,10 @@ output "flip_planning_access_token" {
 # (audit des authentifications faites main, binding_inventory.tf).
 resource "pangolin_resource_pincode" "flip_planning" {
   resource_id = pangolin_resource.website["flip_planning"].id
-  pincode     = tostring(local.flip_planning_pin)
+  # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
+  # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
+  pincode_wo         = tostring(local.flip_planning_pin)
+  pincode_wo_version = 1
 }
 
 output "uptime_backup_flip_planning_url" {
