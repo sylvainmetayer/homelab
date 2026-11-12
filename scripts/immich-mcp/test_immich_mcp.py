@@ -28,6 +28,10 @@ class ImmichMcpTest(unittest.TestCase):
         r = m.handle({"id": 4, "method": "tools/call"}, None)
         self.assertIn("error", r)
 
+    def test_null_params_on_initialize(self):
+        r = m.handle({"id": 5, "method": "initialize", "params": None}, None)
+        self.assertEqual(r["result"]["serverInfo"]["name"], "immich-readonly")
+
     def test_metadata_search_has_no_query(self):
         self.assertNotIn("query", m.TOOLS["search_metadata"][1]["properties"])
 

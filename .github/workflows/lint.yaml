@@ -162,7 +162,10 @@ jobs:
       - name: Test the CI scripts
         # Même si ansible-lint a échoué : deux régressions dans une seule passe.
         if: ${{ !cancelled() }}
-        run: python -I -m unittest discover -s .github/scripts -p 'test_*.py'
+        run: |
+          python -I -m unittest discover -s .github/scripts -p 'test_*.py'
+          # Serveurs MCP maison : leur liste blanche d'appels n'est gardée que par ces tests.
+          for d in scripts/*-mcp; do python -I -m unittest discover -s "$d" -p 'test_*.py'; done
 
   # Molecule reste en linear (un rejeu sous Mitogen a figé le destroy du driver
   # docker, PR #1374) : ce job joue sous la stratégie de production, avec

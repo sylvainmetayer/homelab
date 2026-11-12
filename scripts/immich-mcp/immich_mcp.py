@@ -87,7 +87,7 @@ def handle(msg, call):
         return None
     if method == "initialize":
         result = {
-            "protocolVersion": msg.get("params", {}).get("protocolVersion", "2025-06-18"),
+            "protocolVersion": (msg.get("params") or {}).get("protocolVersion", "2025-06-18"),
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "immich-readonly", "version": "1.0.0"},
         }
