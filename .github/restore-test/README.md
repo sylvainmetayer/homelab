@@ -84,7 +84,8 @@ ont un moniteur : `check_restore_coverage.py` (job Lint) part de ce que les rôl
 sauvegardent (`borgmatic_app_name`, une par instance de `flip_planning`) et échoue
 sur un dépôt ni dans ce fichier ni dans son `EXCLUDED`, qui porte la raison écrite
 de chaque exclusion, sur une entrée qu'aucun rôle ne sauvegarde et sur une
-exclusion périmée. Exclu aujourd'hui : `mediamanager` (à l'essai). Une sauvegarde
+exclusion périmée. Exclus aujourd'hui : `mediamanager` (à l'essai), `ugos_config`
+(fichiers texte d'UGOS, rôle `nas`). Une sauvegarde
 dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive`,
 `demo_planning_kc`, `exemple_planning`) ; passée à `true`, elle le redevient.
 

@@ -7,7 +7,8 @@ umask 077
 stage={{ (nas_ugos_config_dir ~ '/staging') | quote }}
 mkdir -p "$stage" && rm -rf "${stage:?}"/* || exit 0
 copy() {
-  mkdir -p "$stage$(dirname "$1")" && cp "$1" "$stage$1" \
+  # -P : un lien symbolique est copié comme lien, jamais sa cible (smbpasswd).
+  mkdir -p "$stage$(dirname "$1")" && cp -P "$1" "$stage$1" \
     || echo "UGOS config : copie de $1 échouée" >&2
 }
 for f in {{ nas_ugos_config_files | map('quote') | join(' ') }}; do
