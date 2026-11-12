@@ -112,7 +112,6 @@ def ask(config, allowed, text):
     body = {
         "model": config["model"],
         "max_tokens": 300,
-        "temperature": 0,
         "messages": [
             {"role": "system", "content": PROMPT},
             {"role": "user", "content": f"Tags existants : {json.dumps(allowed, ensure_ascii=False)}\n\nTexte :\n{text}"},
