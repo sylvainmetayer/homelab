@@ -32,7 +32,13 @@ voit pas `/etc` de l'hôte). Le staging est vidé à chaque passage. Un fichier
 absent (UGOS le déplace à une mise à jour) ou une copie ratée n'arrête rien :
 la ligne « UGOS config : … absent » reste dans le journal de
 `borgmatic.service`. Listes : `nas_ugos_config_files` / `_dirs`, coupure :
-`nas_ugos_config_backup_enabled: false`.
+`nas_ugos_config_backup_enabled: false`. Un lien symbolique est copié comme
+lien (`cp -P`), jamais sa cible.
+
+Ni moniteur Uptime Kuma ni test de restauration (exclu dans
+`check_restore_coverage.py`) : quelques Ko de texte sans base. Un échec de ce
+dépôt fait échouer `borgmatic.service`, que signale la règle
+`borgmatic-failed` de `log_alerts`.
 
 Exclus volontairement : `smbpasswd`, `samba.json`, `smbglb.conf`, clés
 d'hôte SSH, `/etc/shadow`. Non sauvegardés, faute de fichier : comptes, droits

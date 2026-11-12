@@ -41,6 +41,11 @@ EXCLUDED = {
         "à l'essai : ni moniteur Backup ni test de restauration tant que l'essai dure "
         "(ansible/roles/mediamanager/README.md)"
     ),
+    "ugos_config": (
+        "quelques fichiers texte d'UGOS sans base, relus à la main ; ni moniteur Backup "
+        "ni test de restauration, un échec sonne par borgmatic-failed de log_alerts "
+        "(ansible/roles/nas/README.md)"
+    ),
 }
 
 
