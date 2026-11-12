@@ -14,8 +14,8 @@ GitHub propose en préversion publique l'extension `gh` [`github/gh-actions-lock
 **Mode A : on garde les SHA en ligne et on ajoute le verrou.** Rien n'est défait, deux défenses au lieu d'une.
 
 - `actions.lock` est généré par `gh actions-lock --ignore-local-actions --no-narrow` (extension épinglée `v0.4.1`), entrées clés par SHA : aucune version ne change dans la PR qui l'introduit. Sur ce dépôt, l'outil laisse les workflows intacts (mesuré, v0.4.1, politique « exiger des SHA complets » **désactivée**) : il n'a pas besoin de ce réglage.
-- Le workflow `verify-lockfile.yaml` lance `gh actions-lock --verify --ignore-local-actions` sur chaque PR et chaque push sur `main`.
-- Renovate regénère le verrou sur sa propre branche (gestionnaire `github-actions`, expérimental, même commande), extension fixée par `constraints.ghActionsLock`, suivie avec `GH_ACTIONS_LOCK_VERSION` de `verify-lockfile.yaml` dans un seul PR.
+- Une étape de `CI lint` (`lint.yaml`, check requis de `main`, sur chaque PR et chaque push touchant `.github/**`) lance `gh actions-lock --verify --ignore-local-actions`, extension `v0.4.1` (`GH_ACTIONS_LOCK_VERSION`). Dans ce job et pas dans un workflow à part : un check non requis ne retient pas l'automerge de Renovate (revue de la PR #1452).
+- Renovate regénère le verrou sur sa propre branche (gestionnaire `github-actions`, expérimental, même commande ; il installe sa propre version de l'extension). La version du workflow est suivie par le gestionnaire regex des workflows, sans automerge. Si le verrou reste en retard, `CI lint` est rouge et l'automerge attend.
 - Les 7 actions locales restent en `./` (`--ignore-local-actions`).
 
 ## Alternatives écartées
@@ -29,9 +29,8 @@ GitHub propose en préversion publique l'extension `gh` [`github/gh-actions-lock
 - Bon : une action transitive ou un tag déplacé ne s'exécute plus sans qu'un diff du verrou le montre ; un pin manquant échoue avant le premier pas du job.
 - Bon : Renovate ne change pas de comportement visible, son PR contient en plus la ligne du verrou.
 - Mauvais : un fichier machine de plus, format 0.x qui peut changer (une montée de l'extension peut le réécrire entièrement : relire le PR).
-- Mauvais : l'extension s'installe par son tag (`gh extension install --pin`), sans somme ; le workflow n'a que `contents: read`.
+- Mauvais : l'extension s'installe par son tag (`gh extension install --pin`), sans somme, alors que les autres outils de `CI lint` sont vérifiés par sha256 ; le job n'a que `contents: read`.
 - Non couvert : actions locales (`./.github/actions/*`, 7 usages) et leurs `uses:` propres (celui de `secrets-checkout` est présent dans le verrou parce que chaque workflow appelant utilise déjà le même `actions/checkout` ; l'issue #281 de l'outil dit que `--verify` ne le contrôle pas), workflows réutilisables d'un autre dépôt (aucun ici), images de conteneurs (déjà épinglées par digest, hors verrou).
-- Le check `Actions lock` n'est pas un check requis du ruleset de `main` (changement de réglage laissé à Sylvain, `tofu/github/ruleset_homelab.tf`).
 
 ## Liens
 
