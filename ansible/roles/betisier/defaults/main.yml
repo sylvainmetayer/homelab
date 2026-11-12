@@ -17,3 +17,7 @@ betisier_backup_enabled: true
 betisier_backup_borgmatic_target: "{{ backup_storage_box_url }}/betisier"
 betisier_backup_encryption_passphrase: "{{ backup_passphrase }}"
 betisier_backup_healthcheck_url: ""
+
+# Empreinte (md5) du mot de passe de démonstration publié de l'appli, rétablie à
+# chaque chargement du dump (reset-password.sql).
+betisier_demo_hash: 73fd51e2fbe484ff3b05e124f253ebd1

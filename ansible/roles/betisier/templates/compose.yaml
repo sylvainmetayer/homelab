@@ -30,8 +30,10 @@ services:
       start_period: 60s
 
   betisier_db:
-    mem_limit: 512m
-    mem_reservation: 192m
+    # Le tmpfs de /config compte ici : ~160 Mio écrits (redo log 96, ibdata1,
+    # ibtmp1, undo) + ~146 Mio d'anon (ADR 0033) = ~310 Mio de pic, ×2.
+    mem_limit: 640m
+    mem_reservation: 320m
     # Le défaut (10 s) tue la base d'un SIGKILL au `compose stop` de dc@.
     stop_grace_period: 60s
     networks:
@@ -48,9 +50,19 @@ services:
       - MYSQL_DATABASE=betisier
       - MYSQL_USER=betisier
       - MYSQL_PASSWORD={{ betisier_db_password }}
+    # Base jetable, rechargée du dump à chaque démarrage : /config (base, conf,
+    # journaux) en mémoire, pas sur le SSD ni sous /var/lib/docker/volumes
+    # (auditd). Sans lui l'image y créerait un volume anonyme (VOLUME /config).
+    # size : 160 Mio utilisés après chargement (redo log de 96 Mio, mesuré),
+    # plafond à 256 ; mode 0755 : l'image rend /config à PUID:PGID elle-même.
+    tmpfs:
+      - /config:rw,nosuid,nodev,noexec,mode=0755,size=256m
     volumes:
-      # No DB volume, since we want to reset database on restart
+      # Monté sur le tmpfs (Docker monte /config avant /config/initdb.d). Le
+      # chown final de l'image échoue sur ce fichier en lecture seule : sans suite.
       - ./dump.sql:/config/initdb.d/betisier.sql:ro
+      # Après le dump (l'image les concatène par ordre alphabétique).
+      - ./reset-password.sql:/config/initdb.d/zz-reset-password.sql:ro
     restart: unless-stopped
     # Pas de healthcheck.sh dans l'image linuxserver (cf. rôle wiki) :
     # `mariadb-admin ping` sort en 0 dès que le serveur répond. Le dump est
