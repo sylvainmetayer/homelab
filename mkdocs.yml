@@ -140,6 +140,7 @@ nav:
       - incidents/vzdump-disque-plein.md
       - incidents/pangolin-verrou-sqlite.md
       - incidents/ntfy-topic-retire.md
+      - incidents/pangolin-traefik-reste-arrete.md
   - ADR:
       - adr/README.md
       - adr/0001-sauvegardes-borgmatic.md

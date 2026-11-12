@@ -337,6 +337,25 @@
     owner: root
     group: root
 
+# Pas de handler : prend effet au prochain démarrage de docker.service, sans le
+# redémarrer ni toucher à un conteneur. Avant « Enable Pangolin service », dont
+# daemon_reload le charge.
+- name: Ensure the docker.service drop-in directory exists
+  become: true
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    mode: "0755" # NOSONAR
+
+- name: Start gerbil and Traefik once the Docker daemon is up
+  become: true
+  ansible.builtin.template:
+    src: docker-pangolin.conf.j2
+    dest: /etc/systemd/system/docker.service.d/pangolin.conf
+    mode: "0644" # NOSONAR
+    owner: root
+    group: root
+
 - name: Enable Pangolin service
   become: true
   ansible.builtin.systemd:

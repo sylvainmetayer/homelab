@@ -90,6 +90,23 @@
           - ('WorkingDirectory=' ~ pangolin_dir) in pangolin_unit_lines
         fail_msg: /etc/systemd/system/pangolin.service inattendu
 
+    # Docker ne relance pas un conteneur dont le démarrage a échoué à
+    # l'ouverture du démon : le drop-in démarre gerbil et Traefik ensuite.
+    - name: Read the docker.service drop-in
+      become: true
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/docker.service.d/pangolin.conf
+      register: pangolin_docker_dropin
+
+    - name: Assert docker.service starts gerbil and Traefik once it is up
+      vars:
+        pangolin_dropin_lines: "{{ (pangolin_docker_dropin.content | b64decode).splitlines() }}"
+      ansible.builtin.assert:
+        that:
+          - "'[Service]' in pangolin_dropin_lines"
+          - "'ExecStartPost=-/usr/bin/timeout 60 /usr/bin/docker start gerbil traefik' in pangolin_dropin_lines"
+        fail_msg: /etc/systemd/system/docker.service.d/pangolin.conf inattendu
+
     # --- configuration Pangolin (porte le secret serveur) ---
 
     - name: Stat the Pangolin configuration
