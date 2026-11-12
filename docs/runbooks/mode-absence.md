@@ -169,7 +169,8 @@ maison et tiennent ; ce qui dépend de la maison attend.
    déployé), moniteurs Uptime Kuma, la nuit dernière.
 2. Réactiver le workflow (`gh workflow enable deploy-docker-app.yaml`, à
    vérifier) et relire les commits fusionnés pendant l'absence **avant** : le
-   premier run les déploie tous. Si des PR Renovate ont fusionné, regarder
+   premier run (prochain push, `schedule` du matin ou `workflow_dispatch`, la
+   réactivation seule ne lance rien) les déploie tous. Si des PR Renovate ont fusionné, regarder
    leurs moniteurs ensuite ([deploiement-ci-casse.md](deploiement-ci-casse.md)).
 3. Remettre Renovate (application ou PR inverse de `renovate.json`). Les
    versions parues pendant l'absence arrivent le lundi suivant.

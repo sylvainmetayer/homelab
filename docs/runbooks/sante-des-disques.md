@@ -70,9 +70,9 @@ Ansible, et le dépôt ne peut pas le vérifier.
 1. **Un canal qui arrive.** Réglages, notifications : le SMTP fonctionne
    (envoyer le message de test) ; sinon un SMTP absent rend l'alerte S.M.A.R.T.
    muette. À vérifier.
-2. **Les disques sont lus.** Pages S.M.A.R.T. de `nas` (`sda` et `sdb`) et de
-   `pve` (un disque), état `PASSED`, modèle et température renseignés. Un disque
-   absent ou `UNKNOWN` ne préviendra jamais ; pour le pont USB de `sdc`,
+2. **Les disques sont lus.** Pages S.M.A.R.T. de `nas` (`sda` et `sdb`), de
+   `pve` (un disque) et du `pi`, état `PASSED`, modèle et température renseignés. Un disque
+   absent ou `UNKNOWN` ne préviendra jamais ; pour le pont USB du Pi,
    `smartctl` peut exiger un type (`beszel_agent_smart_devices`, champ `type`).
 3. **Le système a bien un utilisateur** (le compte administrateur) : il vient de
    `config.yml`, rien à faire sauf si l'interface montre un système sans
