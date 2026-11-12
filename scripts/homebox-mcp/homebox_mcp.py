@@ -141,7 +141,9 @@ def call_homebox(method, path, args, base, key, extra_headers=None):
         with _OPENER.open(req, timeout=30) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
-        raise RuntimeError("HTTP %d : %s" % (e.code, e.read(500).decode(errors="replace"))) from None
+        # une 3xx n'a pas de corps : sa cible dit où l'on voulait aller (login Pangolin, http -> https)
+        detail = e.read(500).decode(errors="replace") or e.headers.get("Location", "")
+        raise RuntimeError("HTTP %d : %s" % (e.code, detail)) from None
 
 
 def handle(msg, call):

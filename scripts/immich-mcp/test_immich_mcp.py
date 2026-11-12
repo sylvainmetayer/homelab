@@ -73,7 +73,7 @@ class ImmichMcpTest(unittest.TestCase):
         for server in (elsewhere, redirect):
             threading.Thread(target=server.serve_forever, daemon=True).start()
         try:
-            with self.assertRaisesRegex(RuntimeError, "HTTP 302"):
+            with self.assertRaisesRegex(RuntimeError, "HTTP 302 : http://127.0.0.1"):
                 m.call_immich("GET", "/albums", {}, f"http://127.0.0.1:{redirect.server_address[1]}", "k")
         finally:
             for server in (elsewhere, redirect):
