@@ -33,6 +33,11 @@ SEARCH_PROPS = {
     "page": {"type": "integer"},
 }
 
+# /search/metadata n'a pas de champ `query` (ignoré par Immich : tout reviendrait) ;
+# le nom de fichier s'y passe par originalFileName.
+META_PROPS = {k: v for k, v in SEARCH_PROPS.items() if k != "query"}
+META_PROPS["originalFileName"] = {"type": "string", "description": "Nom de fichier d'origine (correspondance partielle)"}
+
 
 def _obj(props=None, required=()):
     return {"type": "object", "properties": props or {}, "required": list(required)}
@@ -41,12 +46,12 @@ def _obj(props=None, required=()):
 # nom -> (description, schéma, méthode, chemin, clé du corps/paramètres)
 TOOLS = {
     "search_smart": ("Recherche sémantique (CLIP) de photos et vidéos", _obj(SEARCH_PROPS, ["query"]), "POST", "/search/smart"),
-    "search_metadata": ("Recherche par métadonnées (dates, lieu, personnes, nom de fichier)", _obj(SEARCH_PROPS), "POST", "/search/metadata"),
+    "search_metadata": ("Recherche par métadonnées (dates, lieu, personnes, nom de fichier)", _obj(META_PROPS), "POST", "/search/metadata"),
     "list_albums": ("Liste des albums", _obj(), "GET", "/albums"),
     "get_album": ("Un album et ses assets", _obj({"id": {"type": "string"}}, ["id"]), "GET", "/albums/{id}"),
     "list_people": ("Personnes reconnues", _obj({"size": {"type": "integer"}, "page": {"type": "integer"}}), "GET", "/people"),
     "get_asset": ("Détail d'un asset (EXIF, lieu, personnes)", _obj({"id": {"type": "string"}}, ["id"]), "GET", "/assets/{id}"),
-    "asset_statistics": ("Nombre de photos, vidéos et assets en corbeille", _obj(), "GET", "/assets/statistics"),
+    "asset_statistics": ("Nombre de photos et de vidéos (hors corbeille)", _obj(), "GET", "/assets/statistics"),
 }
 
 
@@ -67,8 +72,12 @@ def call_immich(method, path, args, base, key, extra_headers=None):
         data = json.dumps(args).encode()
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        return json.load(resp)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.load(resp)
+    except urllib.error.HTTPError as e:
+        # le corps d'Immich nomme la permission manquante d'un 403
+        raise RuntimeError("HTTP %d : %s" % (e.code, e.read(500).decode(errors="replace"))) from None
 
 
 def handle(msg, call):
@@ -87,9 +96,10 @@ def handle(msg, call):
     elif method == "tools/list":
         result = {"tools": [{"name": n, "description": d, "inputSchema": s} for n, (d, s, _, _) in TOOLS.items()]}
     elif method == "tools/call":
-        name, args = msg["params"]["name"], msg["params"].get("arguments") or {}
+        params = msg.get("params") or {}
+        name, args = params.get("name"), params.get("arguments") or {}
         if name not in TOOLS:
-            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "outil inconnu : " + name}}
+            return {"jsonrpc": "2.0", "id": mid, "error": {"code": -32602, "message": "outil inconnu : %s" % name}}
         try:
             text = json.dumps(call(TOOLS[name][2], TOOLS[name][3], args), ensure_ascii=False)
             result = {"content": [{"type": "text", "text": text[:100000]}]}
@@ -103,7 +113,7 @@ def handle(msg, call):
 def main():
     base, key = os.environ["IMMICH_URL"], os.environ["IMMICH_API_KEY"]
     extra = {}
-    if os.environ.get("IMMICH_PANGOLIN_TOKEN"):
+    if os.environ.get("IMMICH_PANGOLIN_TOKEN") and os.environ.get("IMMICH_PANGOLIN_TOKEN_ID"):
         extra = {
             "P-Access-Token-Id": os.environ["IMMICH_PANGOLIN_TOKEN_ID"],
             "P-Access-Token": os.environ["IMMICH_PANGOLIN_TOKEN"],
@@ -114,7 +124,11 @@ def main():
 
     for line in sys.stdin:
         if line.strip():
-            reply = handle(json.loads(line), call)
+            try:
+                msg = json.loads(line)
+            except ValueError:  # ligne illisible : ignorée, le serveur reste vivant
+                continue
+            reply = handle(msg, call) if isinstance(msg, dict) else None
             if reply:
                 print(json.dumps(reply, ensure_ascii=False), flush=True)
 

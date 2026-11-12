@@ -24,6 +24,13 @@ class ImmichMcpTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.call_immich("POST", "/albums", {}, "http://x", "k")
 
+    def test_missing_params_is_not_fatal(self):
+        r = m.handle({"id": 4, "method": "tools/call"}, None)
+        self.assertIn("error", r)
+
+    def test_metadata_search_has_no_query(self):
+        self.assertNotIn("query", m.TOOLS["search_metadata"][1]["properties"])
+
     def test_tool_error_is_not_fatal(self):
         def boom(*a):
             raise OSError("down")
