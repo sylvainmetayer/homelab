@@ -57,3 +57,4 @@ __pycache__/
 
 # Clé d'hôte de la copie jetable de la VM docker (exercice de reconstruction)
 ansible/known_hosts.drill
+ansible/known_hosts.bench
