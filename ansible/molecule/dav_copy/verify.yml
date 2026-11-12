@@ -88,6 +88,17 @@
           - dav_copy_verify_unit.StateDirectory == 'dav-copy'
           - dav_copy_verify_unit.User == 'sylvain'
 
+    - name: Read the service unit
+      ansible.builtin.slurp:
+        path: /etc/systemd/system/dav-copy.service
+      register: dav_copy_verify_service
+
+    - name: Assert the service itself refuses to run without the state file
+      ansible.builtin.assert:
+        that:
+          - "'ConditionPathExists=/var/lib/dav-copy/state.json' in (dav_copy_verify_service.content | b64decode)"
+        quiet: true
+
     - name: Check the launcher runs the tool by path and never carries a secret
       ansible.builtin.slurp:
         path: /usr/local/libexec/dav-copy-run.sh

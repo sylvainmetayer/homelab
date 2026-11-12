@@ -3,7 +3,9 @@ import base64
 import hashlib
 import http.server
 import importlib.util
+import json
 import os
+import signal
 import tempfile
 import threading
 import unittest
@@ -339,6 +341,30 @@ class Main(unittest.TestCase):
             dc.save_state(p, {"k": {"n": ["a", "b", True]}})
             self.assertEqual(os.stat(p).st_mode & 0o777, 0o600)
             self.assertEqual(os.listdir(t), ["s.json"])
+
+    def test_sigterm_still_writes_state(self):
+        with tempfile.TemporaryDirectory() as t:
+            for n in ("src", "dst"):
+                Path(t, n).write_text("USER: u\nMDP: x\nURL: https://h.invalid/dav/\n")
+            Path(t, "c.json").write_text("{}")
+            st = Path(t, "s.json")
+            st.write_text("{}")
+
+            def killed_mid_pass(*a):
+                a[-1]["k"] = {"n": ["a", "b", True]}
+                os.kill(os.getpid(), signal.SIGTERM)
+
+            old_run, old_handler = dc.run, signal.getsignal(signal.SIGTERM)
+            dc.run = killed_mid_pass
+            try:
+                with self.assertRaises(SystemExit) as e:
+                    dc.main(["--source-config", str(Path(t, "src")), "--dest-config", str(Path(t, "dst")),
+                             "--collections", str(Path(t, "c.json")), "--state", str(st), "--apply"])
+            finally:
+                dc.run = old_run
+                signal.signal(signal.SIGTERM, old_handler)
+            self.assertEqual(e.exception.code, 143)
+            self.assertIn("k", json.loads(st.read_text()))
 
 
 class AddressBooks(Base):
