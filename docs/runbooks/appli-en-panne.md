@@ -62,7 +62,7 @@ Repérer l'hôte et le nom du service : `docs/apps.md` (colonne Rôle) et
 
    Si Newt est tombé, **toutes** les applis de l'hôte sont DOWN en même temps.
 
-5. Côté Pangolin : tableau de bord `https://pangolin.sylvain.cloud`, la
+5. Côté Pangolin : tableau de bord `https://hall.sylvain.cloud`, la
    ressource, onglet des cibles : état du healthcheck et site en ligne ou non.
 
 6. Mémoire : un conteneur collé à son `mem_limit` ralentit ou se fait tuer.

@@ -144,13 +144,12 @@ resource "pocketid_client" "pangolin" {
   # relit jamais redirect_url (figé dans le state), il garderait l'ancienne
   # adresse après le renommage et Pocket ID refuserait la nouvelle. L'ancienne
   # reste tant que le tableau de bord répond sous les deux noms (retour arrière
-  # possible, clients pas encore migrés). launch_url garde l'ancien nom jusqu'à
-  # la bascule du rôle pangolin (PR suivante).
+  # possible, clients pas encore migrés). Le lanceur ouvre le nouveau nom.
   callback_urls = [
     "https://${local.pangolin_dashboard_host}/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback",
     "https://${local.pangolin_dashboard_legacy_host}/auth/idp/${pangolin_idp.pocket_id.id}/oidc/callback",
   ]
-  launch_url   = "https://pangolin.sylvain.cloud"
+  launch_url   = "https://${local.pangolin_dashboard_host}"
   logo_url     = "${local.pocket_id_logo_base}/pangolin.svg"
   pkce_enabled = true
   is_public    = false

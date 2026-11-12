@@ -159,11 +159,11 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
 
 ```bash
 cd /opt/pangolin && docker compose ps
-curl -sSI https://pangolin.sylvain.cloud | head -1
+curl -sSI https://hall.sylvain.cloud | head -1
 ```
 
 - Le tableau de bord montre les ressources et les sites ; chaque Newt
-  (docker, pi, flip, LXC) se reconnecte seul (même endpoint
+  (docker, pi, flip, LXC) se reconnecte seul (même endpoint, l'ancien nom
   `https://pangolin.sylvain.cloud`, mêmes identifiants, puisque la base est
   restaurée).
 - Pocket ID a retrouvé ses comptes : `https://id.sylvain.cloud` ouvre la

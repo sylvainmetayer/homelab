@@ -45,7 +45,7 @@ homepage_extra_links:
     site_monitor: https://mediamanager.sylvain.cloud/api/v1/health
   - key: pangolin
     name: Pangolin
-    href: https://pangolin.sylvain.cloud
+    href: https://hall.sylvain.cloud
     group: Administration
     description: Tableau de bord du reverse proxy
     icon: mdi-shield-key-outline

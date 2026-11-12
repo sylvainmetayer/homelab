@@ -21,6 +21,7 @@ choix dans [../adr/](../adr/README.md).
 | Reconstruction de la VM docker depuis Borg, sur un serveur Hetzner Cloud jetable : exercice chronométré, et hébergeur provisoire d'un sinistre | [reconstruction-vm-docker.md](reconstruction-vm-docker.md) |
 | Un hôte a changé de clé d'hôte SSH | [cle-hote-ssh-changee.md](cle-hote-ssh-changee.md) |
 | Mettre une appli en pause durablement, la reprendre (procédure, pas un incident) | [app-en-pause.md](app-en-pause.md) |
+| Renommer le tableau de bord Pangolin (pangolin. en hall.sylvain.cloud) : ordre des deux PR, coupure attendue, vérifications, retour arrière, suite (procédure, pas un incident) | [renommage-pangolin-hall.md](renommage-pangolin-hall.md) |
 | Connexion SSH refusée après durcissement (« no matching key exchange ») | [ssh-refuse-apres-durcissement.md](ssh-refuse-apres-durcissement.md) |
 | Proxmox injoignable après durcissement (SSH par clé seulement, pare-feu PVE, SDN supprimé) : console physique, `pve-firewall stop`, retour de la config sshd | [proxmox-injoignable-apres-durcissement.md](proxmox-injoignable-apres-durcissement.md) |
 | Changer le mot de passe d'une base Postgres ou MariaDB (procédure, pas un incident) | [mot-de-passe-base.md](mot-de-passe-base.md) |

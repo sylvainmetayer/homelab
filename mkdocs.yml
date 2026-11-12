@@ -95,6 +95,7 @@ nav:
       - runbooks/proxmox-injoignable-apres-durcissement.md
       - runbooks/crowdsec.md
       - runbooks/app-en-pause.md
+      - runbooks/renommage-pangolin-hall.md
       - runbooks/mot-de-passe-base.md
       - runbooks/dmarc.md
       - runbooks/kdrive-nas.md

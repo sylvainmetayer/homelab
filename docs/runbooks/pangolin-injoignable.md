@@ -3,7 +3,7 @@
 ## Symptôme
 
 - **Toutes** les applis publiques tombent en même temps, sur tous les hôtes.
-- `https://pangolin.sylvain.cloud` ne répond pas, ou erreur de certificat.
+- `https://hall.sylvain.cloud` (le tableau de bord ; `pangolin.sylvain.cloud`, l'ancien nom, sert encore l'API aux Newt et OLM) ne répond pas, ou erreur de certificat.
 - Les ressources privées (`docker-apps.internal`, `pi.internal`) et le
   déploiement CI (tunnel OLM) ne marchent plus non plus.
 - flip perd aussi Internet : il sort par le NAT de Pangolin.
@@ -14,7 +14,7 @@
 
    ```bash
    dig +short pangolin.sylvain.cloud      # doit donner l'IP de tofu/pangolin (ansible/known_hosts)
-   curl -sSI https://pangolin.sylvain.cloud | head -1
+   curl -sSI https://hall.sylvain.cloud | head -1
    ssh sylvain@pangolin.sylvain.cloud
    ```
 
@@ -92,7 +92,7 @@
 
 ```bash
 cd /opt/pangolin && docker compose ps   # pangolin healthy, gerbil et traefik Up
-curl -sSI https://pangolin.sylvain.cloud | head -1
+curl -sSI https://hall.sylvain.cloud | head -1
 ```
 
 Les moniteurs Uptime Kuma repassent UP ; les sites Newt apparaissent en

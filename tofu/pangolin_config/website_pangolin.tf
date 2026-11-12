@@ -4,8 +4,8 @@
 # Traefik routers in the pangolin role's dynamic config) while the proxied
 # sites still answer.
 #
-# The hostname is pangolin_dashboard_url in ansible/host_vars/pangolin, pinned
-# by a test. A plain status monitor rather than the inverted keyword: the
+# The hostname is pangolin_dashboard_url in ansible/host_vars/pangolin (hall.,
+# since the rename), pinned by a test. A plain status monitor rather than the inverted keyword: the
 # dashboard is not a pangolin_resource, so it has no maintenance page and a
 # dead dashboard does fail (see maintenance.tf). `/` redirects to the login
 # page, which Uptime Kuma follows.
@@ -15,7 +15,32 @@ resource "uptimekuma_monitor_http" "pangolin_dashboard" {
   # Grouped under the Self-hosted folder. See uptime_globals.tf.
   parent = uptimekuma_monitor_group.self_hosted.id
 
-  url             = "https://pangolin.sylvain.cloud"
+  url             = "https://hall.sylvain.cloud"
+  interval        = local.http_probe.interval
+  timeout         = 30
+  max_retries     = local.http_probe.max_retries
+  retry_interval  = local.http_probe.retry_interval
+  resend_interval = local.http_probe.resend_interval
+  active          = true
+  method          = "GET"
+
+  expiry_notification = true
+  tags                = [local.tofu_tag, { tag_id : uptimekuma_tag.self_hosted.id }]
+
+  notification_ids = local.alert_notification_ids
+}
+
+# L'ancien nom du tableau de bord, sur l'API seule : c'est par lui que les Newt
+# et OLM déjà installés joignent Pangolin (newt_endpoint, runners CI), alors
+# que ses pages renvoient (302) vers le nom courant. Un nom ou un routeur
+# retiré par mégarde couperait les tunnels sans que le moniteur du tableau de
+# bord rougisse. À retirer avec pangolin_dashboard_legacy_url (rôle pangolin).
+resource "uptimekuma_monitor_http" "pangolin_dashboard_legacy_api" {
+  name = "API Pangolin (ancien nom)"
+
+  parent = uptimekuma_monitor_group.self_hosted.id
+
+  url             = "https://pangolin.sylvain.cloud/api/v1/"
   interval        = local.http_probe.interval
   timeout         = 30
   max_retries     = local.http_probe.max_retries
