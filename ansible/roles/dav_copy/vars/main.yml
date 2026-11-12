@@ -1,0 +1,9 @@
+---
+# Dérivé, pas un réglage.
+dav_copy_script: /usr/local/libexec/dav_copy.py
+dav_copy_run_script: /usr/local/libexec/dav-copy-run.sh
+dav_copy_config_dir: /etc/dav-copy
+# StateDirectory de l'unité ; l'état de la première copie y est posé À LA MAIN
+# avant la mise en route (README du rôle).
+dav_copy_state_dir: /var/lib/dav-copy
+dav_copy_state_file: /var/lib/dav-copy/state.json

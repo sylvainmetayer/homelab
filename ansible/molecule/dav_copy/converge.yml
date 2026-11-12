@@ -1,0 +1,14 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/docker/variables.yaml
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  roles:
+    # Sans état de première copie : le timer doit rester éteint.
+    - role: dav_copy
+      vars:
+        dav_copy_push_url: "http://127.0.0.1:18080/api/push/molecule" # NOSONAR

@@ -1,0 +1,38 @@
+---
+# Rôle TEMPORAIRE : « parallèle » de la migration hors de Nextcloud, retiré à la
+# bascule des téléphones (README du rôle). Copie à sens unique, chaque heure,
+# des agendas et contacts de Nextcloud vers Infomaniak (docker.yml).
+#
+# Clés de secrets/ansible.sops.yaml lues sans défaut (docker.yml ne joue le rôle
+# que si elles existent) : dav_copy_nextcloud_user, dav_copy_nextcloud_password,
+# dav_copy_infomaniak_url, dav_copy_infomaniak_password.
+
+# Moniteur Uptime Kuma : sortie uptime_cron_dav_copy_url de tofu/pangolin_config,
+# donnée par l'entrée du rôle dans docker.yml. Vide : la copie tourne sans
+# battement (avertissement).
+dav_copy_push_url: ""
+
+# Le compte de l'unité, comme cost_report ; les identifiants lui viennent par
+# LoadCredential (0600 root sur le disque).
+dav_copy_user: "{{ ansible_user }}"
+
+# Toutes les heures (tofu/pangolin_config en déduit l'intervalle du moniteur :
+# trois périodes).
+dav_copy_schedule: hourly
+dav_copy_first_run_delay: 5min
+
+# Liste d'inclusion de l'outil : rien n'est copié hors d'elle. source = dossier
+# ou nom affiché chez Nextcloud, dest = nom affiché chez Infomaniak.
+dav_copy_collections:
+  calendars:
+    - { source: personal, dest: "Personnel - Not shared" }
+    - { source: top-agenda, dest: "Top Agenda" }
+    - { source: personnel, dest: "Personnel" }
+    - { source: onepoint, dest: "onepoint" }
+    - { source: les-sables-dolonne, dest: "Les Sables d'Olonne" }
+    - { source: lindsey-stirling-barcelone, dest: "Lindsey Stirling" }
+  addressbooks:
+    - { source: contacts, dest: "Contacts" }
+    - { source: services, dest: "Services" }
+    - { source: contacts-ml, dest: "Contacts ML" }
+    - { source: professionnel, dest: "Professionnel" }
