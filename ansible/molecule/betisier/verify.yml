@@ -58,6 +58,7 @@
           - "'newt-public' not in betisier_compose.services.betisier_db.networks"
           - "'betisier' in betisier_compose.services.betisier_db.networks"
           - "'./dump.sql:/config/initdb.d/betisier.sql:ro' in betisier_compose.services.betisier_db.volumes"
+          - "'./reset-password.sql:/config/initdb.d/zz-reset-password.sql:ro' in betisier_compose.services.betisier_db.volumes"
           # La base ne doit plus avoir de /config sur disque (volume anonyme de l'image).
           - betisier_compose.services.betisier_db.tmpfs | select('match', '^/config:.*size=256m') | list | length == 1
           - betisier_compose.services.betisier_db.tmpfs | select('match', '^/config:.*noexec') | list | length == 1

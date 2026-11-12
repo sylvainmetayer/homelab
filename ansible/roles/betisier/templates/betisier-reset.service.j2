@@ -26,9 +26,6 @@ ExecStart=/usr/bin/systemctl --user start dc@betisier
 # Same probe as the compose healthcheck, bounded.
 ExecStart=/usr/bin/timeout 180 /bin/sh -c 'until /usr/bin/docker exec betisier_db mariadb-admin ping --host=127.0.0.1 --silent >/dev/null 2>&1; do sleep 2; done'
 
-# Reset the database password
-ExecStart=/usr/bin/docker exec betisier_db sh -c 'mariadb -u $$MYSQL_USER -p$$MYSQL_PASSWORD $$MYSQL_DATABASE -e "UPDATE personne set per_pwd = '\''73fd51e2fbe484ff3b05e124f253ebd1'\'';"'
-
 {% if betisier_reset_healthcheck_url %}
 # Signal the "Reset Betisier" Uptime Kuma monitor: only reached when every
 # ExecStart above succeeded. The URL (the monitor's token) is read from a

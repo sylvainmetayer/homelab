@@ -61,6 +61,8 @@ services:
       # Monté sur le tmpfs (Docker monte /config avant /config/initdb.d). Le
       # chown final de l'image échoue sur ce fichier en lecture seule : sans suite.
       - ./dump.sql:/config/initdb.d/betisier.sql:ro
+      # Après le dump (l'image les concatène par ordre alphabétique).
+      - ./reset-password.sql:/config/initdb.d/zz-reset-password.sql:ro
     restart: unless-stopped
     # Pas de healthcheck.sh dans l'image linuxserver (cf. rôle wiki) :
     # `mariadb-admin ping` sort en 0 dès que le serveur répond. Le dump est
