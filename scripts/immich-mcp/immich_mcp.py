@@ -79,7 +79,6 @@ def _obj(props=None, required=()):
 TOOLS = {
     "search_smart": ("Recherche sémantique (CLIP) de photos et vidéos", _obj(SEARCH_PROPS, ["query"]), "POST", "/search/smart"),
     "search_metadata": ("Recherche par métadonnées (dates, lieu, personnes, nom de fichier)", _obj(META_PROPS), "POST", "/search/metadata"),
-    "list_albums": ("Liste des albums", _obj(), "GET", "/albums"),
     "get_album": ("Un album (nom, description, nombre d'assets) ; ses assets : search_metadata avec albumIds",
                   _obj({"id": {"type": "string"}}, ["id"]), "GET", "/albums/{id}"),
     "list_people": ("Personnes reconnues", _obj({"size": {"type": "integer"}, "page": {"type": "integer"}}), "GET", "/people"),
@@ -191,6 +190,15 @@ def _bulk(call, method, aid, ids):
             else:
                 errors.append("%s : %s" % (r.get("id"), r.get("error")))
     return {"ok": ok, "erreurs": errors[:20]}
+
+
+def list_albums(call, args):
+    """Liste compacte, triée par nom ; `contains` filtre sur le nom (casse ignorée)."""
+    q = _norm(args.get("contains"))
+    rows = [{"id": a["id"], "nom": a["albumName"], "assets": a["assetCount"], "debut": a.get("startDate"),
+             "fin": a.get("endDate"), "partage": bool(a.get("shared"))}
+            for a in call("GET", "/albums", {}) if q in _norm(a["albumName"])]
+    return {"albums": sorted(rows, key=lambda r: _norm(r["nom"])), "total": len(rows)}
 
 
 def find_duplicate_albums(call, args):
@@ -308,6 +316,9 @@ def _w(desc, props, req, fn):
 
 # nom -> (description, schéma, fonction(call, args), écriture ?)
 LOCAL = {
+    "list_albums": ("Liste compacte des albums, triée par nom : id, nom, assets (nombre), debut, fin, partage. "
+                    "`contains` : ne garde que les noms contenant ce texte (casse ignorée). Détail d'un album : get_album.",
+                    _obj({"contains": {"type": "string"}}), list_albums, False),
     "find_duplicate_albums": ("Albums en doublon probables : même nom (casse et espaces ignorés) et, si `minOverlap` (0 à 1) est donné, "
                               "recouvrement d'assets (part du plus petit album). Lecture seule ; prépare merge_albums.",
                               _obj({"minOverlap": {"type": "number"}}), find_duplicate_albums, False),
@@ -357,7 +368,9 @@ def handle(msg, call, write=False):
         try:
             out = LOCAL[name][2](call, args) if name in LOCAL else call(TOOLS[name][2], TOOLS[name][3], args)
             text = json.dumps(out, ensure_ascii=False)
-            result = {"content": [{"type": "text", "text": text[:100000]}]}
+            if len(text) > 100000:  # signalé, comme papra-mcp et grocy-mcp : jamais coupé en silence
+                text = text[:100000] + " [... tronqué]"
+            result = {"content": [{"type": "text", "text": text}]}
         except Exception as e:  # erreur d'outil : renvoyée au modèle, pas fatale
             result = {"isError": True, "content": [{"type": "text", "text": "Erreur Immich : %s" % e}]}
     else:
