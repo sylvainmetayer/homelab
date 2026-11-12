@@ -147,7 +147,8 @@
 # relancent. Masquer une unité qui n'existe pas réussit ; `creates` rend la
 # tâche idempotente (le lien existe déjà une fois masquée).
 - name: Stop and mask the unused services
-  ansible.builtin.command: systemctl mask --now {{ item }}
+  # `systemctl mask` accepte une unité absente, ce que le module systemd ne garantit pas.
+  ansible.builtin.command: systemctl mask --now {{ item }}  # noqa: command-instead-of-module
   args:
     creates: /etc/systemd/system/{{ item }}
   loop: "{{ security_masked_services }}"

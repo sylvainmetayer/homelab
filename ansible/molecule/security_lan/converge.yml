@@ -27,6 +27,7 @@
     - name: Assert each LAN host is configured as such for the security role
       vars:
         lan: "{{ lookup('ansible.builtin.vars', 'security_lan_' ~ item.key) }}"
+        never_masked: '(?i)^(NetworkManager|wpa_supplicant|dhcpcd|networking|systemd-(networkd|resolved)|ssh|sshd|docker|containerd)'
       ansible.builtin.assert:
         that:
           - lan.security_ufw_allowed_ports | map(attribute='from', default='any') | list == ['192.168.1.0/24']
@@ -37,7 +38,7 @@
           - lan.security_devsec_sysctl_host | default({}) == item.value.sysctl
           - lan.security_mta_enabled | bool
           # Le réseau du Pi, SSH et Docker ne se masquent jamais.
-          - lan.security_masked_services | default([]) | select('match', '(?i)^(NetworkManager|wpa_supplicant|dhcpcd|networking|systemd-(networkd|resolved)|ssh|sshd|docker|containerd)') | list == []
+          - lan.security_masked_services | default([]) | select('match', never_masked) | list == []
         fail_msg: host_vars/{{ item.key }} ne configure plus {{ item.key }} en hôte du LAN.
       loop: "{{ security_lan_hosts | dict2items }}"
       loop_control:
