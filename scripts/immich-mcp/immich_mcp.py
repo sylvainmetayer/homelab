@@ -39,6 +39,16 @@ META_PROPS = {k: v for k, v in SEARCH_PROPS.items() if k != "query"}
 META_PROPS["originalFileName"] = {"type": "string", "description": "Nom de fichier d'origine (correspondance partielle)"}
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# urllib rejoue les en-têtes (clé d'API, jeton Pangolin) vers la cible d'une
+# redirection : une 3xx est une erreur, jamais suivie.
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
 def _obj(props=None, required=()):
     return {"type": "object", "properties": props or {}, "required": list(required)}
 
@@ -73,7 +83,7 @@ def call_immich(method, path, args, base, key, extra_headers=None):
         headers["Content-Type"] = "application/json"
     req = urllib.request.Request(url, data=data, headers=headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with _OPENER.open(req, timeout=30) as resp:
             return json.load(resp)
     except urllib.error.HTTPError as e:
         # le corps d'Immich nomme la permission manquante d'un 403
