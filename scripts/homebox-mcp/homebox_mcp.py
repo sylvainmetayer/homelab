@@ -103,7 +103,12 @@ def call_homebox(method, path, args, base, key, extra_headers=None):
     """Un appel à l'API ; renvoie le JSON décodé."""
     args = dict(args)
     if "{id}" in path:
-        path = path.replace("{id}", urllib.parse.quote(str(args.pop("id")), safe=""))
+        oid = str(args.pop("id", ""))
+        # « . » et « .. » passent le quote() et ALLOWED : un serveur ou un proxy
+        # normaliserait /entities/.. hors de la liste blanche.
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", oid):
+            raise ValueError("identifiant invalide : %r" % oid)
+        path = path.replace("{id}", oid)
     check_allowed(method, path)
     if method == "PUT":
         # relit la fiche (GET autorisé) : le PUT d'Homebox efface les champs absents
@@ -136,7 +141,7 @@ def handle(msg, call):
         return None
     if method == "initialize":
         result = {
-            "protocolVersion": msg.get("params", {}).get("protocolVersion", "2025-06-18"),
+            "protocolVersion": (msg.get("params") or {}).get("protocolVersion", "2025-06-18"),
             "capabilities": {"tools": {}},
             "serverInfo": {"name": "homebox", "version": "1.0.0"},
         }
