@@ -5,10 +5,10 @@
 
 ## Contexte
 
-Aujourd'hui le plan et l'apply d'OpenTofu se font à la main ou par un agent (`pangolin-config-plan`). La CI ne fait que `fmt`, `validate` et `tofu test` mocké, sans secret. Dépôt **public** : logs et commentaires de PR lisibles par tous. Le corps de #704 date d'avant le chiffrement de tous les states (11/11) et `use_lockfile` (11/11).
+Aujourd'hui le plan et l'apply d'OpenTofu se font à la main ou par un agent (`pangolin-config-plan`). La CI ne fait que `fmt`, `validate` et `tofu test` mocké, sans secret. Dépôt **public** : logs et commentaires de PR lisibles par tous. Le corps de #704 date d'avant le chiffrement de tous les states (11/11) et `use_lockfile` (11/11). [0024](0024-deploiement-au-merge.md) avait écarté « Tofu en CI » le 2026-11-04 (#704 fermée) : cet ADR rouvre la question, restreinte au plan de dérive ; si elle est acceptée, 0024 passera en « acceptée (Tofu en CI : voir 0035) ».
 
 Constats relus dans le dépôt :
-- Onze modules sur douze lisent `secrets/secrets.sops.yaml` par `data "sops_file"` (`secrets.tf`) : la CI n'en est pas destinataire (`.sops.yaml`). Seul `pangolin_config` passe par `TF_VAR_*` (audit sc1, 11/11). Les donner à la CI, c'est lui donner la clé age du fichier racine : tous les jetons en lecture-écriture.
+- Dix modules sur douze lisent `secrets/secrets.sops.yaml` par `data "sops_file"` (`secrets.tf`) : la CI n'en est pas destinataire (`.sops.yaml`). `pangolin_config` passe par `TF_VAR_*` (audit sc1, 11/11) et `dns` n'a pas de `sops_file` (passphrase par `TF_VAR_state_encryption_passphrase`, jetons de providers par l'environnement mise : à confirmer). Les donner à la CI, c'est lui donner la clé age du fichier racine : tous les jetons en lecture-écriture.
 - La CI détient déjà `SOPS_AGE_KEY` (`ansible.sops.yaml` seul), la clé SSH root (0028), le client OLM `ci_runner`, et lit les sorties de `pangolin_config` avec la passphrase **dédiée** de ce state, des clés S3 en lecture seule d'un state (`ansible_state_reader`) : environnement `production`, `main` seulement, sans relecteur.
 - Les environnements sont limités à `main` (`environments.tf`) : une PR n'en lit aucun. Le secret du dépôt `HOMELAB_SECRETS_SSH_KEY` est lisible par les PR (le submodule est chiffré). Une PR de fork n'a aucun secret.
 - Un plan exécute le code de la PR (`data "external"`, provider bumpé par Renovate) : avec des secrets, c'est de l'exécution de code avec secrets, que `pull_request` ou `pull_request_target` ne changent pas.
