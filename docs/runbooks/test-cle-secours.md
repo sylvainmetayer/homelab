@@ -73,6 +73,12 @@ Deux contrôles :
 5. Le même jour, le [test trimestriel de la sauvegarde
    KeePass](sauvegarde-keepass.md#test-trimestriel) (mot de passe papier du
    dépôt restic) : rien d'autre ne le rappelle.
+6. Le même jour, le lien de secours de la base KeePass
+   ([perte-cle-ou-poste.md](perte-cle-ou-poste.md#poste-perdu)) : en
+   navigation privée, `https://r.sylvain.dev/passwords` demande le mot de
+   passe du partage, la base téléchargée s'ouvre avec le mot de passe maître
+   et contient une entrée récente (le partage suit la base vivante, pas une
+   vieille copie). Supprimer la copie.
 
 ### À la main (si le script ne tourne pas)
 
