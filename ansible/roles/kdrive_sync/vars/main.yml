@@ -5,6 +5,7 @@
 kdrive_sync_rclone_args: >-
   {{ ['copy', 'kdrive:' ~ kdrive_sync_source_path, '/data/' ~ kdrive_sync_mirror_dir,
       '--create-empty-src-dirs',
+      '--update', '--use-server-modtime',
       '--transfers', kdrive_sync_transfers | string,
       '--checkers', kdrive_sync_checkers | string,
       '--retries', '3', '--low-level-retries', '10',
