@@ -494,7 +494,7 @@
       ansible.builtin.template:
         src: "{{ playbook_dir }}/../../roles/pangolin/templates/{{ item }}.j2"
         dest: "{{ legacy_scratch.path }}/{{ item }}"
-        mode: "0644"
+        mode: "0600"
       loop:
         - traefik_dynamic_config.yml
         - pangolin_config.yml
