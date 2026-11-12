@@ -241,6 +241,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_access_token.homebox_clients
+  values = { id = "tok-homebox", token = "jeton-homebox" }
+}
+
+override_resource {
   target = pangolin_resource_access_token.papra_clients
   values = { id = "tok-papra", token = "jeton-papra" }
 }
