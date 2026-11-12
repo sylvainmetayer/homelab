@@ -183,6 +183,27 @@ the units, the script and the configuration (the folders stay). Before a
 `remove-app` of Papra, run that once: the decommission knows nothing of
 `/etc/papra-intake.json` and the units.
 
+### Scanning on the Epson XP-3100 (phone, no code)
+
+The multifunction printer (Epson XP-3100, consumer inkjet, Wi-Fi) has no
+scan to network folder, FTP or mail on its panel, and Epson's Scan to Cloud
+is not offered on the XP-3xxx series (Epson manual of the XP-3150, same
+family): the printer cannot push a scan anywhere. The phone pulls the scan,
+then sends it to the intake address:
+
+1. On the phone, on the home Wi-Fi, open the Epson Smart Panel app (the
+   XP-3100 is on its supported-printer list), choose Scan, put the pages on
+   the glass. Save as **PDF** (the app offers JPEG, PNG and PDF); scan all
+   the pages in one go to get one PDF.
+2. Share the file by mail to the intake address, **from a mail account
+   listed in `papra_intake_allowed_senders`** (any other sender is refused).
+3. Within 15 minutes the document is in Papra.
+
+What leaves the house: the scan goes through the mail provider of the
+sending account, then to Infomaniak. Nothing goes to Epson Connect (the
+app talks to the printer on the LAN). Not checked on the real printer:
+Smart Panel's scan on this model.
+
 Follow-up, not wired: an Uptime Kuma push monitor (like
 `ntfy-subscribers-check`) to be told when the run keeps failing (expired app
 password, IMAP down).
