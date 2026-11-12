@@ -25,6 +25,9 @@ Each role below lists `uptime_push` in its `meta/main.yml` `dependencies`, so th
 | `blocky` | `blocky-check.sh`, config on stdin | default (the check's own exit code) |
 | `ntfy` | `ntfy-subscribers-check.sh`, config on stdin | default |
 | `nas_proxy` | `health_check.sh` (`nas-health-check.service`, NAS), one `nas.curl` for all apps | default (the check's own exit code) |
+| `log_alerts` | `log_alerts.py` (`subprocess`), config on stdin | `--strict` (the unit fails) |
+| `thin_pool_check` | `thin-pool-check.sh`, config on stdin | default |
+| `dav_copy` | `dav-copy-run.sh`, config file from the unit's credentials | default |
 | `ssh_login_notify` | the PAM hook, config on stdin, in the background | `--strict` (logs success or failure) |
 | `ci_key_audit` | `ci_key_audit.py` (`subprocess`), config on stdin | `--strict` (the unit fails) |
 

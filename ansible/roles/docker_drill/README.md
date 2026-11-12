@@ -28,7 +28,7 @@ groupe). `-e docker_drill_key_file=<fichier>` donne la clé du sous-compte
 | `homepage` | **exclu** | ses widgets interrogent Beszel, Uptime Kuma, Pangolin et Proxmox avec leurs comptes |
 | `healthlog` | **exclu** | sa synchronisation horaire rafraîchirait les jetons Withings de la base restaurée ; ces jetons tournent à chaque usage, la production perdrait les siens. Sa restauration se prouve par le test de la CI et la restauration d'essai de `healthlog.md` |
 | `mem_report`, `update_notify`, `cost_report` | **exclus** | rapports ntfy et carte Homepage, sans objet sur une copie |
-| `ci_key_audit`, `log_alerts` | **exclus** | alertes et pushs de production |
+| `ci_key_audit`, `log_alerts`, `dav_copy` | **exclus** | alertes et pushs de production ; `dav_copy` (rôle temporaire) pousserait les agendas et contacts vers Infomaniak |
 | `00-setup.yaml` (donc `ssh_login_notify`, `canary`) | **`!drill`** | Telegram, jetons pièges : jamais déclenchés par la copie ; l'utilisateur et la clé viennent de cloud-init |
 | `security` | joué ; SSH ouvert à toute adresse côté `ufw` | le pare-feu Hetzner filtre ; `security_mta_enabled` reste à `false` : pas de relais de courrier |
 | applis (`rss`, `nextcloud`…) | jouées, démarrent à vide, puis `drill-restore-app` | URL push vides, OIDC et clés IA vides : connexion locale, aucune dépense |
