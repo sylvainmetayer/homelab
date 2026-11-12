@@ -267,11 +267,11 @@ def add_dependents(roles, roles_dir=ANSIBLE_DIR / "roles"):
 def resolve_tags(role_tags, roles):
     matched = {role: role_tags[role] for role in roles if role in role_tags}
 
-    # A role tagged `never` (decommission_app) only runs when asked for by
-    # name: a change to it must not deploy anything.
     # Per role: its specific tags, or its generic ones when it has no other
     # (docker_service: setup). Pooling them would let one role's specific tag
     # shadow another role's only tag, which then deploys nothing.
+    # A role tagged `never` (decommission_app) only runs when asked for by
+    # name: a change to it must not deploy anything.
     resolved = set()
     for tags in matched.values():
         if "never" not in tags:
