@@ -103,7 +103,8 @@ publique, le mur SSO n'y est pour rien) ; console Hetzner si le SSH ne répond p
   `/opt/pangolin/config/traefik/dynamic_config.yml`, retirer le routeur
   `legacy-dashboard-router` (Traefik relit le fichier sans redémarrage ; un
   fichier invalide est refusé en entier, certificats compris : regex en guillemets
-  simples). Vider `pangolin_dashboard_legacy_url` n'est **pas** le bon geste :
+  simples). Sans ce routeur, la connexion boucle de nouveau sur l'ancien nom :
+  n'ouvrir les pages que par hall, le revert propre est le vrai correctif. Vider `pangolin_dashboard_legacy_url` n'est **pas** le bon geste :
   il retire aussi l'accès des Newt par l'ancien nom.
 - Pocket ID : rien à défaire, les deux URL de retour y restent. Les sessions
   ouvertes sous hall ne servent plus sur l'ancien nom (cookie d'un autre
