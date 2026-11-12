@@ -70,7 +70,7 @@ Ansible, et le dépôt ne peut pas le vérifier.
 1. **Un canal qui arrive.** Réglages, notifications : le SMTP fonctionne
    (envoyer le message de test) ; sinon un SMTP absent rend l'alerte S.M.A.R.T.
    muette. À vérifier.
-2. **Les disques sont lus.** Pages S.M.A.R.T. de `nas` (trois disques) et de
+2. **Les disques sont lus.** Pages S.M.A.R.T. de `nas` (`sda` et `sdb`) et de
    `pve` (un disque), état `PASSED`, modèle et température renseignés. Un disque
    absent ou `UNKNOWN` ne préviendra jamais ; pour le pont USB de `sdc`,
    `smartctl` peut exiger un type (`beszel_agent_smart_devices`, champ `type`).
