@@ -89,13 +89,24 @@ mettre dans la liste.
   l'écriture suivant immédiatement la création échouant chez Infomaniak.
 - **Carnets** absents : erreur claire pour ce carnet (Infomaniak refuse la
   création par CardDAV, 403 : à créer à la main), le reste continue.
-- **Suppressions** : les objets présents chez Infomaniak mais plus chez
-  Nextcloud sont comptés (« à supprimer »). Attention, c'est un miroir : un
-  objet créé directement chez Infomaniak dans une collection copiée est aussi
-  « à supprimer ». Supprimés seulement avec `--apply --delete`, et jamais si
-  plus de `--max-delete-pct` % (défaut 10) des objets de la collection
-  disparaissent : la collection est sautée avec une erreur, en simulation
-  aussi.
+- **Fichier d'état** (`--state`, exigé par `--apply`, écrit en `0600` de façon
+  atomique, même si la passe plante) : par collection de destination, les
+  objets que l'outil a **lui-même écrits**. Seuls ceux-là peuvent être
+  réécrits ou supprimés. Un objet déjà présent chez Infomaniak (les 677 de
+  l'agenda par défaut, par exemple) n'est jamais touché : de même nom et
+  d'autre contenu, c'est une erreur « conflit », laissé tel quel. **État
+  perdu** : plus aucune suppression ni mise à jour des objets déjà copiés
+  (tous en « conflit » dès qu'ils changent) ; ne pas le perdre.
+- **Suppressions** : un objet écrit par l'outil, présent chez Infomaniak et
+  disparu de Nextcloud est « à supprimer ». Supprimé seulement avec
+  `--apply --delete`, sous `If-Match` de la dernière écriture de l'outil (un
+  objet retouché chez Infomaniak reste), et jamais si plus de
+  `--max-delete-pct` % (défaut 10) des objets copiés disparaissent ou si la
+  source est vide : la collection est sautée avec une erreur, en simulation
+  aussi. Une liste source incomplète (207 partiel, 507) fait sauter la
+  collection.
+- Aucune redirection suivie, aucune requête vers un autre hôte que celui
+  configuré (un `href` absolu d'une réponse est refusé).
 
 ## Limites connues
 
@@ -103,3 +114,9 @@ mettre dans la liste.
   vrac (deux VALARM ne se distinguent pas) ; un serveur qui réécrit une
   propriété autre que `PRODID` ferait réécrire l'objet à chaque passage.
 - Le parseur XML est celui de la bibliothèque standard : serveurs de confiance.
+- `SCHEDULE-AGENT=CLIENT` ne vaut que pour VEVENT/VTODO : l'`ATTENDEE` d'une
+  alarme `ACTION:EMAIL` (VALARM) n'est pas modifié ; vérifier qu'Infomaniak
+  n'envoie pas ces alarmes par courriel avant la première copie.
+- Comparaison des iCal : valeurs des paramètres sans casse (un `CN` qui ne
+  change que de casse n'est pas propagé) ; des exceptions (RECURRENCE-ID)
+  dont on échangerait les propriétés seraient jugées égales.

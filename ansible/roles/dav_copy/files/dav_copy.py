@@ -12,6 +12,7 @@ contenu d'objet dans la sortie.
 import argparse
 import base64
 import hashlib
+import http.client
 import json
 import os
 import re
@@ -52,16 +53,20 @@ class Dav:
     def request(self, method, url, body=None, headers=None):
         if self.read_only and method not in READ_METHODS:
             raise ReadOnlyError(f"méthode {method} refusée sur un client en lecture seule")
+        full = urllib.parse.urljoin(self.url, url)
+        if urllib.parse.urlsplit(full)[:2] != urllib.parse.urlsplit(self.url)[:2]:
+            # un href absolu d'une réponse ne fait jamais partir l'Authorization vers un autre hôte
+            raise ValueError("URL hors de l'hôte configuré refusée")
         h = {"Authorization": self.auth, **(headers or {})}
         data = body.encode() if isinstance(body, str) else body
-        req = urllib.request.Request(urllib.parse.urljoin(self.url, url), data=data, headers=h, method=method)
+        req = urllib.request.Request(full, data=data, headers=h, method=method)
         try:
             with self.opener.open(req, timeout=60) as r:
                 return r.status, r.headers, r.read()
         except urllib.error.HTTPError as e:
             with e:
                 return e.code, e.headers, e.read()
-        except (urllib.error.URLError, OSError) as e:
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
             return 0, {}, type(e).__name__.encode()
 
 
@@ -104,6 +109,10 @@ def propfind(dav, url, props, depth):
     if st != 207:
         raise RuntimeError(f"PROPFIND {st}")
     root = ET.fromstring(raw)  # shortcut: parseur stdlib, serveurs de confiance ; à durcir si une source tierce arrive
+    for r in root.findall(D + "response"):  # 507 (liste tronquée) ou autre erreur par réponse : jamais une liste partielle
+        s = r.findtext(D + "status")
+        if s and not re.search(r" 2\d\d ", s):
+            raise RuntimeError("PROPFIND réponse partielle")
     return [(urllib.parse.urljoin(url, r.findtext(D + "href")), _props(r)) for r in root.findall(D + "response")]
 
 
@@ -149,8 +158,14 @@ def list_collections(dav, user):
 
 
 def list_objects(dav, coll_url):
-    return {slug(u): (p[D + "getetag"].text or "") for u, p in propfind(dav, coll_url, "<d:getetag/>", 1)
-            if D + "getetag" in p and u.rstrip("/") != coll_url.rstrip("/") and not u.endswith("/")}
+    out = {}
+    for u, p in propfind(dav, coll_url, "<d:getetag/>", 1):
+        if u.rstrip("/") == coll_url.rstrip("/") or u.endswith("/"):
+            continue
+        if D + "getetag" not in p:  # 207 partiel : l'objet existe, la liste serait fausse
+            raise RuntimeError("liste incomplète (getetag absent)")
+        out[slug(u)] = p[D + "getetag"].text or ""
+    return out
 
 
 def find(colls, kind, wanted):
@@ -195,11 +210,14 @@ def parse_prop(line):
 
 
 def fold(line):
-    out, first = [], True
-    while len(line) > (75 if first else 74):
-        n = 75 if first else 74
-        out.append(line[:n]); line = line[n:]; first = False
-    out.append(line)
+    """Repliage à 75 octets (RFC 5545), jamais au milieu d'un caractère UTF-8."""
+    out, cur, size, limit = [], "", 0, 75
+    for ch in line:
+        b = len(ch.encode())
+        if size + b > limit:
+            out.append(cur); cur, size, limit = "", 0, 74
+        cur += ch; size += b
+    out.append(cur)
     return "\r\n ".join(out)
 
 
@@ -300,7 +318,9 @@ def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
         rep["created"] = len(sobjs)
         if not o.apply:
             return
-        url = dest_home + urllib.parse.quote(re.sub(r"[^a-z0-9]+", "-", dest_name.casefold()).strip("-")) + "/"
+        seg = re.sub(r"[^a-z0-9]+", "-", dest_name.casefold()).strip("-") or \
+            hashlib.sha256(dest_name.encode()).hexdigest()[:12]  # jamais un MKCALENDAR sur le dossier lui-même
+        url = dest_home + seg + "/"
         comps = "".join(f'<c:comp name="{c}"/>' for c in (sc["comps"] or ["VEVENT", "VTODO"]))
         color = f"<a:calendar-color>{sc['color']}</a:calendar-color>" if sc["color"] else ""
         body = ('<?xml version="1.0"?><c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
@@ -318,33 +338,50 @@ def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
     else:
         dobjs = list_objects(dst, dcoll["url"])
     rep["destination"] = len(dobjs)
-    gone = sorted(set(dobjs) - set(sobjs))
+    # État : nom -> [ETag source, ETag destination, créé par l'outil]. Seuls les objets que l'outil a
+    # lui-même écrits sont « à lui » : jamais modifiés ni supprimés s'ils n'en viennent pas (677 objets
+    # préexistants dans l'agenda par défaut d'Infomaniak). Clé par collection de destination : changer
+    # la cible d'une source ne donne aucun droit sur les objets de la nouvelle.
+    st_coll = state.setdefault(f"{kind}:{sc['slug']}>{urllib.parse.urlsplit(dcoll['url']).path}", {})
+    owned = {n for n, v in st_coll.items() if len(v) > 2 and v[2] is True}
+    managed = owned & set(dobjs)
+    gone = sorted(managed - set(sobjs))
     rep["to_delete"] = len(gone)
-    if gone and 100 * len(gone) > o.max_delete_pct * len(dobjs):
-        rep["errors"].append(f"garde-fou : {len(gone)}/{len(dobjs)} objets disparus de la source "
+    if gone and (not sobjs or 100 * len(gone) > o.max_delete_pct * len(managed)):
+        rep["errors"].append(f"garde-fou : {len(gone)}/{len(managed)} objets copiés disparus de la source "
                              f"(> {o.max_delete_pct} %), collection sautée ; à voir : {', '.join(short(g) for g in gone[:5])}")
         rep["created"] = rep["modified"] = 0
         return
-    key = f"{kind}:{sc['slug']}"
-    st_coll = state.setdefault(key, {})
     ctype = "text/vcard; charset=utf-8" if vcard else "text/calendar; charset=utf-8"
     written = []
     for name, etag in sobjs.items():
         durl = dcoll["url"] + urllib.parse.quote(name)
-        if name in dobjs and st_coll.get(name) == [etag, dobjs[name]]:
+        prev = st_coll.get(name)
+        if name in dobjs and prev and prev[:2] == [etag, dobjs[name]]:
             rep["unchanged"] += 1
             continue
         code, _, raw = src.request("GET", sc["url"] + urllib.parse.quote(name))
         if code != 200:
             rep["errors"].append(f"lecture source {short(name)} : {code}")
             continue
-        text = raw.decode("utf-8", "replace")
+        try:  # décodage strict : un octet UTF-8 coupé par le repliage n'est jamais remplacé par U+FFFD
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            try:
+                text = re.sub(rb"\r?\n[ \t]", b"", raw).decode("utf-8")
+            except UnicodeDecodeError:
+                rep["errors"].append(f"lecture source {short(name)} : UTF-8 invalide")
+                continue
         text = text if vcard else add_schedule_agent(text)
         if name in dobjs:
             code, _, draw = dst.request("GET", durl)
             if code == 200 and normalize(draw.decode("utf-8", "replace"), vcard) == normalize(text, vcard):
                 rep["unchanged"] += 1
-                st_coll[name] = [etag, dobjs[name]]
+                st_coll[name] = [etag, dobjs[name], name in owned]
+                continue
+            if name not in owned:
+                rep["errors"].append(f"conflit {short(name)} : déjà chez la destination, pas écrit par l'outil, "
+                                     "laissé tel quel")
                 continue
             hdr = {"If-Match": dobjs[name]} if dobjs[name] else {}
             field = "modified"
@@ -353,26 +390,44 @@ def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
         if not o.apply:
             rep[field] += 1
             continue
-        st, _ = write(dst, "PUT", durl, text, {**hdr, "Content-Type": ctype}, o.retries, o.retry_delay, fresh)
+        st, h = write(dst, "PUT", durl, text, {**hdr, "Content-Type": ctype}, o.retries, o.retry_delay, fresh)
         if st >= 400 or st == 0:
             rep["errors"].append(f"écriture {short(name)} : {st}")
         else:
             rep[field] += 1
-            written.append((name, etag))
+            st_coll[name] = [etag, h.get("ETag") or "", True]  # à l'outil dès l'écriture, même si la suite échoue
+            written.append(name)
     if o.delete and o.apply:
         for name in gone:
+            # If-Match sur l'ETag de notre dernière écriture : un objet retouché chez la destination reste
+            recorded = st_coll[name][1] or dobjs[name]
             st, _ = write(dst, "DELETE", dcoll["url"] + urllib.parse.quote(name), None,
-                          {"If-Match": dobjs[name]} if dobjs[name] else {}, 0, 0, False)
+                          {"If-Match": recorded} if recorded else {}, 0, 0, False)
             if st >= 400 or st == 0:
                 rep["errors"].append(f"suppression {short(name)} : {st}")
             else:
                 rep["deleted"] += 1
                 st_coll.pop(name, None)
     if o.apply and written:
-        after = list_objects(dst, dcoll["url"])
-        for name, etag in written:
+        try:
+            after = list_objects(dst, dcoll["url"])
+        except (RuntimeError, ET.ParseError):
+            after = {}  # ETag inconnu : la passe suivante compare le contenu
+        for name in written:
             if name in after:
-                st_coll[name] = [etag, after[name]]
+                st_coll[name][1] = after[name]
+
+
+def save_state(path, state):
+    """Écriture atomique, 0600."""
+    tmp = path + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(state, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
 
 
 def run(src, dst, src_user, dst_user, cfg, o, state):
@@ -422,6 +477,8 @@ def main(argv=None):
     a.add_argument("--json", action="store_true")
     a.add_argument("--list", choices=("nextcloud", "dest"), help="liste les collections et leurs objets, sans rien copier")
     o = a.parse_args(argv)
+    if o.apply and not o.list and not o.state:
+        a.error("--apply exige --state : il garde la liste des objets écrits par l'outil, seuls modifiables")
     try:
         su, suser, spw = load_conf(o.source_config, o.source_url)
         du, duser, dpw = load_conf(o.dest_config, o.dest_url)
@@ -439,10 +496,11 @@ def main(argv=None):
             state = {}
             if o.state and os.path.exists(o.state):
                 state = json.load(open(o.state, encoding="utf-8"))
-            reports = run(src, dst, suser, duser, cfg, o, state)
-            if o.apply and o.state:
-                with open(o.state, "w", encoding="utf-8") as f:
-                    json.dump(state, f)
+            try:
+                reports = run(src, dst, suser, duser, cfg, o, state)
+            finally:  # même sur une exception : perdre l'état, c'est perdre la liste des objets à l'outil
+                if o.apply:
+                    save_state(o.state, state)
     except (OSError, ValueError, RuntimeError, ET.ParseError, KeyError) as e:
         print(f"erreur : {type(e).__name__} {e}"[:200], file=sys.stderr)
         return 2
