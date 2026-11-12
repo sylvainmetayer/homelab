@@ -12,4 +12,4 @@ If it rings: grow the pool or free space (`lvs -a`, `docs/runbooks/sante-des-dis
 
 Apply by hand after `tofu apply` of `tofu/pangolin_config`: `ansible-playbook pve.yml --tags thin_pool_check`, from `ansible/`.
 
-Tests: `ansible/molecule/thin_pool_check` (fake `lvs`: under, over on data, over on metadata, `lvs` failing, no pool).
+Tests: `ansible/molecule/thin_pool_check` (fake `lvs`: under, over on data, over on metadata, `lvs` failing, no pool, only warnings on stderr). `lvs` stderr is kept apart from the pool lines: a warning is never read as a pool.
