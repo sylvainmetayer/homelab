@@ -58,6 +58,7 @@ SEARCH_PROPS = {
 # le nom de fichier s'y passe par originalFileName.
 META_PROPS = {k: v for k, v in SEARCH_PROPS.items() if k != "query"}
 META_PROPS["originalFileName"] = {"type": "string", "description": "Nom de fichier d'origine (correspondance partielle)"}
+META_PROPS["albumIds"] = {"type": "array", "items": {"type": "string"}, "description": "UUID d'albums : les assets de ces albums"}
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -151,14 +152,16 @@ def _norm(name):
     return " ".join((name or "").split()).casefold()
 
 
-def _album_assets(call, aid):
-    """({id: nom de fichier}, liste complète ?) : l'album seul ne rend pas ses assets, la recherche si."""
+def _album_assets(call, aid, album=None):
+    """({id: nom de fichier}, liste complète ?) : l'album seul ne rend pas ses assets, la recherche si.
+    `album` : l'album déjà lu (id, assetCount), pour ne pas le relire."""
     items, page = {}, 1
     while page:
         r = call("POST", "/search/metadata", {"albumIds": [_uuid(aid)], "size": 1000, "page": page})["assets"]
         items.update({i["id"]: i.get("originalFileName", "") for i in r["items"]})
         page = page + 1 if r.get("nextPage") and page < 50 else 0
-    return items, len(items) == call("GET", "/albums/{id}", {"id": aid}).get("assetCount")
+    album = album or call("GET", "/albums/{id}", {"id": aid})
+    return items, len(items) == album.get("assetCount")
 
 
 def _sample(ids, names, n=10):
@@ -202,7 +205,7 @@ def find_duplicate_albums(call, args):
         full = [a for a in albums if a["assetCount"]]
         if len(full) > 100:
             raise ValueError("plus de 100 albums non vides : le recouvrement est trop long, noms seulement")
-        sets = {a["id"]: set(_album_assets(call, a["id"])[0]) for a in full}
+        sets = {a["id"]: set(_album_assets(call, a["id"], a)[0]) for a in full}
         out["recouvrement"] = []
         for i, a in enumerate(full):
             for b in full[i + 1:]:
@@ -239,8 +242,8 @@ def create_album(call, args):
 def update_album(call, args):
     aid = _uuid(args.get("id"))
     body = {k: args[k] for k in ("albumName", "description") if k in args}
-    if not body:
-        raise ValueError("albumName ou description requis")
+    if not body or not all(isinstance(v, str) for v in body.values()) or not body.get("albumName", "x").strip():
+        raise ValueError("albumName (non vide) ou description (texte) requis")
     a = call("GET", "/albums/{id}", {"id": aid})
     now = {"albumName": a["albumName"], "description": a.get("description")}
     preview = {"action": "modifier l'album", "id": aid, "avant": now, "apres": {**now, **body}}
@@ -250,7 +253,7 @@ def update_album(call, args):
 def add_assets(call, args):
     aid, ids = _uuid(args.get("id")), _uuids(args.get("assetIds"))
     a = call("GET", "/albums/{id}", {"id": aid})
-    have, complete = _album_assets(call, aid)
+    have, complete = _album_assets(call, aid, a)
     todo = [i for i in ids if i not in have]
     names = {i: call("GET", "/assets/{id}", {"id": i}).get("originalFileName", "") for i in todo[:10]}
     preview = {"action": "ajouter des assets", "album": a["albumName"], "ajoutes": len(todo), "deja_dans_l_album": len(ids) - len(todo),
@@ -261,7 +264,7 @@ def add_assets(call, args):
 def remove_assets(call, args):
     aid, ids = _uuid(args.get("id")), _uuids(args.get("assetIds"))
     a = call("GET", "/albums/{id}", {"id": aid})
-    have, complete = _album_assets(call, aid)
+    have, complete = _album_assets(call, aid, a)
     todo = [i for i in ids if i in have]
     preview = {"action": "retirer des assets de l'album (le lien seulement, les photos restent)", "album": a["albumName"],
                "retires": len(todo), "pas_dans_l_album": len(ids) - len(todo), "echantillon": _sample(todo, have),
@@ -274,8 +277,8 @@ def merge_albums(call, args):
     if keep == dup:
         raise ValueError("keepId et duplicateId sont le même album")
     ka, dn = call("GET", "/albums/{id}", {"id": keep}), call("GET", "/albums/{id}", {"id": dup})
-    kept, kc = _album_assets(call, keep)
-    dups, dc = _album_assets(call, dup)
+    kept, kc = _album_assets(call, keep, ka)
+    dups, dc = _album_assets(call, dup, dn)
     if delete and not (kc and dc):
         raise ValueError("liste d'assets incomplète (archivés ?) : suppression de l'album doublon refusée, fusion sans suppression possible")
     missing = [i for i in dups if i not in kept]
