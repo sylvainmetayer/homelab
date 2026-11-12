@@ -136,6 +136,13 @@ sonne que sur newt-lxc.
 
 ### Poste perdu
 
+Premier geste, poste **et** téléphone perdus : la base KeePass se récupère
+depuis n'importe quel navigateur à `https://r.sylvain.dev/passwords`
+(redirection du dépôt `1y` vers un partage kDrive, sans compte Infomaniak).
+Le partage demande son propre mot de passe, la base son mot de passe maître :
+les deux sont à connaître de tête. Sur une machine qui n'est pas la sienne,
+ne garder ni le fichier ni la session une fois le nécessaire récupéré.
+
 Les deux sections précédentes, plus : révoquer les sessions et jetons GitHub
 du poste (`gh auth status`, paramètres GitHub), le client Pangolin du poste
 (tableau de bord, Clients), les mots de passe enregistrés.
