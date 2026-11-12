@@ -4,12 +4,78 @@ Copie **à sens unique** des agendas, tâches et contacts de Nextcloud
 (`https://sylvain.cloud/remote.php/dav/`) vers Infomaniak
 (`https://sync.infomaniak.com`), étape de la migration hors de Nextcloud.
 
-Ce rôle ne contient pour l'instant que l'outil `files/dav_copy.py` : aucune
-tâche, aucun timer, aucune entrée de playbook (le câblage sur la VM docker
-vient plus tard). Ce `README.md` ne déploie rien. Tests :
-`.github/scripts/test_dav_copy.py` (lancés par le job Lint, sans réseau).
+Rôle **TEMPORAIRE** : le « parallèle » de deux semaines, jusqu'à la bascule
+des téléphones. Sur la VM docker (`docker.yml`, tag `dav_copy`),
+`dav-copy.timer` lance chaque heure (`RandomizedDelaySec=5min`, `Persistent`)
+`dav-copy.service` sous `sylvain` : `dav_copy.py … --apply --delete --json`
+par `/usr/local/libexec/dav-copy-run.sh`, qui pousse ensuite `up` ou `down`
+(« copie en échec (code N) », sans donnée) au moniteur Uptime Kuma
+`uptime_cron_dav_copy_url` (`tofu/pangolin_config/cron_dav_copy.tf`). Unité
+durcie ; identifiants en `0600 root` dans `/etc/dav-copy/` donnés à l'unité par
+`LoadCredential`. Tests de l'outil : `.github/scripts/test_dav_copy.py` (job
+Lint, sans réseau) ; scénario Molecule `dav_copy` (fichiers, droits, timer
+éteint sans état).
 
 Bibliothèque standard seule (urllib, xml.etree, argparse).
+
+## Mise en route (dans cet ordre)
+
+Le rôle n'est joué que si les quatre clés existent dans
+`secrets/ansible.sops.yaml` : un merge avant leur pose ne rend rien.
+
+1. Dans `secrets/` (dépôt privé), poser les clés et leurs entrées dans
+   `secrets/secrets-rotation.yaml` (mots de passe d'application, à révoquer à la
+   fin) : `dav_copy_nextcloud_user`, `dav_copy_nextcloud_password`,
+   `dav_copy_infomaniak_url` (URL d'agenda Infomaniak avec l'identifiant),
+   `dav_copy_infomaniak_password`. Commit poussé dans `secrets/`, puis bump du
+   sous-module ici (ne déploie rien).
+2. Appliquer le moniteur : `mise run tofu pangolin_config plan`, puis apply (un
+   `-target` sur `uptimekuma_monitor_push.cron_dav_copy` si le plan contient
+   autre chose).
+3. Déployer sans le timer : `docker.yml --tags dav_copy` (depuis `ansible/`).
+   Le rôle pose tout, laisse le timer éteint et affiche ce qui manque.
+4. Copier l'état de la première copie depuis le poste, en `sylvain`, `0600`
+   (le dossier `/var/lib/dav-copy` existe, `0700 sylvain`) :
+   `scp ~/.local/state/dav-copy.json docker:/tmp/dav-copy.json && ssh docker 'sudo install -o sylvain -g sylvain -m 0600 /tmp/dav-copy.json /var/lib/dav-copy/state.json && rm /tmp/dav-copy.json'`.
+   Sans cet état, l'outil traiterait tous les objets déjà copiés comme
+   étrangers (conflits, plus de mises à jour) : le rôle ne crée **jamais** un
+   état vide et n'allume le timer que si le fichier existe.
+5. Rejouer `docker.yml --tags dav_copy` : le timer démarre (premier passage 5
+   minutes après).
+
+**Un seul endroit lance la copie : ne plus la lancer depuis le poste une fois
+le timer actif** (deux états divergents, suppressions et conflits en cascade).
+Garder le fichier d'état du poste comme sauvegarde jusqu'à la fin.
+
+## Contrôle
+
+```bash
+systemctl status dav-copy.timer dav-copy.service
+journalctl -u dav-copy -n 50          # compte rendu JSON du dernier passage
+sudo systemctl start dav-copy         # un passage tout de suite
+```
+
+Un passage en échec (code 1 : collection en erreur, garde-fou de suppression,
+conflit ; 2 : configuration ou découverte) met le moniteur en DOWN ; le
+compte rendu dit quelle collection.
+
+## Arrêt et retrait (fin de la migration)
+
+`remove-app` ne s'applique pas (pas de conteneur) :
+
+1. `sudo systemctl disable --now dav-copy.timer`, puis, après un dernier passage
+   voulu, supprimer `/etc/systemd/system/dav-copy.{service,timer}`,
+   `/usr/local/libexec/dav_copy.py`, `/usr/local/libexec/dav-copy-run.sh`,
+   `/etc/dav-copy/` et `/var/lib/dav-copy/` sur la VM (`systemctl daemon-reload`).
+2. Dans une PR : retirer l'entrée `dav_copy` de `ansible/docker.yml`, le
+   dossier du rôle, `ansible/molecule/dav_copy/`, les quatre clés de
+   `ansible/molecule/_shared/vars/fake_secrets.yml`, `cron_dav_copy.tf` et ses
+   trois blocs de `tofu/pangolin_config/tests/invariants.tftest.hcl` (apply du
+   retrait du moniteur à la main), la ligne du rôle dans
+   `docs/conventions/ansible.md`.
+3. Dans `secrets/` : retirer les quatre clés et leurs entrées de
+   `secrets-rotation.yaml` ; révoquer les deux mots de passe d'application.
+4. `grep -rn dav_copy` sur le dépôt.
 
 ## Garanties
 

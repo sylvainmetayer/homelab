@@ -1,0 +1,7 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le verify contrôle les fichiers posés et le garde-fou : sans l'état de la
+# première copie, le timer reste éteint (le cas avec état n'est pas rejoué). L'outil, lui,
+# est testé par .github/scripts/test_dav_copy.py.
+scenario:
+  name: dav_copy

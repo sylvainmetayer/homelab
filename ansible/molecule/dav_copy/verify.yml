@@ -1,0 +1,105 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  vars:
+    dav_copy_verify_dir: /etc/dav-copy
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+  tasks:
+    - name: Stat the credential files and the inclusion list
+      ansible.builtin.stat:
+        path: "{{ dav_copy_verify_dir }}/{{ item }}"
+      loop: [nextcloud, infomaniak, push, collections.json]
+      register: dav_copy_verify_files
+
+    # Identifiants et URL push pour root seul ; la liste, sans secret, lisible.
+    - name: Assert the files are root-owned with the right modes
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.pw_name == 'root'
+          - item.stat.mode == ('0644' if item.item == 'collections.json' else '0600')
+        fail_msg: "{{ item.item }} : {{ item.stat.pw_name | default('absent') }} {{ item.stat.mode | default('') }}"
+        quiet: true
+      loop: "{{ dav_copy_verify_files.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Read the credential files and the list
+      ansible.builtin.slurp:
+        path: "{{ dav_copy_verify_dir }}/{{ item }}"
+      loop: [nextcloud, infomaniak, push, collections.json]
+      register: dav_copy_verify_contents
+
+    - name: Assert the credentials are in the tool's format and the list is kept
+      vars:
+        dav_copy_verify_nc: "{{ (dav_copy_verify_contents.results[0].content | b64decode).splitlines() }}"
+        dav_copy_verify_im: "{{ (dav_copy_verify_contents.results[1].content | b64decode).splitlines() }}"
+        dav_copy_verify_push: "{{ dav_copy_verify_contents.results[2].content | b64decode }}"
+        dav_copy_verify_text: "{{ dav_copy_verify_contents.results[3].content | b64decode }}"
+        dav_copy_verify_list: "{{ dav_copy_verify_text | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - "('USER: ' ~ dav_copy_nextcloud_user) in dav_copy_verify_nc"
+          - "('MDP: ' ~ dav_copy_nextcloud_password) in dav_copy_verify_nc"
+          - "('URL: ' ~ dav_copy_infomaniak_url) in dav_copy_verify_im"
+          - "('MDP: ' ~ dav_copy_infomaniak_password) in dav_copy_verify_im"
+          - dav_copy_verify_push.startswith('url = "http://127.0.0.1:18080/api/push/molecule"')
+          - dav_copy_nextcloud_password not in dav_copy_verify_text
+          - dav_copy_verify_list.calendars | length == 6
+          - dav_copy_verify_list.addressbooks | length == 4
+          - dav_copy_verify_list.calendars[0].dest == 'Personnel - Not shared'
+        quiet: true
+
+    - name: Verify the units
+      ansible.builtin.command: systemd-analyze verify dav-copy.service dav-copy.timer
+      register: dav_copy_verify_analyze
+      changed_when: false
+      failed_when: >-
+        dav_copy_verify_analyze.rc != 0
+        or (dav_copy_verify_analyze.stderr_lines | select('search', 'dav-copy') | list | length > 0)
+
+    - name: Read the timer and the service
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+      loop: [dav-copy.timer, dav-copy.service]
+      register: dav_copy_verify_units
+
+    - name: Stat the state file
+      ansible.builtin.stat:
+        path: /var/lib/dav-copy/state.json
+      register: dav_copy_verify_state
+
+    # Sans l'état de la première copie : ni fichier créé, ni timer allumé.
+    - name: Assert the timer stays off without the state file
+      vars:
+        dav_copy_verify_timer: "{{ dav_copy_verify_units.results[0].status }}"
+        dav_copy_verify_unit: "{{ dav_copy_verify_units.results[1].status }}"
+      ansible.builtin.assert:
+        that:
+          - not dav_copy_verify_state.stat.exists
+          - dav_copy_verify_timer.ActiveState == 'inactive'
+          - dav_copy_verify_timer.UnitFileState != 'enabled'
+          - dav_copy_verify_unit.ProtectSystem == 'strict'
+          - dav_copy_verify_unit.NoNewPrivileges == 'yes'
+          - dav_copy_verify_unit.StateDirectory == 'dav-copy'
+          - dav_copy_verify_unit.User == 'sylvain'
+
+    - name: Check the launcher runs the tool by path and never carries a secret
+      ansible.builtin.slurp:
+        path: /usr/local/libexec/dav-copy-run.sh
+      register: dav_copy_verify_run
+
+    - name: Assert the launcher command line
+      vars:
+        dav_copy_verify_sh: "{{ dav_copy_verify_run.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'--apply --delete --json' in dav_copy_verify_sh"
+          - "'--state /var/lib/dav-copy/state.json' in dav_copy_verify_sh"
+          - dav_copy_nextcloud_password not in dav_copy_verify_sh
+          - dav_copy_infomaniak_password not in dav_copy_verify_sh
+        quiet: true

@@ -1,0 +1,133 @@
+---
+- name: Warn when the DAV copy has no monitor
+  when: dav_copy_push_url | length == 0
+  ansible.builtin.debug:
+    msg: >-
+      Pas d'URL push : uptime_cron_dav_copy_url vide (tofu/pangolin_config pas
+      appliqué). La copie tourne, mais rien ne verrait sa panne.
+
+# /usr/local/libexec n'existe pas partout (absent du Pi, 28/10).
+- name: Ensure the DAV copy folders exist
+  become: true
+  loop:
+    - "{{ dav_copy_script | dirname }}"
+    - "{{ dav_copy_config_dir }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755" # NOSONAR
+
+# Le dossier d'état, créé ici : l'état de la première copie y est posé à la main
+# avant la mise en route. Jamais de fichier d'état créé par le rôle : un état
+# vide ferait traiter tous les objets déjà copiés comme étrangers (conflits).
+- name: Create the DAV copy state folder
+  become: true
+  ansible.builtin.file:
+    path: "{{ dav_copy_state_dir }}"
+    state: directory
+    owner: "{{ dav_copy_user }}"
+    group: "{{ dav_copy_user }}"
+    mode: "0700"
+
+- name: Install the DAV copy script
+  become: true
+  ansible.builtin.copy:
+    src: dav_copy.py
+    dest: "{{ dav_copy_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+- name: Install the DAV copy launcher
+  become: true
+  ansible.builtin.template:
+    src: dav-copy-run.sh.j2
+    dest: "{{ dav_copy_run_script }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Sans secret.
+- name: Write the DAV copy inclusion list
+  become: true
+  ansible.builtin.copy:
+    content: "{{ dav_copy_collections | to_nice_json(ensure_ascii=False) }}\n"
+    dest: "{{ dav_copy_config_dir }}/collections.json"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+
+# Identifiants au format de l'outil (CLE: valeur), 0600 root, diff: false.
+# Le fichier push est au format de curl pour uptime-push, vide sans moniteur.
+- name: Write the DAV copy credentials
+  become: true
+  diff: false
+  no_log: true
+  loop:
+    - dest: nextcloud
+      content: |
+        USER: {{ dav_copy_nextcloud_user }}
+        MDP: {{ dav_copy_nextcloud_password }}
+    - dest: infomaniak
+      content: |
+        URL: {{ dav_copy_infomaniak_url }}
+        MDP: {{ dav_copy_infomaniak_password }}
+    - dest: push
+      content: "{{ ('url = ' ~ (dav_copy_push_url | to_json(ensure_ascii=False)) ~ '\n') if dav_copy_push_url | length > 0 else '' }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  ansible.builtin.copy:
+    content: "{{ item.content }}"
+    dest: "{{ dav_copy_config_dir }}/{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Look for the state file of the first copy
+  become: true
+  ansible.builtin.stat:
+    path: "{{ dav_copy_state_file }}"
+  register: dav_copy_state
+
+- name: Install the DAV copy service and timer
+  become: true
+  loop:
+    - dav-copy.service
+    - dav-copy.timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644" # NOSONAR
+  notify: Restart dav-copy timer
+
+# Sans l'état de la première copie, l'outil traiterait tout ce qui est déjà
+# copié comme étranger : le timer reste éteint.
+- name: Enable the DAV copy timer once the state file is there
+  become: true
+  when: dav_copy_state.stat.exists
+  ansible.builtin.systemd:
+    name: dav-copy.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
+- name: Keep the DAV copy timer off while the state file is missing
+  become: true
+  when: not dav_copy_state.stat.exists
+  ansible.builtin.systemd:
+    name: dav-copy.timer
+    state: stopped
+    enabled: false
+    daemon_reload: true
+
+- name: Say what is missing before the DAV copy can start
+  when: not dav_copy_state.stat.exists
+  ansible.builtin.debug:
+    msg: >-
+      Timer dav-copy éteint : {{ dav_copy_state_file }} absent. Copier d'abord
+      l'état de la première copie (~/.local/state/dav-copy.json du poste) sur
+      l'hôte, puis rejouer docker.yml --tags dav_copy (README du rôle).

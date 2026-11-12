@@ -1,0 +1,11 @@
+---
+# Un OnCalendar modifié ne s'applique qu'au redémarrage du timer. Le timer est
+# démarré par le rôle seulement si l'état existe : le redémarrage ne doit pas
+# l'allumer sans lui.
+- name: Restart dav-copy timer
+  become: true
+  when: dav_copy_state.stat.exists
+  ansible.builtin.systemd:
+    name: dav-copy.timer
+    state: restarted
+    daemon_reload: true

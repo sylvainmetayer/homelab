@@ -872,6 +872,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.cron_dav_copy
+  values = { push_token = "push-cron-dav-copy" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.cron_log_alerts
   values = { push_token = "push-cron-log-alerts" }
 }
@@ -2475,6 +2480,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         uptime_cron_log_alerts_url          = output.uptime_cron_log_alerts_url
+        uptime_cron_dav_copy_url            = output.uptime_cron_dav_copy_url
         # flip.yml (production, démo, vitrine)
         uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
         uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
@@ -3244,6 +3250,23 @@ run "monitors_are_filed_and_alert" {
       && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.uptime_cron_ci_key_audit_url.value")
     )
     error_message = "Clé de CI : rangé avec les healthchecks, Telegram et ntfy, actif, sans PENDING, intervalle de trois périodes de ci_key_audit_schedule (*:0/N), lu par docker.yml."
+  }
+
+  # Copie DAV (rôle dav_copy, temporaire) : la VM docker pousse toutes les heures
+  # (dav_copy_schedule: hourly) ; deux passages manqués passent, pas trois. Sans
+  # max_retries : un down poussé notifie tout de suite. docker.yml lit la sortie
+  # dans l'entrée du rôle.
+  assert {
+    condition = (
+      uptimekuma_monitor_push.cron_dav_copy.parent == uptimekuma_monitor_group.self_hosted.id
+      && toset(uptimekuma_monitor_push.cron_dav_copy.notification_ids) == toset(local.alert_notification_ids)
+      && uptimekuma_monitor_push.cron_dav_copy.active == true
+      && uptimekuma_monitor_push.cron_dav_copy.max_retries == 0
+      && yamldecode(file("${path.module}/../../ansible/roles/dav_copy/defaults/main.yml")).dav_copy_schedule == "hourly"
+      && uptimekuma_monitor_push.cron_dav_copy.interval == 3 * 60 * 60
+      && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.uptime_cron_dav_copy_url.value")
+    )
+    error_message = "Copie DAV : rangé avec les healthchecks, Telegram et ntfy, actif, sans PENDING, intervalle de trois heures (dav_copy_schedule: hourly), lu par docker.yml."
   }
 
   # Alertes sur les journaux (rôle log_alerts) : la VM docker pousse toutes les N

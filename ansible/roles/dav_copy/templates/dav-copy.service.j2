@@ -1,0 +1,32 @@
+# {{ ansible_managed }}
+# Copie Nextcloud vers Infomaniak (rôle dav_copy, temporaire). Les identifiants
+# restent en 0600 root : systemd les donne à l'unité par LoadCredential, jamais
+# sur la ligne de commande (systemctl show et ps la montreraient).
+[Unit]
+Description=One-way copy of Nextcloud calendars and contacts to Infomaniak
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User={{ dav_copy_user }}
+LoadCredential=nextcloud:{{ dav_copy_config_dir }}/nextcloud
+LoadCredential=infomaniak:{{ dav_copy_config_dir }}/infomaniak
+LoadCredential=push:{{ dav_copy_config_dir }}/push
+# /var/lib/dav-copy, au compte de l'unité : l'état de la copie, à ne pas perdre.
+StateDirectory={{ dav_copy_state_dir | basename }}
+StateDirectoryMode=0700
+ExecStart=/bin/sh {{ dav_copy_run_script }}
+TimeoutStartSec=20min
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectControlGroups=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+CapabilityBoundingSet=
+# AF_UNIX : la résolution DNS par systemd-resolved (nss).
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+MemoryMax=256M

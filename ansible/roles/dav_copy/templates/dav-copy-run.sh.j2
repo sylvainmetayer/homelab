@@ -1,0 +1,21 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Lancé par dav-copy.service : la copie, puis le battement Uptime Kuma. Le
+# compte rendu JSON (noms tronqués, aucune donnée) va au journal ; le message
+# poussé ne dit que le code de sortie.
+python3 -I {{ dav_copy_script }} \
+  --source-config "$CREDENTIALS_DIRECTORY/nextcloud" \
+  --dest-config "$CREDENTIALS_DIRECTORY/infomaniak" \
+  --collections {{ dav_copy_config_dir }}/collections.json \
+  --state {{ dav_copy_state_file }} --apply --delete --json
+rc=$?
+if [ "$rc" -eq 0 ]; then
+  status=up msg="copie ok"
+else
+  status=down msg="copie en échec (code $rc)"
+fi
+# Fichier vide : moniteur pas appliqué, rien n'est poussé.
+if [ -s "$CREDENTIALS_DIRECTORY/push" ]; then
+  {{ uptime_push_bin }} --agent dav-copy "$CREDENTIALS_DIRECTORY/push" "$status" "$msg"
+fi
+exit "$rc"
