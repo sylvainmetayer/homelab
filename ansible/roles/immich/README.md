@@ -9,7 +9,7 @@ là-bas à la main (`ansible/roles/immich_ml/README.md`).
 ## Immich Kiosk (`kiosk.sylvain.cloud`)
 
 Cadre photo plein écran de [damongolding/immich-kiosk](https://github.com/damongolding/immich-kiosk),
-image `ghcr.io/damongolding/immich-kiosk:0.45.2` (binaire Go, distroless,
+image `ghcr.io/damongolding/immich-kiosk:0.47.1` (binaire Go, distroless,
 utilisateur `nonroot`). Dans ce rôle et pas dans un rôle à part : comme Swipe,
 il appelle `immich-server` par le réseau `immich` du projet compose, et
 Immich reste sur le Pi ([ADR 0020](../../../docs/adr/0020-garder-le-raspberry-pi-pour-immich.md)).
@@ -124,8 +124,8 @@ une restauration le crée d'abord ([pi-mort.md](../../../docs/runbooks/pi-mort.m
 
 Pas de `JWT_SECRET` : sans lui, les liens de partage publics de l'appli
 (`/api/share-link/*`, qui se passent de session) ne peuvent pas être générés.
-Aucune clé Google Maps ni de fournisseur d'IA (`AI_*`) : la carte thermique et
-la recherche en langage naturel ne servent pas.
+Aucune clé Google Maps : la carte thermique ne sert pas. Pour Power Tools, les `AI_*` ne sont posées
+que pour la recherche « Find » (plus haut) : pas de clé, pas de fournisseur d'IA.
 
 Durcissement : l'utilisateur `nextjs` (uid 1001, `USER` de l'image),
 `read_only`, `cap_drop: ALL`, `no-new-privileges`, `tmpfs` sur `/tmp` et

@@ -313,11 +313,11 @@ essai.
    à l'adresse de `pangolin_le_email` (`mediamanager_admin_email`), mot de
    passe **`admin`**, créé au premier démarrage : **le changer aussitôt**.
 4. Avec la clé WireGuard posée et le rôle relancé : `https://prowlarr.sylvain.cloud`
-   (ou le tunnel SSH, plus haut),
-   se connecter avec le compte créé par `ssh -t sylvain@192.168.1.137 sudo
-   prowlarr-user` (Prowlarr n'en a aucun au départ et ne propose pas d'en
-   créer : le formulaire est imposé par le compose ; le même script change le
-   mot de passe) ; y ajouter des
+   (client `mediamanager-tools` appliqué : Pocket ID seul, aucun login, et pas de
+   tunnel SSH pour Prowlarr). Sans lui, ou avec `mediamanager_local_login: true`, se connecter avec le compte créé par
+   `ssh -t sylvain@192.168.1.137 sudo prowlarr-user` (Prowlarr n'en a aucun au
+   départ et ne propose pas d'en créer : le formulaire est imposé par le
+   compose ; le même script change le mot de passe). Y ajouter des
    indexeurs publics, en laissant **« Redirect » décoché** sur chacun :
    Prowlarr télécharge alors lui-même le `.torrent` (par le VPN) au lieu de
    renvoyer MediaManager vers le tracker, qui le chercherait par la connexion
