@@ -27,18 +27,26 @@ class DrillCheck(unittest.TestCase):
         self.assertFalse(set(drill.STATELESS) & repos)
 
     def test_probes_match_the_pangolin_targets(self):
-        """Conteneur, port et chemin de chaque sonde sont ceux de website_*.tf (hc_path, sauf nextcloud)."""
+        """Conteneur, port et chemin de chaque sonde sont ceux de website_*.tf (hc_path, « / » sans lui)."""
         drill = load()
         targets = {}
         for tf in WEBSITES.glob("website_*.tf"):
-            text = tf.read_text()
-            ip, port = re.search(r'\bip\s*=\s*"([^"]+)"', text), re.search(r"\bport\s*=\s*(\d+)", text)
-            if ip and port:
-                targets[ip.group(1)] = int(port.group(1))
-        for name, (container, port, _path, _host) in {**drill.HTTP, **drill.STATELESS}.items():
+            ip = None
+            for line in tf.read_text().splitlines():
+                if m := re.search(r'\bip\s*=\s*"([^"]+)"', line):
+                    ip = m.group(1)
+                    targets[ip] = [None, "/"]
+                elif ip and (m := re.search(r"\bport\s*=\s*(\d+)", line)):
+                    targets[ip][0] = int(m.group(1))
+                elif ip and (m := re.search(r'\bhc_path\s*=\s*"([^"]+)"', line)):
+                    targets[ip][1] = m.group(1)
+        for name, (container, port, path, _host) in {**drill.HTTP, **drill.STATELESS}.items():
             self.assertIn(container, targets, f"{name} : conteneur {container} absent des website_*.tf")
-            self.assertEqual(targets[container], port, f"{name} : port")
-
+            self.assertEqual(targets[container][0], port, f"{name} : port")
+            # Grocy : « / » voulu, le /robots.txt de Pangolin ne crée pas grocy.db.
+            # Nextcloud : /status.php dit « installed », /login ne le dit pas.
+            if name not in ("grocy", "nextcloud"):
+                self.assertEqual(targets[container][1], path, f"{name} : chemin")
 
 if __name__ == "__main__":
     unittest.main()

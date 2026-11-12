@@ -203,8 +203,11 @@ def list_albums(call, args):
              "fin": a.get("endDate"), "partage": bool(a.get("shared"))}
             for a in call("GET", "/albums", {}) if q in _norm(a["albumName"])]
     rows.sort(key=lambda r: _norm(r["nom"]))
+    pages = max(1, -(-len(rows) // ALBUMS_PAGE))
+    if page > pages:
+        raise ValueError(f"page {page} demandée, {pages} page(s) seulement")
     return {"albums": rows[(page - 1) * ALBUMS_PAGE: page * ALBUMS_PAGE], "total": len(rows), "page": page,
-            "pages": max(1, -(-len(rows) // ALBUMS_PAGE))}
+            "pages": pages}
 
 
 def find_duplicate_albums(call, args):

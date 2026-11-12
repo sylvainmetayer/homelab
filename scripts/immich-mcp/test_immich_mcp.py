@@ -299,6 +299,8 @@ class ImmichMcpTest(unittest.TestCase):
         self.assertEqual((len(p1["albums"]), p1["total"], p1["pages"], p1["page"]), (300, 650, 3, 1))
         self.assertEqual((len(p3["albums"]), p3["albums"][0]["nom"]), (50, "album 0600"))
         self.assertLess(len(json.dumps(p1, ensure_ascii=False)), 100000)
+        err, text = tool(many, "list_albums", {"page": 4}, write=False)  # pas une liste vide
+        self.assertTrue(err and "3 page(s)" in text)
 
     def test_long_output_is_marked_truncated(self):
         big = lambda *a: {"x": "y" * 200000}
