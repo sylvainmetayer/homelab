@@ -94,7 +94,7 @@ There is no mise task running a playbook and no `site.yml`: from `ansible/`, run
 | Topic | File |
 |---|---|
 | Apps, their role and host | `docs/apps.md` |
-| Human map of the homelab (FR) | `docs/architecture.md` |
+| Human map of the homelab (FR) | `docs/architecture.md`; hand-written SVG diagrams in `docs/carte.md` (`docs/schemas/`, to fix when a host or an app moves) |
 | Data matrix: per dataset, copies, what survives the loss of the house, gaps (FR) | `docs/matrice-des-donnees.md` |
 | Incident procedures (FR) | `docs/runbooks/README.md` |
 | Past incidents (symptom, cause, what was missing, action), leaving for days (absence mode) | `docs/incidents/README.md`, `docs/runbooks/mode-absence.md` |

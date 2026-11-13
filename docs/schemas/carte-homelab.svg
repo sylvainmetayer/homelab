@@ -1,0 +1,245 @@
+<svg viewBox="0 0 1200 920" role="img" aria-label="Tout le trafic public entre par la VM Pangolin chez Hetzner ; chaque hôte de la maison et flip y ouvrent un tunnel WireGuard sortant ; chaque hôte sauvegarde vers la Storage Box." xmlns="http://www.w3.org/2000/svg">
+<style>
+/* Fichier autonome : ses couleurs suivent le thème du système, pas celui du site. */
+:root{--surface:#ffffff;--node:#eef1f6;--zone-a:#e4e9f2;--zone-b:#e6efe9;--ink:#172033;--muted:#5b667a;--line:#c3cad6;--line-strong:#8e99ab;--req:#3b4fd8;--tun:#0b8068;--tun-soft:#d9f0ea;--bak:#a85d00;--display:system-ui,sans-serif;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+@media (prefers-color-scheme:dark){:root{--surface:#1a2130;--node:#232c3d;--zone-a:#151b27;--zone-b:#131d1b;--ink:#e6eaf2;--muted:#98a3b6;--line:#333e52;--line-strong:#55627a;--req:#8ea0ff;--tun:#4fd1b3;--tun-soft:#16352f;--bak:#f0b35a}}
+.bg{fill:var(--surface)}
+.zone-a { fill: var(--zone-a); stroke: var(--line); }
+.zone-b { fill: var(--zone-b); stroke: var(--line); }
+.host { fill: var(--surface); stroke: var(--line-strong); }
+.node { fill: var(--node); stroke: var(--line); }
+.chip { fill: var(--tun-soft); stroke: var(--tun); }
+svg text { fill: var(--ink); font-size: 12px; }
+svg .t { font-family: var(--display); font-weight: 600; font-size: 13.5px; }
+svg .b { font-weight: 600; }
+svg .s { fill: var(--muted); font-size: 11px; }
+svg .h { fill: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+svg .z { fill: var(--muted); font-size: 12px; font-weight: 600; }
+svg .c { font-size: 11px; font-weight: 600; fill: var(--tun); }
+svg .l-req { fill: var(--req); font-size: 11.5px; font-weight: 500; }
+svg .l-tun { fill: var(--tun); font-size: 11.5px; font-weight: 500; }
+svg .l-bak { fill: var(--bak); font-size: 11.5px; font-weight: 500; }
+.e { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.e-req { stroke: var(--req); stroke-width: 2; }
+.e-tun { stroke: var(--tun); stroke-width: 3; }
+.e-bak { stroke: var(--bak); stroke-width: 2; stroke-dasharray: 6 5; }
+.e-aux { stroke: var(--line-strong); stroke-width: 1.5; }
+.m-req { fill: var(--req); } .m-tun { fill: var(--tun); } .m-bak { fill: var(--bak); } .m-aux { fill: var(--line-strong); }
+</style>
+<defs>
+          <marker id="a-req" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="m-req" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-tun" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path class="m-tun" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-bak" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="m-bak" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-aux" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="m-aux" d="M0,0 L8,4 L0,8 z"/></marker>
+        </defs>
+<rect class="bg" width="100%" height="100%"/>
+
+
+<!-- Bande Internet -->
+<text class="z" x="40" y="28">Internet</text>
+<rect class="host" x="40" y="40" width="200" height="70" rx="8"/>
+<text class="t" x="140" y="70" text-anchor="middle">Navigateur, applis mobiles</text>
+<text class="s" x="140" y="90" text-anchor="middle">France et Allemagne seulement</text>
+
+<rect class="host" x="270" y="40" width="200" height="70" rx="8"/>
+<text class="t" x="370" y="70" text-anchor="middle">Client Pangolin</text>
+<text class="s" x="370" y="90" text-anchor="middle">téléphone, hors de la maison</text>
+
+<rect class="host" x="500" y="40" width="200" height="70" rx="8"/>
+<text class="t" x="600" y="70" text-anchor="middle">GitHub Actions</text>
+<text class="s" x="600" y="90" text-anchor="middle">merger sur main = déployer</text>
+
+<text class="z" x="760" y="28">Hébergé ailleurs, hors Pangolin</text>
+<rect class="host" x="760" y="40" width="190" height="70" rx="8"/>
+<text class="t" x="855" y="70" text-anchor="middle">PikaPods</text>
+<text class="s" x="855" y="90" text-anchor="middle">Uptime Kuma, Actual Budget</text>
+
+<rect class="host" x="970" y="40" width="190" height="70" rx="8"/>
+<text class="t" x="1065" y="70" text-anchor="middle">Cloudflare Pages</text>
+<text class="s" x="1065" y="90" text-anchor="middle">www, ref, planning, 1y</text>
+
+<!-- Zone Hetzner -->
+<rect class="zone-a" x="20" y="180" width="1160" height="270" rx="12"/>
+<text class="z" x="1164" y="202" text-anchor="end">Hetzner</text>
+
+<!-- Arêtes du haut -->
+<path class="e e-req" d="M118,110 V253" marker-end="url(#a-req)"/>
+<text class="l-req" x="128" y="142">HTTPS 443</text>
+<text class="l-req" x="128" y="158">DNS OVH vers l'IP de Pangolin</text>
+<path class="e e-tun" d="M370,110 V212" marker-end="url(#a-tun)"/>
+<text class="l-tun" x="380" y="142">WireGuard</text>
+<text class="l-tun" x="380" y="158">ressources privées</text>
+<path class="e e-tun" d="M560,110 V212" marker-end="url(#a-tun)"/>
+<text class="l-tun" x="570" y="142">tunnel OLM,</text>
+<text class="l-tun" x="570" y="158">puis Ansible sur SSH</text>
+
+<!-- VM Pangolin -->
+<rect class="host" x="40" y="215" width="560" height="215" rx="8"/>
+<text class="t" x="588" y="238" text-anchor="end">VM Pangolin · IP publique, seul point d'entrée</text>
+
+<rect class="node" x="60" y="255" width="115" height="50" rx="6"/>
+<text class="b" x="117" y="276" text-anchor="middle">Traefik</text>
+<text class="s" x="117" y="293" text-anchor="middle">TLS, jokers LE</text>
+<rect class="node" x="195" y="255" width="115" height="50" rx="6"/>
+<text class="b" x="252" y="276" text-anchor="middle">CrowdSec</text>
+<text class="s" x="252" y="293" text-anchor="middle">IP bannies : 403</text>
+<rect class="node" x="330" y="255" width="115" height="50" rx="6"/>
+<text class="b" x="387" y="276" text-anchor="middle">Badger</text>
+<text class="s" x="387" y="293" text-anchor="middle">FR/DE, puis SSO</text>
+<rect class="node" x="465" y="255" width="115" height="50" rx="6"/>
+<text class="b" x="522" y="276" text-anchor="middle">Pangolin</text>
+<text class="s" x="522" y="293" text-anchor="middle">config, API</text>
+<path class="e e-req" d="M175,280 H193" marker-end="url(#a-req)"/>
+<path class="e e-req" d="M310,280 H328" marker-end="url(#a-req)"/>
+<path class="e e-req" d="M445,280 H463" marker-end="url(#a-req)"/>
+
+<rect class="node" x="60" y="345" width="180" height="50" rx="6"/>
+<text class="b" x="150" y="366" text-anchor="middle">Gerbil</text>
+<text class="s" x="150" y="383" text-anchor="middle">WireGuard, UDP 51820</text>
+<rect class="node" x="265" y="345" width="150" height="50" rx="6"/>
+<text class="b" x="340" y="366" text-anchor="middle">Pocket ID</text>
+<text class="s" x="340" y="383" text-anchor="middle">OIDC, passkeys</text>
+<rect class="node" x="440" y="345" width="140" height="50" rx="6"/>
+<text class="b" x="510" y="366" text-anchor="middle">NAT</text>
+<text class="s" x="510" y="383" text-anchor="middle">sortie Internet de flip</text>
+
+<path class="e e-req" d="M100,305 V343" marker-end="url(#a-req)"/>
+<text class="l-req" x="108" y="329">vers la cible</text>
+<path class="e e-aux" d="M387,305 V343" marker-end="url(#a-aux)"/>
+<text class="s" x="395" y="329">login</text>
+
+<!-- flip -->
+<rect class="host" x="640" y="215" width="280" height="215" rx="8"/>
+<text class="t" x="652" y="238">flip</text>
+<text class="s" x="652" y="255">sans IP publique · réseau privé 10.0.1.10</text>
+<text class="b" x="652" y="285">Flip Planning (production)</text>
+<text class="s" x="652" y="301">démo, démo Keycloak, vitrine : en pause</text>
+<text x="652" y="327"><tspan class="b">Promptoramix</tspan> · bot du tournoi Linkx</text>
+<text x="652" y="351"><tspan class="b">OpenPost</tspan> · posts.sylvain.cloud</text>
+<rect class="chip" x="735" y="388" width="50" height="26" rx="13"/>
+<text class="c" x="760" y="405" text-anchor="middle">newt</text>
+<path class="e e-aux" d="M640,372 H582" marker-end="url(#a-aux)"/>
+
+<!-- Storage Box -->
+<rect class="host" x="960" y="215" width="200" height="215" rx="8"/>
+<text class="t" x="972" y="238">Storage Box</text>
+<text x="972" y="270">Dépôts Borg chiffrés,</text>
+<text x="972" y="286">un par appli</text>
+<text x="972" y="312">Un sous-compte par hôte</text>
+<text x="972" y="338">9 snapshots quotidiens,</text>
+<text x="972" y="354">ineffaçables par un hôte</text>
+<text class="s" x="972" y="382">Rétention : 7 jours, 4 semaines,</text>
+<text class="s" x="972" y="397">6 mois, 1 an</text>
+<path class="e e-bak" d="M920,320 H958" marker-end="url(#a-bak)"/>
+<path class="e e-bak" d="M300,430 V442 H940 V320"/>
+
+<!-- Zone maison -->
+<rect class="zone-b" x="20" y="500" width="1160" height="400" rx="12"/>
+<text class="z" x="36" y="888">Maison · réseau local · aucun port entrant ouvert</text>
+
+<!-- Tunnels -->
+<path class="e e-tun" d="M150,475 V398" marker-end="url(#a-tun)"/>
+<path class="e e-tun" d="M150,475 H1125"/>
+<path class="e e-tun" d="M345,475 V583"/>
+<path class="e e-tun" d="M510,475 V583"/>
+<path class="e e-tun" d="M760,414 V475"/>
+<path class="e e-tun" d="M710,475 V543"/>
+<path class="e e-tun" d="M950,475 V543"/>
+<path class="e e-tun" d="M1125,475 V565"/>
+<text class="l-tun" x="166" y="468">tunnels WireGuard sortants : chaque Newt appelle Gerbil</text>
+
+<!-- Sauvegardes vers la box -->
+<path class="e e-bak" d="M1060,500 V432" marker-end="url(#a-bak)"/>
+<text class="l-bak" x="1052" y="493" text-anchor="end">Borg, la nuit</text>
+
+<!-- Hôte Proxmox -->
+<rect class="host" x="40" y="535" width="520" height="315" rx="8"/>
+<text class="t" x="52" y="558">Hôte Proxmox VE (pve)</text>
+
+<rect class="node" x="55" y="575" width="340" height="265" rx="6"/>
+<text class="b" x="67" y="598">VM docker</text>
+<text class="s" x="67" y="614">3 cœurs, 12 Gio · 26 applis</text>
+<rect class="chip" x="320" y="583" width="50" height="26" rx="13"/>
+<text class="c" x="345" y="600" text-anchor="middle">newt</text>
+<text class="h" x="67" y="642">QUOTIDIEN</text>
+<text x="67" y="658">Nextcloud · Papra · Grocy · Homebox · Karakeep</text>
+<text x="67" y="674">FreshRSS · BookStack · Monica · Wishlist</text>
+<text class="h" x="67" y="698">VOYAGES, SANTÉ, MÉDIAS</text>
+<text x="67" y="714">TREK · Dawarich · HealthLog · Jellystat · Yamtrack</text>
+<text class="h" x="67" y="738">OUTILS</text>
+<text x="67" y="754">Open WebUI · Enclosed · PairDrop · BentoPDF</text>
+<text x="67" y="770">Betisier · Neonova · Docs</text>
+<text class="h" x="67" y="794">SUPERVISION</text>
+<text x="67" y="810">Homepage · Beszel · VictoriaLogs · ntfy</text>
+<text x="67" y="826">Speedtest Tracker</text>
+
+<rect class="node" x="410" y="575" width="135" height="130" rx="6"/>
+<text class="b" x="422" y="600">LXC 200</text>
+<rect class="chip" x="485" y="583" width="50" height="26" rx="13"/>
+<text class="c" x="510" y="600" text-anchor="middle">newt</text>
+<text x="422" y="630">Site proxmox-lxc :</text>
+<text x="422" y="646">ressources privées</text>
+<text x="422" y="662">du LAN, relais CI</text>
+<text class="b" x="422" y="688">Blocky (DNS)</text>
+
+<text class="h" x="422" y="734">SUR L'HÔTE</text>
+<text x="422" y="750">vzdump, 21:00</text>
+<text x="422" y="766">test de restauration</text>
+<text x="422" y="782">agent Beszel</text>
+
+<!-- Raspberry Pi -->
+<rect class="host" x="580" y="535" width="170" height="315" rx="8"/>
+<text class="t" x="592" y="558">Raspberry Pi</text>
+<rect class="chip" x="685" y="543" width="50" height="26" rx="13"/>
+<text class="c" x="710" y="560" text-anchor="middle">newt</text>
+<text class="b" x="592" y="606">Immich</text>
+<text x="592" y="622">Swipe · Kiosk</text>
+<text x="592" y="638">Power Tools · Timelapse</text>
+<text class="b" x="592" y="670">Blocky (DNS)</text>
+<text x="592" y="686">second résolveur</text>
+<text class="s" x="592" y="718">Gardé hors de Proxmox</text>
+<text class="s" x="592" y="733">pour isoler Immich</text>
+
+<!-- NAS -->
+<rect class="host" x="770" y="535" width="220" height="315" rx="8"/>
+<text class="t" x="782" y="558">NAS Ugreen</text>
+<rect class="chip" x="925" y="543" width="50" height="26" rx="13"/>
+<text class="c" x="950" y="560" text-anchor="middle">newt</text>
+<text class="b" x="782" y="600">nas-proxy (Traefik)</text>
+<text class="s" x="782" y="615">TLS des noms privés, DNS-01</text>
+<text class="b" x="782" y="641">Jellyfin</text>
+<text class="s" x="782" y="656">media.sylvain.cloud, jamais public</text>
+<text class="b" x="782" y="682">MediaManager (à l'essai)</text>
+<text class="s" x="782" y="697">qBittorrent, Prowlarr sous VPN</text>
+<text class="b" x="782" y="723">Immich ML</text>
+<text class="s" x="782" y="738">OpenVINO, appelé par le Pi</text>
+<text class="b" x="782" y="764">Miroir kDrive</text>
+<text class="s" x="782" y="779">rclone, 04:00</text>
+<text class="b" x="782" y="805">Archives vzdump</text>
+<text class="s" x="782" y="820">export NFS</text>
+
+<!-- vzdump -->
+<path class="e e-bak" d="M300,850 V864 H880 V853" marker-end="url(#a-bak)"/>
+<text class="l-bak" x="590" y="882" text-anchor="middle">vzdump de la VM et du LXC vers le NFS du NAS</text>
+
+<!-- PC -->
+<rect class="host" x="1010" y="535" width="150" height="165" rx="8"/>
+<text class="t" x="1022" y="558">PC Sylvain</text>
+<rect class="chip" x="1100" y="565" width="50" height="26" rx="13"/>
+<text class="c" x="1125" y="582" text-anchor="middle">newt</text>
+<text class="b" x="1022" y="620">Support à distance</text>
+<text x="1022" y="636">VNC de GNOME,</text>
+<text x="1022" y="652">dans le navigateur</text>
+<text class="s" x="1022" y="680">POC, à la main</text>
+
+<!-- Légende -->
+<text class="h" x="1014" y="734">LÉGENDE</text>
+<path class="e e-req" d="M1014,756 H1048"/>
+<text x="1058" y="760">requête web</text>
+<path class="e e-tun" d="M1014,782 H1048"/>
+<text x="1058" y="786">WireGuard</text>
+<path class="e e-bak" d="M1014,808 H1048"/>
+<text x="1058" y="812">sauvegarde</text>
+<path class="e e-aux" d="M1014,834 H1048"/>
+<text x="1058" y="838">flux interne</text>
+</svg>

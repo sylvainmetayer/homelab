@@ -1,0 +1,76 @@
+<svg viewBox="0 0 1200 310" role="img" aria-label="Les appareils interrogent deux instances de Blocky, qui résolvent les noms publics en DNS-over-TLS, renvoient les noms locaux à la Bbox et répondent 0.0.0.0 aux noms sur liste." xmlns="http://www.w3.org/2000/svg">
+<style>
+/* Fichier autonome : ses couleurs suivent le thème du système, pas celui du site. */
+:root{--surface:#ffffff;--node:#eef1f6;--zone-a:#e4e9f2;--zone-b:#e6efe9;--ink:#172033;--muted:#5b667a;--line:#c3cad6;--line-strong:#8e99ab;--req:#3b4fd8;--tun:#0b8068;--tun-soft:#d9f0ea;--bak:#a85d00;--display:system-ui,sans-serif;font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+@media (prefers-color-scheme:dark){:root{--surface:#1a2130;--node:#232c3d;--zone-a:#151b27;--zone-b:#131d1b;--ink:#e6eaf2;--muted:#98a3b6;--line:#333e52;--line-strong:#55627a;--req:#8ea0ff;--tun:#4fd1b3;--tun-soft:#16352f;--bak:#f0b35a}}
+.bg{fill:var(--surface)}
+.zone-a { fill: var(--zone-a); stroke: var(--line); }
+.zone-b { fill: var(--zone-b); stroke: var(--line); }
+.host { fill: var(--surface); stroke: var(--line-strong); }
+.node { fill: var(--node); stroke: var(--line); }
+.chip { fill: var(--tun-soft); stroke: var(--tun); }
+svg text { fill: var(--ink); font-size: 12px; }
+svg .t { font-family: var(--display); font-weight: 600; font-size: 13.5px; }
+svg .b { font-weight: 600; }
+svg .s { fill: var(--muted); font-size: 11px; }
+svg .h { fill: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: 0.08em; }
+svg .z { fill: var(--muted); font-size: 12px; font-weight: 600; }
+svg .c { font-size: 11px; font-weight: 600; fill: var(--tun); }
+svg .l-req { fill: var(--req); font-size: 11.5px; font-weight: 500; }
+svg .l-tun { fill: var(--tun); font-size: 11.5px; font-weight: 500; }
+svg .l-bak { fill: var(--bak); font-size: 11.5px; font-weight: 500; }
+.e { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.e-req { stroke: var(--req); stroke-width: 2; }
+.e-tun { stroke: var(--tun); stroke-width: 3; }
+.e-bak { stroke: var(--bak); stroke-width: 2; stroke-dasharray: 6 5; }
+.e-aux { stroke: var(--line-strong); stroke-width: 1.5; }
+.m-req { fill: var(--req); } .m-tun { fill: var(--tun); } .m-bak { fill: var(--bak); } .m-aux { fill: var(--line-strong); }
+</style>
+<defs>
+          <marker id="a-req" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="m-req" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-tun" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="12" markerHeight="12" markerUnits="userSpaceOnUse" orient="auto"><path class="m-tun" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-bak" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto"><path class="m-bak" d="M0,0 L8,4 L0,8 z"/></marker>
+          <marker id="a-aux" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto"><path class="m-aux" d="M0,0 L8,4 L0,8 z"/></marker>
+        </defs>
+<rect class="bg" width="100%" height="100%"/>
+  <rect class="host" x="30" y="30" width="220" height="60" rx="8"/>
+  <text class="t" x="140" y="56" text-anchor="middle">Téléphone dehors</text>
+  <text class="s" x="140" y="74" text-anchor="middle">client Pangolin</text>
+  <rect class="host" x="30" y="135" width="220" height="60" rx="8"/>
+  <text class="t" x="140" y="161" text-anchor="middle">Appareils de la maison</text>
+  <text class="s" x="140" y="179" text-anchor="middle">DHCP de la Bbox : bascule prévue</text>
+
+  <rect class="host" x="380" y="8" width="300" height="294" rx="8"/>
+  <text class="t" x="392" y="30">Blocky, deux instances</text>
+  <rect class="node" x="400" y="42" width="260" height="70" rx="6"/>
+  <text class="b" x="530" y="72" text-anchor="middle">LXC newt</text>
+  <text class="s" x="530" y="90" text-anchor="middle">192.168.1.200, binaire</text>
+  <text class="s" x="530" y="158" text-anchor="middle">blocky-check toutes les 5 min,</text>
+  <text class="s" x="530" y="173" text-anchor="middle">résultat poussé à Uptime Kuma</text>
+  <rect class="node" x="400" y="212" width="260" height="70" rx="6"/>
+  <text class="b" x="530" y="242" text-anchor="middle">Raspberry Pi</text>
+  <text class="s" x="530" y="260" text-anchor="middle">192.168.1.96, conteneur</text>
+
+  <rect class="host" x="860" y="40" width="310" height="60" rx="8"/>
+  <text class="t" x="1015" y="66" text-anchor="middle">Quad9 et Mullvad</text>
+  <text class="s" x="1015" y="84" text-anchor="middle">DNS-over-TLS, le plus rapide gagne</text>
+  <rect class="host" x="860" y="135" width="310" height="60" rx="8"/>
+  <text class="t" x="1015" y="161" text-anchor="middle">Réponse 0.0.0.0</text>
+  <text class="s" x="1015" y="179" text-anchor="middle">listes HaGeZi : pubs, traqueurs, malveillants</text>
+  <rect class="host" x="860" y="222" width="310" height="60" rx="8"/>
+  <text class="t" x="1015" y="248" text-anchor="middle">Bbox</text>
+  <text class="s" x="1015" y="266" text-anchor="middle">noms .lan et zone inverse</text>
+
+  <path class="e e-tun" d="M250,60 H396" marker-end="url(#a-tun)"/>
+  <text class="l-tun" x="315" y="50" text-anchor="middle">DNS dans le tunnel</text>
+  <path class="e e-req" d="M250,155 L397,96" marker-end="url(#a-req)"/>
+  <path class="e e-req" d="M250,175 L397,246" marker-end="url(#a-req)"/>
+  <text class="l-req" x="372" y="169" text-anchor="end">requêtes DNS</text>
+
+  <path class="e e-req" d="M680,70 H857" marker-end="url(#a-req)"/>
+  <text class="l-req" x="768" y="62" text-anchor="middle">nom public</text>
+  <path class="e e-req" d="M680,165 H857" marker-end="url(#a-req)"/>
+  <text class="l-req" x="768" y="157" text-anchor="middle">nom sur liste</text>
+  <path class="e e-req" d="M680,252 H857" marker-end="url(#a-req)"/>
+  <text class="l-req" x="768" y="244" text-anchor="middle">nom local</text>
+</svg>
