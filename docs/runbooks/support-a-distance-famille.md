@@ -216,8 +216,63 @@ En cas d'échec : `invalid credentials` → ID ou secret mal recopié (refaire
 1.2, puis `sudo systemctl restart newt`) ; pas de connexion du tout → le
 réseau bloque la sortie (tester `curl -I https://pangolin.sylvain.cloud`).
 
-Mise à jour plus tard : refaire 1.1 avec la nouvelle version (empreinte de la
-release), puis `sudo systemctl restart newt`.
+### 1.4 Mise à jour automatique de Newt (PC de la famille)
+
+Décision du 13/11/2026 : ces PC sont difficiles à atteindre, Newt (>= 1.20.0)
+se met à jour seul. Le réglage `newt_auto_update` de l'organisation est déjà à
+`true` (`tofu/pangolin_config/org.tf`). Il faut aussi que le service puisse
+écrire le binaire : sous `ProtectSystem=strict`, `/usr/local/bin/newt` est en
+lecture seule (journal : `cannot write to … you may need to run as root`).
+Le binaire vit donc dans l'état du service (`/var/lib/newt/newt`) et
+`/usr/local/bin/newt` n'est que la graine, recopiée si elle est plus récente.
+Compte éphémère, `NoNewPrivileges`, `ProtectSystem=strict` : inchangés.
+
+**Ce que Newt vérifie** (lu dans le code de la 1.20.0) : toutes les 6 h (la
+première fois 2 min après le démarrage) il demande à Pangolin, avec son ID et
+son secret, s'il existe une version plus récente ; la réponse contient l'URL
+de téléchargement et une somme SHA-256 **venues du même serveur** (l'URL n'est
+ni limitée à un hôte ni obligée d'être en HTTPS, la somme est facultative). Il
+vérifie la somme si elle est fournie, aucune signature. Le contrôle protège
+d'un fichier corrompu, pas d'un serveur Pangolin ou d'un compte fossorial
+compromis : c'est la confiance acceptée. Puis il écrit un fichier temporaire à
+côté du binaire, le renomme sur lui-même et se relance (`exec`, même PID : pas
+de redémarrage systemd, le tunnel se rétablit seul).
+
+Le même réglage vaut pour toute l'organisation : les autres Newt (le LXC, le
+PC de Sylvain, flip) ne le peuvent pas, leur unité garde le binaire en lecture
+seule (rôle `newt_service`, `newt_service_self_update: false`).
+
+#### Mettre à jour un PC déjà installé (1.1 à 1.3 faits)
+
+```bash
+sudo install -d -m 0755 /etc/systemd/system/newt.service.d
+sudo tee /etc/systemd/system/newt.service.d/auto-update.conf >/dev/null <<'EOF'
+[Service]
+ExecStartPre=/bin/sh -c 'if [ ! -x /var/lib/newt/newt ] || [ /usr/local/bin/newt -nt /var/lib/newt/newt ]; then install -m 0755 /usr/local/bin/newt /var/lib/newt/newt; fi'
+ExecStart=
+ExecStart=/var/lib/newt/newt
+EOF
+sudo systemctl daemon-reload
+sudo systemctl restart newt
+```
+
+(Pour un PC neuf : faire 1.1 à 1.3, puis ces commandes.) Le `ExecStart=` vide
+efface celui de l'unité. Contrôler :
+
+```bash
+systemctl cat newt | grep -E 'ExecStart'
+sudo ls -l /var/lib/private/newt/newt
+journalctl -u newt --since "-10min" --no-pager | grep -i -E 'update|cannot write'
+```
+
+Pas de `cannot write` dans le journal. Après la première vérification (2 min)
+ou la sortie d'une version, `Pangolin → Sites → pc-papa` affiche la version de
+Newt et elle monte seule. Une version déjà à jour ne produit aucune ligne.
+
+Mise à jour manuelle plus tard (si l'automatique est en panne) : refaire 1.1
+avec la nouvelle version (empreinte de la release), puis `sudo systemctl
+restart newt` : la graine, plus récente que la copie de l'état, la remplace
+(elle peut rétrograder une copie déjà auto-mise à jour ; Newt remonte seul).
 
 ## 2a. Debian GNOME : GNOME Remote Desktop + relais
 

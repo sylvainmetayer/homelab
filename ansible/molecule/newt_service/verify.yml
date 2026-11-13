@@ -45,4 +45,7 @@
           - "'EnvironmentFile=/etc/newt/env' in newt_unit_file"
           - "'DynamicUser=yes' in newt_unit_file"
           - "'molecule-newt-secret' not in newt_unit_file"
+          - "'ExecStart=/var/lib/newt/newt' in newt_unit_file"
+          - "'ExecStart=/usr/local/bin/newt' not in newt_unit_file"
+          - "'ProtectSystem=strict' in newt_unit_file"
           - newt_unit.status.UnitFileState == 'enabled'
