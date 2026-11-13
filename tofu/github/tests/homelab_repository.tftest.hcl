@@ -25,6 +25,9 @@ override_data {
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
       ntfy_github_token           = "tk_fakentfygithubtoken0000000"
+      state_s3_access_key         = "fake-state-s3-access"
+      state_s3_secret_key         = "fake-state-s3-secret"
+      tofu_state_passphrase       = "fake-state-passphrase"
     }
   }
 }
@@ -35,6 +38,9 @@ override_data {
     outputs = {
       ci_olm_id                    = "fake-olm-id"
       ci_olm_secret                = "fake-olm-secret"
+      ci_plan_olm_id               = "fake-plan-olm-id"
+      ci_plan_olm_secret           = "fake-plan-olm-secret"
+      uptime_plan_nocturne_url     = "https://uptime.example.test/api/push/plan-nocturne"
       uptime_restore_test_url      = "https://uptime.example.test/api/push/restore-test"
       uptime_storage_box_quota_url = "https://uptime.example.test/api/push/storage-box-quota"
       uptime_secrets_rotation_url  = "https://uptime.example.test/api/push/secrets-rotation"

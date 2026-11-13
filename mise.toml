@@ -50,6 +50,29 @@ TF_VAR_ntfy_uptime_kuma_token = "{{ env.ntfy_uptime_kuma_token | default(value='
 TF_VAR_pocket_id_api_token = "{{ env.pocket_id_static_api_key | default(value='') }}"
 TF_VAR_ai_anthropic_api_key = "{{ env.pangolin_ai_anthropic_api_key | default(value='') }}"
 
+# Les mêmes valeurs en un seul objet JSON pour tofu/github (variable
+# drift_plan_vars, secret DRIFT_PLAN_TF_VARS de l'environnement tofu-drift) :
+# json_encode échappe chaque valeur. Les noms sont ceux des variables de
+# tofu/pangolin_config.
+TF_VAR_drift_plan_vars = """{
+  "pangolin_org_id": {{ env.pangolin_org_id | default(value='') | json_encode() }},
+  "pangolin_url": {{ env.pangolin_url | default(value='') | json_encode() }},
+  "pangolin_api_key": {{ env.pangolin_api_key | default(value='') | json_encode() }},
+  "pangolin_root_api_key": {{ env.pangolin_root_api_key | default(value='') | json_encode() }},
+  "telegram_bot_token": {{ env.uptimekuma_telegram_bot_token | default(value='') | json_encode() }},
+  "telegram_chat_id": {{ env.uptimekuma_telegram_chat_id | default(value='') | json_encode() }},
+  "uptimekuma_endpoint": {{ env.UPTIMEKUMA_ENDPOINT | default(value='') | json_encode() }},
+  "uptimekuma_username": {{ env.UPTIMEKUMA_USERNAME | default(value='') | json_encode() }},
+  "uptimekuma_password": {{ env.UPTIMEKUMA_PASSWORD | default(value='') | json_encode() }},
+  "home_ip": {{ env.home_ip | default(value='') | json_encode() }},
+  "immich_pin": {{ env.immich_pin | default(value='') | json_encode() }},
+  "neonova_pin": {{ env.neonova_pin | default(value='') | json_encode() }},
+  "flip_planning_pin": {{ env.flip_planning_pin | default(value='') | json_encode() }},
+  "ntfy_uptime_kuma_token": {{ env.ntfy_uptime_kuma_token | default(value='') | json_encode() }},
+  "pocket_id_api_token": {{ env.pocket_id_static_api_key | default(value='') | json_encode() }},
+  "ai_anthropic_api_key": {{ env.pangolin_ai_anthropic_api_key | default(value='') | json_encode() }}
+}"""
+
 [tasks.generate_password]
 description = "Hash a host password (prompted, kept out of the shell history) for host_user_password_hash"
 # raw : stdin relié au terminal, sinon mkpasswd attend une invite jamais affichée.

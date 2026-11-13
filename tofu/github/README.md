@@ -28,7 +28,7 @@ bascule (signature SSH du poste, clé de signature GitHub, passage au squash)
 est dans [docs/runbooks/commits-signes.md](../../docs/runbooks/commits-signes.md).
 
 Les environnements Actions du dépôt (`production`, `restore-test`,
-`storage-box-quota`, `secrets-rotation`, `ntfy-github`) et leurs secrets
+`storage-box-quota`, `secrets-rotation`, `ntfy-github`, `tofu-drift`) et leurs secrets
 sortent tous d'une seule table, `local.environments` d'`environments.tf`
 (nom de l'environnement → nom du secret → valeur) : un environnement de plus
 est une entrée de plus, lisible depuis `main` seulement comme les autres.
@@ -55,6 +55,17 @@ L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
 topic `github`, rôle `ntfy`) : tout ce que publie la CI passe par ce
 producteur, jamais par le `scripts` des hôtes, et ntfy ne l'accepte qu'une
 fois `docker.yml --tags ntfy` déployé.
+
+L'environnement **`tofu-drift`** (`plan-pangolin-config.yaml`, ADR 0035) porte
+huit secrets `DRIFT_PLAN_*` : le client OLM `ci-plan` (sorties `ci_plan_olm_*`
+de `pangolin_config`, pas `ci_runner`), le S3 du state en lecture seule et la
+passphrase dédiée (`state_s3_*`, `tofu_state_passphrase` de
+`secrets/ansible.sops.yaml`), les variables de `pangolin_config` en un JSON
+(`var.drift_plan_vars`, donnée par `TF_VAR_drift_plan_vars` de `mise.toml` depuis
+`secrets/secrets.sops.yaml` : lancer `tofu apply` par `mise`, sinon le secret
+part vide), le jeton ntfy `github` et l'URL push du moniteur « Plan nocturne
+pangolin_config ». Une rotation d'une des valeurs sources se propage par un
+`tofu -chdir=tofu/github apply`.
 
 Renommer un environnement (clé de `local.environments`) le détruit sur
 GitHub avec ses secrets, puis en crée un neuf : fusionner la PR qui change

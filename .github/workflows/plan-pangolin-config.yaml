@@ -1,0 +1,165 @@
+name: Plan pangolin_config
+
+# Plan de dérive de tofu/pangolin_config sur main (ADR 0035), chaque nuit : il
+# attrape ce que l'interface de Pangolin a changé à la main (0006), un bump de
+# provider, un plan qui ne converge plus. Jamais d'apply en CI, jamais de plan
+# sur une PR : un plan exécute le code du dépôt (data "external", providers)
+# avec les jetons, donc seulement du code déjà mergé, dans un environnement
+# lisible depuis main.
+#
+# Dépôt PUBLIC : le texte du plan (domaines, IP, noms) ne sort jamais du job
+# `plan`, ni en log, ni en résumé, ni en commentaire. Il va dans un fichier du
+# runner, dont seul le décompte « Plan: A to add, B to change, C to destroy »
+# et le code de sortie passent au job `notify`, qui alerte sur ntfy (topic
+# github) quand le plan n'est pas vide ou a échoué, et pousse au moniteur
+# Uptime Kuma « Plan nocturne » (présence : « down » si le contrôle n'a pas
+# tourné, sans push pendant 49 h). Aucun écart attendu n'est toléré : le plan
+# doit être vide, tout le reste alerte.
+#
+# L'API de Pangolin n'accepte que la maison et Pangolin lui-même
+# (int-api-allowlist) : le job ouvre le tunnel OLM d'un client à lui, `ci-plan`
+# (pas `ci-runner` du déploiement), lié à la passerelle `vpn-flip`, dont la
+# sortie Internet passe par Pangolin (NAT de flip). Le tunnel reste ouvert le
+# temps du seul plan ; l'alerte part d'un autre job, donc hors tunnel. Non
+# vérifié avant le premier run : que la route par défaut de la passerelle laisse
+# le runner joindre GitHub. D'où `workflow_dispatch` pour l'essayer une fois, des
+# délais partout, et une alerte quand le job échoue ou n'aboutit pas.
+#
+# 02:30 UTC : hors de la fenêtre de déploiement du matin (06:00-09:00 UTC) et
+# des sauvegardes. Secrets : environnement `tofu-drift` (tofu/github/environments.tf).
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+# Un seul tunnel à la fois : OLM refuse une seconde connexion du même client.
+concurrency:
+  group: plan-pangolin-config
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  plan:
+    name: Plan tofu/pangolin_config
+    runs-on: ubuntu-26.04
+    environment: tofu-drift
+    # Un tunnel qui coupe le runner de GitHub ne doit pas garder les secrets
+    # jusqu'aux 6 h par défaut.
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    outputs:
+      rc: ${{ steps.plan.outputs.rc }}
+      summary: ${{ steps.plan.outputs.summary }}
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2.22.4
+        continue-on-error: true
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read the OpenTofu version pinned in mise.toml
+        id: tofu-version
+        run: |
+          version="$(sed -n "s/^opentofu = '\(.*\)'$/\1/p" mise.toml)"
+          [ -n "$version" ] || { echo "::error::opentofu version not found in mise.toml"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: ${{ steps.tofu-version.outputs.version }}
+          tofu_wrapper: false
+
+      - name: Fetch the fork of the Pangolin provider
+        run: .github/scripts/fetch_pangolin_provider.sh
+
+      # Avant le tunnel : init joint le registre et GitHub par le réseau normal.
+      # Les variables du module sont un seul secret JSON (clés = noms des
+      # variables), écrit dans un fichier du runner (0600) ; chaque valeur est
+      # masquée dans les journaux.
+      - name: Init tofu/pangolin_config
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DRIFT_PLAN_STATE_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DRIFT_PLAN_STATE_S3_SECRET_KEY }}
+          TF_VAR_pangolin_config_state_passphrase: ${{ secrets.DRIFT_PLAN_STATE_PASSPHRASE }}
+          TF_VARS_JSON: ${{ secrets.DRIFT_PLAN_TF_VARS }}
+        run: |
+          (umask 077; printf '%s' "$TF_VARS_JSON" > "$RUNNER_TEMP/plan.tfvars.json")
+          # Chaque valeur masquée seule : le masque de GitHub ne couvre que le secret entier.
+          jq -r 'to_entries[].value | select(. != "") | select(test("\n") | not)' "$RUNNER_TEMP/plan.tfvars.json" \
+            | while IFS= read -r value; do echo "::add-mask::$value"; done
+          for attempt in 1 2 3; do
+            tofu -chdir=tofu/pangolin_config init -input=false -lockfile=readonly -no-color >/dev/null && exit 0
+            echo "tofu init failed (attempt $attempt), retrying in $((attempt * 10))s"
+            sleep $((attempt * 10))
+          done
+          exit 1
+
+      - name: Start the OLM tunnel
+        uses: ./.github/actions/olm-tunnel # zizmor: ignore[self-repository]
+        with:
+          pangolin-endpoint: ${{ secrets.PANGOLIN_ENDPOINT }}
+          olm-id: ${{ secrets.DRIFT_PLAN_OLM_ID }}
+          olm-secret: ${{ secrets.DRIFT_PLAN_OLM_SECRET }}
+
+      # -lock=false : le compte S3 du state est en lecture seule (le plan
+      # n'écrit rien). -detailed-exitcode : 0 vide, 2 non vide, 1 erreur. Le
+      # texte va dans un fichier, jamais sur la sortie standard ; seuls le code
+      # et le décompte (trois nombres) deviennent des sorties du job.
+      - name: Plan
+        id: plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DRIFT_PLAN_STATE_S3_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DRIFT_PLAN_STATE_S3_SECRET_KEY }}
+          TF_VAR_pangolin_config_state_passphrase: ${{ secrets.DRIFT_PLAN_STATE_PASSPHRASE }}
+        run: |
+          rc=0
+          timeout 25m tofu -chdir=tofu/pangolin_config plan -input=false -lock=false -no-color -detailed-exitcode \
+            -var-file="$RUNNER_TEMP/plan.tfvars.json" > "$RUNNER_TEMP/plan.txt" 2>&1 || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          summary="$(grep -E '^Plan: [0-9]+ to add, [0-9]+ to change, [0-9]+ to destroy\.$' "$RUNNER_TEMP/plan.txt" | tail -n 1 || true)"
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+          echo "tofu plan exit code: $rc ${summary:+($summary)}"
+          # 0 et 2 : le plan a tourné, `notify` décide. Autre : le job échoue.
+          [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop -t 0 olm || true
+          rm -f "$RUNNER_TEMP/plan.tfvars.json" "$RUNNER_TEMP/plan.txt"
+
+  notify:
+    name: Alert
+    needs: plan
+    # Même si `plan` échoue, expire ou est annulé : une alerte part toujours.
+    if: ${{ always() }}
+    runs-on: ubuntu-26.04
+    environment: tofu-drift
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Push to Uptime Kuma and ntfy
+        env:
+          RESULT: ${{ needs.plan.result }}
+          PLAN_RC: ${{ needs.plan.outputs.rc }}
+          PLAN_SUMMARY: ${{ needs.plan.outputs.summary }}
+          PUSH_URL: ${{ secrets.DRIFT_PLAN_PUSH_URL }}
+          NTFY_TOKEN: ${{ secrets.DRIFT_PLAN_NTFY_TOKEN }}
+        run: python3 -I .github/scripts/plan_drift_notify.py

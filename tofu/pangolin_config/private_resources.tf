@@ -394,3 +394,29 @@ resource "pangolin_site_resource" "vpn_flip" {
   ssl      = false
   enabled  = true
 }
+
+# Client OLM du plan nocturne (.github/workflows/plan-pangolin-config.yaml, ADR
+# 0035) : un client à lui, pas `ci_runner` du déploiement, dont la liaison à une
+# passerelle changerait la route du déploiement (identifiants partagés, route par
+# défaut de plus). Lié à `vpn-flip` seule : sa sortie Internet passe par
+# Pangolin (NAT de flip), seule autre source que la maison de l'API
+# (int-api-allowlist, rôle pangolin).
+resource "pangolin_client" "ci_plan" {
+  name = "ci-plan"
+}
+
+resource "pangolin_site_resource_client" "vpn_flip_ci_plan" {
+  client_id        = pangolin_client.ci_plan.id
+  site_resource_id = pangolin_site_resource.vpn_flip.id
+}
+
+output "ci_plan_olm_id" {
+  description = "OLM ID of the nightly plan's OLM client. Consumed by tofu/github (tofu-drift environment)."
+  value       = pangolin_client.ci_plan.olm_id
+}
+
+output "ci_plan_olm_secret" {
+  description = "OLM secret of the nightly plan's OLM client. Consumed by tofu/github (tofu-drift environment)."
+  value       = pangolin_client.ci_plan.secret
+  sensitive   = true
+}

@@ -71,6 +71,31 @@ locals {
     ntfy-github = {
       NTFY_GITHUB_TOKEN = data.sops_file.secrets.data["ntfy_github_token"]
     }
+
+    # plan-pangolin-config.yaml (ADR 0035), plan de dérive nocturne de
+    # tofu/pangolin_config, jamais d'apply : pas de clé age, les valeurs sont
+    # posées ici une à une.
+    #   - le client OLM `ci-plan` (pangolin_client.ci_plan), pas `ci_runner` du
+    #     déploiement : son tunnel est lié à vpn-flip, qui change la route ;
+    #   - le compte S3 du state en lecture seule et la passphrase dédiée du
+    #     state, de secrets/ansible.sops.yaml (le plan tourne avec -lock=false) ;
+    #   - les variables du module, un seul JSON (var.drift_plan_vars, tirées de
+    #     secrets/secrets.sops.yaml par mise.toml) : les jetons Pangolin
+    #     (organisation et root), Uptime Kuma, Pocket ID, Telegram, ntfy et
+    #     Anthropic du module, en lecture-écriture (à remplacer par des jetons à
+    #     droits limités quand ils existent : suite de l'ADR) ;
+    #   - le jeton ntfy du producteur `github`, comme `ntfy-github`, et l'URL
+    #     push du moniteur « Plan nocturne pangolin_config ».
+    tofu-drift = {
+      DRIFT_PLAN_OLM_ID              = data.terraform_remote_state.pangolin_config.outputs.ci_plan_olm_id
+      DRIFT_PLAN_OLM_SECRET          = data.terraform_remote_state.pangolin_config.outputs.ci_plan_olm_secret
+      DRIFT_PLAN_STATE_S3_ACCESS_KEY = data.sops_file.secrets.data["state_s3_access_key"]
+      DRIFT_PLAN_STATE_S3_SECRET_KEY = data.sops_file.secrets.data["state_s3_secret_key"]
+      DRIFT_PLAN_STATE_PASSPHRASE    = data.sops_file.secrets.data["tofu_state_passphrase"]
+      DRIFT_PLAN_TF_VARS             = jsonencode(var.drift_plan_vars)
+      DRIFT_PLAN_NTFY_TOKEN          = data.sops_file.secrets.data["ntfy_github_token"]
+      DRIFT_PLAN_PUSH_URL            = data.terraform_remote_state.pangolin_config.outputs.uptime_plan_nocturne_url
+    }
   }
 
   # "<environnement>/<secret>" → environnement, nom et valeur.

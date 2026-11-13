@@ -30,6 +30,9 @@ override_data {
       backup_passphrase           = "fake-backup-passphrase"
       hcloud_readonly_token       = "fake-hcloud-readonly-token"
       ntfy_github_token           = "tk_fakentfygithubtoken0000000"
+      state_s3_access_key         = "fake-state-s3-access"
+      state_s3_secret_key         = "fake-state-s3-secret"
+      tofu_state_passphrase       = "fake-state-passphrase"
     }
   }
 }
@@ -40,8 +43,11 @@ override_data {
   target = data.terraform_remote_state.pangolin_config
   values = {
     outputs = {
-      ci_olm_id     = "fake-olm-id"
-      ci_olm_secret = "fake-olm-secret"
+      ci_olm_id                = "fake-olm-id"
+      ci_olm_secret            = "fake-olm-secret"
+      ci_plan_olm_id           = "fake-plan-olm-id"
+      ci_plan_olm_secret       = "fake-plan-olm-secret"
+      uptime_plan_nocturne_url = "https://uptime.example.test/api/push/plan-nocturne"
       # restore_test_monitor.tf
       uptime_restore_test_url = "https://uptime.example.test/api/push/restore-test"
       # storage_box_quota_monitor.tf
@@ -440,8 +446,8 @@ run "environnements_depuis_main_seulement" {
   command = plan
 
   assert {
-    condition     = toset(keys(github_repository_environment.this)) == toset(["production", "restore-test", "storage-box-quota", "secrets-rotation", "ntfy-github"])
-    error_message = "Environnements attendus : production, restore-test, storage-box-quota, secrets-rotation, ntfy-github."
+    condition     = toset(keys(github_repository_environment.this)) == toset(["production", "restore-test", "storage-box-quota", "secrets-rotation", "ntfy-github", "tofu-drift"])
+    error_message = "Environnements attendus : production, restore-test, storage-box-quota, secrets-rotation, ntfy-github, tofu-drift."
   }
 
   assert {
@@ -460,5 +466,51 @@ run "environnements_depuis_main_seulement" {
       k == "${s.environment}/${s.secret_name}" && s.repository == "homelab"
     ])
     error_message = "Chaque secret vit dans l'environnement de son entrée de local.environments, sur le dépôt homelab."
+  }
+}
+
+# .github/workflows/plan-pangolin-config.yaml (ADR 0035) : le client OLM `ci-plan`
+# (pas celui du déploiement), le state en lecture seule, ses variables en un
+# seul secret JSON, le jeton ntfy de la CI et l'URL push du moniteur, dans un
+# environnement à part, lisible depuis main seulement.
+run "tofu_drift_secrets" {
+  command = plan
+
+  variables {
+    drift_plan_vars = { pangolin_url = "https://pangolin.example.test" }
+  }
+
+  assert {
+    condition = toset(keys(local.environments["tofu-drift"])) == toset([
+      "DRIFT_PLAN_OLM_ID", "DRIFT_PLAN_OLM_SECRET", "DRIFT_PLAN_STATE_S3_ACCESS_KEY", "DRIFT_PLAN_STATE_S3_SECRET_KEY",
+      "DRIFT_PLAN_STATE_PASSPHRASE", "DRIFT_PLAN_TF_VARS", "DRIFT_PLAN_NTFY_TOKEN", "DRIFT_PLAN_PUSH_URL",
+    ])
+    error_message = "L'environnement tofu-drift doit porter exactement les huit secrets du plan nocturne."
+  }
+
+  assert {
+    condition = (
+      github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_OLM_ID"].value == "fake-plan-olm-id"
+      && github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_OLM_SECRET"].value == "fake-plan-olm-secret"
+      && github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_PUSH_URL"].value == "https://uptime.example.test/api/push/plan-nocturne"
+      && github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_NTFY_TOKEN"].value == "tk_fakentfygithubtoken0000000"
+      && github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_STATE_PASSPHRASE"].value == "fake-state-passphrase"
+    )
+    error_message = "tofu-drift doit lire le client ci-plan (pas ci-runner), l'URL push du moniteur, le jeton ntfy du producteur github et la passphrase dédiée du state."
+  }
+
+  assert {
+    condition     = jsondecode(github_actions_environment_secret.this["tofu-drift/DRIFT_PLAN_TF_VARS"].value).pangolin_url == "https://pangolin.example.test"
+    error_message = "DRIFT_PLAN_TF_VARS doit être var.drift_plan_vars en JSON."
+  }
+
+  assert {
+    condition = alltrue([
+      for name in [
+        "DRIFT_PLAN_OLM_ID", "DRIFT_PLAN_OLM_SECRET", "DRIFT_PLAN_STATE_S3_ACCESS_KEY", "DRIFT_PLAN_STATE_S3_SECRET_KEY",
+        "DRIFT_PLAN_STATE_PASSPHRASE", "DRIFT_PLAN_TF_VARS", "DRIFT_PLAN_NTFY_TOKEN", "DRIFT_PLAN_PUSH_URL",
+      ] : strcontains(file("${path.module}/../../.github/workflows/plan-pangolin-config.yaml"), "secrets.${name}")
+    ]) && strcontains(file("${path.module}/../../.github/workflows/plan-pangolin-config.yaml"), "environment: tofu-drift\n")
+    error_message = "plan-pangolin-config.yaml doit lire chaque secret sous le nom déclaré par tofu/github, dans l'environnement tofu-drift."
   }
 }

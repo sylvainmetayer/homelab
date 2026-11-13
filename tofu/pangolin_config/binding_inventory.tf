@@ -149,6 +149,7 @@ locals {
   declared_site_resource_client_pairs = toset([
     "${pangolin_site_resource.docker_apps.name}|${pangolin_site_resource_client.docker_apps_ci.client_id}",
     "${pangolin_site_resource.pi.name}|${pangolin_site_resource_client.pi_ci.client_id}",
+    "${pangolin_site_resource.vpn_flip.name}|${pangolin_site_resource_client.vpn_flip_ci_plan.client_id}",
   ])
 
   # Authentication methods set on a public resource, by resource id (the ids of

@@ -21,6 +21,10 @@ workflows:
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         - 'docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc'
         - 'docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069'
+    '.github/workflows/plan-pangolin-config.yaml':
+        - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
+        - 'opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4'
+        - 'step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a'
     '.github/workflows/renovate-digest.yaml':
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
     '.github/workflows/restore-test.yaml':

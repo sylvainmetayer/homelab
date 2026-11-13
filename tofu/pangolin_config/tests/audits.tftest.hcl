@@ -424,6 +424,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_client.ci_plan
+  values = { id = 4002 }
+}
+
+override_resource {
   target = pangolin_site_resource.app_proxy
   values = { id = 501 }
 }

@@ -85,3 +85,15 @@ variable "pangolin_config_state_passphrase" {
   type        = string
   sensitive   = true
 }
+
+# Variables de tofu/pangolin_config pour le plan nocturne (environnement
+# tofu-drift, environments.tf) : un objet JSON, clés = noms des variables du
+# module, construit par mise.toml (TF_VAR_drift_plan_vars) depuis les clés de
+# secrets/secrets.sops.yaml qu'il charge. Vide par défaut (tests) : le plan
+# nocturne échoue alors bruyamment sur ses variables obligatoires.
+variable "drift_plan_vars" {
+  description = "Variables de tofu/pangolin_config du plan nocturne (secret DRIFT_PLAN_TF_VARS)"
+  type        = map(string)
+  sensitive   = true
+  default     = {}
+}

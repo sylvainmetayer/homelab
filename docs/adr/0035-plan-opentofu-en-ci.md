@@ -1,11 +1,13 @@
 # 0035. Plan et apply OpenTofu en CI (#704) : plan de dérive de `pangolin_config` sur `main`, pas d'apply
 
-- **Statut** : proposée
-- **Date** : 2026-11-12
+- **Statut** : acceptée (2026-11-13)
+- **Date** : 2026-11-12, acceptée le 2026-11-13 par Sylvain
 
 ## Contexte
 
-Aujourd'hui le plan et l'apply d'OpenTofu se font à la main ou par un agent (`pangolin-config-plan`). La CI ne fait que `fmt`, `validate` et `tofu test` mocké, sans secret. Dépôt **public** : logs et commentaires de PR lisibles par tous. Le corps de #704 date d'avant le chiffrement de tous les states (11/11) et `use_lockfile` (11/11). [0024](0024-deploiement-au-merge.md) avait écarté « Tofu en CI » le 2026-11-04 (#704 fermée) : cet ADR rouvre la question, restreinte au plan de dérive ; si elle est acceptée, 0024 passera en « acceptée (Tofu en CI : voir 0035) ».
+Mise en œuvre : `.github/workflows/plan-pangolin-config.yaml`.
+
+Aujourd'hui le plan et l'apply d'OpenTofu se font à la main ou par un agent (`pangolin-config-plan`). La CI ne fait que `fmt`, `validate` et `tofu test` mocké, sans secret. Dépôt **public** : logs et commentaires de PR lisibles par tous. Le corps de #704 date d'avant le chiffrement de tous les states (11/11) et `use_lockfile` (11/11). [0024](0024-deploiement-au-merge.md) avait écarté « Tofu en CI » le 2026-11-04 (#704 fermée) : cet ADR rouvre la question, restreinte au plan de dérive ; 0024 passe en « acceptée (Tofu en CI : voir 0035) ».
 
 Constats relus dans le dépôt :
 - Dix modules sur douze lisent `secrets/secrets.sops.yaml` par `data "sops_file"` (`secrets.tf`) : la CI n'en est pas destinataire (`.sops.yaml`). `pangolin_config` passe par `TF_VAR_*` (audit sc1, 11/11) et `dns` n'a pas de `sops_file` (passphrase par `TF_VAR_state_encryption_passphrase`, jetons de providers par l'environnement mise : à confirmer). Les donner à la CI, c'est lui donner la clé age du fichier racine : tous les jetons en lecture-écriture.
@@ -34,18 +36,18 @@ Constats relus dans le dépôt :
 - Le plan enregistré n'est pas rejouable entre un run CI et un apply local sans verrou commun ; les rotations par `-replace` restent locales.
 - Le `-target` d'un plan relu (budgets IA non appliqués) n'a pas d'équivalent en CI simple.
 
-## Décision proposée
+## Décision
 
 (c), limitée à `pangolin_config`, au lieu des autres : le seul module que l'UI fait dériver (objets faits main, 0006) et le seul déjà lisible par la CI (passphrase dédiée, `TF_VAR`). Plan nocturne sur `main` (workflow `schedule`, environnement `tofu-drift` limité à `main`), code de sortie et adresses comparés à un fichier d'écarts attendus, ntfy au moindre écart nouveau, un moniteur Uptime Kuma de présence ; aucun plan en commentaire ni en log. Pas d'apply en CI. (a), (b) écartées : exécuter du code non relu avec les jetons.
 
-## Décisions à prendre
+## Décisions prises (2026-11-13)
 
-1. (c) pour `pangolin_config` seul, ou (d) ?
-2. Accès à l'API Pangolin : OLM `ci_runner` sortant par `vpn-flip`, ou autre ; pas de runner auto-hébergé sur un dépôt public.
-3. Secrets : environnement `tofu-drift` rempli par `tofu/github` (proposé), ou 3e fichier SOPS et 2e clé age.
-4. Créer les jetons en lecture seule (Pangolin à actions limitées, S3 par state) et accepter Uptime Kuma et Pocket ID en admin.
-5. Accepter `-lock=false` (S3 en lecture) et un plan sans relecture humaine, alerte seulement.
-6. Étendre plus tard aux autres modules : ce serait un nouvel ADR, avec refonte `sops_file` en `TF_VAR`.
+1. (c) pour `pangolin_config` seul, pas (d). Plan nocturne (02:30 UTC) et `workflow_dispatch` ; aucun plan sur les PR, jamais d'apply.
+2. Accès à l'API : un client OLM **à part**, `ci-plan` (`pangolin_client.ci_plan`), lié à la passerelle `vpn-flip` ; `ci_runner` et le déploiement ne changent pas (lier `ci_runner` à une passerelle aurait changé la route du déploiement, sur des identifiants partagés). Pas de runner auto-hébergé. Non vérifié avant le premier run : que la route par défaut de la passerelle laisse le runner joindre GitHub ; d'où le déclenchement manuel, des délais (job 40 min, plan 25 min) et le job d'alerte, séparé, qui sonne même si le job de plan expire.
+3. Secrets : environnement `tofu-drift` rempli par `tofu/github` (huit secrets, dont les variables du module en un seul JSON tiré de `secrets/secrets.sops.yaml` par `mise.toml`) ; ni clé age ni 3e fichier SOPS.
+4. Jetons : pas de jeton à droits limités pour l'instant (la clé Pangolin à actions limitées reste « à tester », suite à part) ; seul le S3 du state est en lecture seule.
+5. `-lock=false`, alerte seulement, aucune relecture humaine. Aucun fichier d'écarts attendus : le plan doit être vide (les budgets IA retirés par #1478 en étaient le seul écart) ; tout plan non vide ou en erreur sonne. Le décompte seul sort du job, pas les adresses.
+6. Les autres modules : un nouvel ADR, avec refonte `sops_file` en `TF_VAR`.
 
 ## Liens
 

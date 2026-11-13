@@ -802,6 +802,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.plan_nocturne
+  values = { push_token = "push-plan-nocturne" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.health_nas
   values = { push_token = "push-health-nas" }
 }
@@ -1008,6 +1013,11 @@ override_resource {
 override_resource {
   target = pangolin_client.ci_runner
   values = { id = 4001 }
+}
+
+override_resource {
+  target = pangolin_client.ci_plan
+  values = { id = 4002 }
 }
 
 override_resource {
@@ -2696,6 +2706,20 @@ run "vpn_gateways_exit_through_their_sites" {
     )
     error_message = "vpn et vpn-flip doivent rester des passerelles actives, vpn sortant par proxmox-docker, Raspberry PI, proxmox-lxc et nas, vpn-flip par le site flip."
   }
+
+  # Le plan nocturne (ADR 0035) a son client OLM, distinct de celui du
+  # déploiement, lié à vpn-flip seule : lier `ci_runner` à une passerelle
+  # changerait la route du déploiement.
+  assert {
+    condition = (
+      pangolin_client.ci_plan.name == "ci-plan"
+      && pangolin_client.ci_plan.id != pangolin_client.ci_runner.id
+      && pangolin_site_resource_client.vpn_flip_ci_plan.client_id == pangolin_client.ci_plan.id
+      && pangolin_site_resource_client.vpn_flip_ci_plan.site_resource_id == pangolin_site_resource.vpn_flip.id
+      && !contains([pangolin_site_resource_client.docker_apps_ci.site_resource_id, pangolin_site_resource_client.pi_ci.site_resource_id], pangolin_site_resource.vpn_flip.id)
+    )
+    error_message = "ci-plan doit être un client OLM à part, lié à vpn-flip, et ci-runner ne doit pas l'être."
+  }
 }
 
 # Le Blocky du LXC newt (lxc.yml, rôle blocky en binaire), pour un téléphone
@@ -3052,6 +3076,22 @@ run "monitors_are_filed_and_alert" {
       && strcontains(file("${path.module}/../../.github/workflows/secrets-rotation.yaml"), "- cron: \"30 6 * * 1\"")
     )
     error_message = "Le moniteur Rotation des secrets doit être dans le dossier Self-hosted, entre une semaine et 24 jours, actif et notifié sur Telegram et ntfy, et le workflow hebdomadaire."
+  }
+
+  # Plan de dérive nocturne (.github/workflows/plan-pangolin-config.yaml, ADR
+  # 0035) : un push par nuit, « down » à pousser pour alerter, une nuit manquée
+  # tolérée (49 h).
+  assert {
+    condition = (
+      uptimekuma_monitor_push.plan_nocturne.parent == uptimekuma_monitor_group.self_hosted.id
+      && uptimekuma_monitor_push.plan_nocturne.interval > 60 * 60 * 24 * 2
+      && uptimekuma_monitor_push.plan_nocturne.interval < 60 * 60 * 24 * 3
+      && uptimekuma_monitor_push.plan_nocturne.max_retries == local.push_down_max_retries
+      && uptimekuma_monitor_push.plan_nocturne.active == true
+      && toset(uptimekuma_monitor_push.plan_nocturne.notification_ids) == toset(local.alert_notification_ids)
+      && strcontains(file("${path.module}/../../.github/workflows/plan-pangolin-config.yaml"), "- cron: \"30 2 * * *\"")
+    )
+    error_message = "Le moniteur Plan nocturne doit être dans le dossier Self-hosted, sur 49 h, actif, notifié sur Telegram et ntfy, et le workflow quotidien."
   }
 
   # Le workflow teste les dépôts de .github/restore-test/apps.json : un par
