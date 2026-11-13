@@ -6,7 +6,7 @@
   vars:
     docker_service_unit_path: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@.service"
     docker_service_exec_start: >-
-      ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans
+      ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans 2>&1
       | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
   tasks:
     - name: Stat the dc@ unit template and the apps folder
@@ -82,11 +82,13 @@
           StandardOutput=truncate:/tmp/molecule-dc-filter.out
           {{ docker_service_exec_start | replace('/usr/bin/docker compose up --remove-orphans', docker_service_fake_up) }}
       vars:
-        # Ce qu'écrit `up` sur sa sortie standard, puis un code de sortie que
+        # Ce qu'écrit `up` sur sa sortie standard, puis sur sa sortie d'erreur
+        # (une ligne de conteneur, une de compose), puis un code de sortie que
         # l'unité doit rendre tel quel.
         docker_service_fake_up: >-
           (/usr/bin/printf "%%s\n" "Attaching to app-1, app-db-1" "app-1  | GET /health 200"
-          "app-db-1   | checkpoint | done" "app-1 exited with code 3"; exit 7)
+          "app-db-1   | checkpoint | done" "app-1 exited with code 3";
+          /usr/bin/printf "%%s\n" "homebox  | request finished" "Container app-1  Started" >&2; exit 7)
 
     # Type=oneshot qui sort en 7 : le démarrage échoue, c'est attendu.
     - name: Run the filter unit
@@ -112,7 +114,7 @@
       ansible.builtin.assert:
         that:
           - docker_service_filter_status.status.ExecMainStatus == '7'
-          - (docker_service_filter_out.content | b64decode).splitlines() == ['Attaching to app-1, app-db-1', 'app-1 exited with code 3']
+          - (docker_service_filter_out.content | b64decode).splitlines() == ['Attaching to app-1, app-db-1', 'app-1 exited with code 3', 'Container app-1  Started']
         fail_msg: >-
           code {{ docker_service_filter_status.status.ExecMainStatus }}, sortie
           {{ (docker_service_filter_out.content | b64decode).splitlines() }}
