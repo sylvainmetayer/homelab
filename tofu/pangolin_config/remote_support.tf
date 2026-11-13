@@ -35,6 +35,17 @@ locals {
       site_id   = pangolin_site.pc_sylvain.id
       port      = 3389
     }
+    # PC du père (Fedora, GNOME), créé le 13/11/2026 : VNC de la session par le
+    # relais local (5901), comme pc_sylvain_vnc. Mode d'emploi :
+    # docs/runbooks/support-a-distance-famille.md (partie Fedora). Pas de RDP :
+    # le client RDP du navigateur est refusé par GNOME.
+    pc_papa_vnc = {
+      name      = "PC Papa (VNC)"
+      mode      = "vnc"
+      subdomain = "d-9lsa9c"
+      site_id   = pangolin_site.pc_papa.id
+      port      = 5901
+    }
   }
 }
 
@@ -55,6 +66,26 @@ output "pc_sylvain_newt_id" {
 output "pc_sylvain_newt_secret" {
   description = "PC SYLVAIN - Newt secret of the pc-sylvain site, read by ansible/pc-support.yml"
   value       = pangolin_site.pc_sylvain.newt_secret
+  sensitive   = true
+}
+
+# Le PC du père. Newt y est installé à la main (jamais par Ansible,
+# docs/runbooks/support-a-distance-famille.md), avec les identifiants lus par
+# `tofu output` (sorties ci-dessous).
+resource "pangolin_site" "pc_papa" {
+  name                  = "pc-papa"
+  docker_socket_enabled = true
+}
+
+output "pc_papa_newt_id" {
+  description = "PC PAPA - Newt ID of the pc-papa site, read by hand with tofu output"
+  value       = pangolin_site.pc_papa.newt_id
+  sensitive   = true
+}
+
+output "pc_papa_newt_secret" {
+  description = "PC PAPA - Newt secret of the pc-papa site, read by hand with tofu output"
+  value       = pangolin_site.pc_papa.newt_secret
   sensitive   = true
 }
 
