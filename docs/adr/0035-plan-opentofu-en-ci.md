@@ -1,7 +1,19 @@
 # 0035. Plan et apply OpenTofu en CI (#704) : plan de dérive de `pangolin_config` sur `main`, pas d'apply
 
-- **Statut** : proposée
-- **Date** : 2026-11-12
+- **Statut** : rejetée (les jetons d'admin iraient chez GitHub)
+- **Date** : 2026-11-12, rejetée le 2026-11-13
+
+## Rejet (2026-11-13)
+
+La recommandation ci-dessous (plan nocturne de `pangolin_config` sur `main`) a été écrite jusqu'au bout (#1479, relue, CI verte, fermée sans fusion) puis abandonnée par Sylvain. Pour planifier, le runner a besoin des seize variables du module, donc des jetons des providers. L'étude du 13/11 (sources de Pangolin 1.26.0, Uptime Kuma, Pocket ID 2.19.2 et des providers) donne :
+
+- Pangolin sait limiter une clé d'API à des actions de lecture (clé d'organisation et clé racine) ; c'est aussi la mieux protégée, derrière la liste d'adresses de l'API.
+- Uptime Kuma n'a qu'un compte, tous droits ; ses clés d'API ne servent qu'à `/metrics` et aux pushs.
+- Une clé d'API Pocket ID hérite de tous les droits de son utilisateur : celle d'un administrateur permet de créer un administrateur ou un client OIDC, donc de prendre toutes les applis en SSO.
+- Les jetons Telegram, ntfy et la clé Anthropic sont relus par les providers : une valeur factice donne un écart permanent.
+- La passphrase du state est inévitable, et le state déchiffré contient déjà presque tous ces secrets : des jetons en lecture seule raccourcissent la liste des secrets chez GitHub, pas ce qu'elle expose.
+
+Voie non retenue non plus, gardée pour mémoire : le même plan lancé par un timer sur le LXC Newt (adresse déjà autorisée), sans rien chez GitHub ; le script d'alerte et la sonde de #1479 s'y réutilisent. Les plans restent à la main ou par un agent (`pangolin-config-plan`) ; le plan complet du module est vide depuis le 13/11 (budgets de la passerelle IA retirés), une dérive se voit donc au prochain plan. [0024](0024-deploiement-au-merge.md) reste telle quelle.
 
 ## Contexte
 
