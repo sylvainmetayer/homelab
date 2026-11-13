@@ -45,7 +45,20 @@
           - "'EnvironmentFile=/etc/newt/env' in newt_unit_file"
           - "'DynamicUser=yes' in newt_unit_file"
           - "'molecule-newt-secret' not in newt_unit_file"
-          - "'ExecStart=/var/lib/newt/newt' in newt_unit_file"
-          - "'ExecStart=/usr/local/bin/newt' not in newt_unit_file"
-          - "'ProtectSystem=strict' in newt_unit_file"
           - newt_unit.status.UnitFileState == 'enabled'
+          - "'ExecStart=/usr/local/bin/newt' in newt_unit_file"
+          - "'/var/lib/newt/newt' not in newt_unit_file"
+
+    # Variante opt-in (PC de la famille, newt_service_self_update) : rendue
+    # sans être installée, le conteneur de test n'a pas le service à l'état voulu.
+    - name: Assert the self-update variant keeps its binary in the state directory
+      vars:
+        newt_selfupdate_unit: "{{ lookup('ansible.builtin.template', playbook_dir ~ '/../../roles/newt_service/templates/newt.service.j2') }}"
+        newt_service_self_update: true
+      ansible.builtin.assert:
+        that:
+          - "'ExecStart=/var/lib/newt/newt' in newt_selfupdate_unit"
+          - "'ExecStart=/usr/local/bin/newt' not in newt_selfupdate_unit"
+          - "'ExecStartPre=/bin/sh -c' in newt_selfupdate_unit"
+          - "'/usr/local/bin/newt -nt /var/lib/newt/newt' in newt_selfupdate_unit"
+          - "'ProtectSystem=strict' in newt_selfupdate_unit"
