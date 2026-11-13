@@ -182,7 +182,7 @@ laquelle pouvait.
 
 | Zone | `issue` | Pourquoi |
 |---|---|---|
-| sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (DNS-01 pour les jokers, HTTP-01 pour un certificat par nom encore en place), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), PikaPods (budget.sylvain.cloud, CNAME hors Tofu vers `*.pikapod.net`, sans CAA) |
+| sylvainmetayer.fr, metayer.dev, sylvain.cloud | `letsencrypt.org` | Traefik de Pangolin (DNS-01 pour les jokers, HTTP-01 pour les rares certificats par nom qui restent : apex sylvain.cloud et sylvain.dev, memoire.epsi, et print, bbox-internal, nas-internal dont les routeurs de ressources privées demandent encore le résolveur HTTP-01 ; les autres ont été retirés d'`acme.json` le 13/11/2026), Traefik du NAS (DNS-01, media et nas.sylvain.cloud), PikaPods (budget.sylvain.cloud, CNAME hors Tofu vers `*.pikapod.net`, sans CAA) |
 | sylvain.dev | `letsencrypt.org`, `pki.goog`, `ssl.com` | Pangolin et Cloudflare Pages (ref, www, r, planning) |
 
 Les `*.talks.sylvain.dev` (GitHub Pages) n'en dépendent pas : CNAME vers

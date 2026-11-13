@@ -31,7 +31,7 @@ noms déjà émis y restent à vie ; l'objectif est de ne plus en ajouter.
 - **Migration** : essai sur l'autorité de test (`pangolin_wildcard_staging`, nom
   neutre `acme-test.sylvain.cloud`), puis production. Traefik préfère un
   certificat par nom au joker : les certificats par nom sont retirés
-  d'`acme.json` ensuite, sinon ils restent servis et renouvelés.
+  d'`acme.json` ensuite, sinon ils restent servis et renouvelés. Fait le 2026-11-13 (63 retirés sur Pangolin, 5 au NAS) ; restent sur Pangolin les apex, `memoire.epsi.sylvainmetayer.fr` et `print`, `bbox-internal`, `nas-internal` (routeurs de ressources privées en HTTP-01).
 - **Surveillance** : les moniteurs HTTP d'Uptime Kuma existants
   (`expiry_notification`), et `nas-proxy-cert-check` au NAS ; pas de script.
 
