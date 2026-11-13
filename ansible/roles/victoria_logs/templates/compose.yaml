@@ -20,8 +20,18 @@ services:
       - ALL
     tmpfs:
       - /tmp:noexec,nosuid,size=16m
+    # Écritures disque (mesure du 2026-11-13) : 1,7 Gio écrits en 21 h pour
+    # 164 Mo de JSON reçus (432 000 lignes), soit ~10 fois le volume des
+    # journaux. Par défaut (5 s) chaque vidage crée une petite partie sur
+    # disque (une cinquantaine de lignes), que les fusions réécrivent ensuite.
+    # À 1 min : douze fois moins de parties. Les lignes encore en mémoire
+    # restent interrogeables ; seul un arrêt brutal (SIGKILL, coupure) perd
+    # celles de la dernière minute (SIGTERM les vide). Acceptable : copie des
+    # journaux de l'hôte et des conteneurs (que leur source garde encore),
+    # sans sauvegarde par conception (ADR 0011).
     command:
       - "-storageDataPath=/data"
+      - "-inmemoryDataFlushInterval=1m"
       - "-retentionPeriod={{ victoria_logs_retention_period }}"
       - "-retention.maxDiskSpaceUsageBytes={{ victoria_logs_max_disk_space_usage }}"
       - "-httpListenAddr=:9428"
