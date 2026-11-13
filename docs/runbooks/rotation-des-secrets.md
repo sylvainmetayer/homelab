@@ -844,6 +844,12 @@ Pangolin (`rss_site_build_access_token`) se renouvelle à part : `tofu apply
 -replace=pangolin_resource_access_token.rss_site_build` dans
 `tofu/pangolin_config`, puis `apply` de `tofu/site` (il lit cette sortie).
 
+`SITE_SETLISTFM_API_KEY` (fichier racine, `tofu/site` : secret Pages
+`SETLISTFM_API_KEY` de production, lu par la page `/concerts/`) : nouvelle clé
+sur <https://www.setlist.fm/settings/api>, `sops set`, `apply` de `tofu/site`,
+puis un nouveau déploiement Pages. La clé ne donne qu'un accès en lecture à
+des données publiques.
+
 ### Mot de passe de sylvain sur les hôtes
 
 `host_user_password_hash` (le mot de passe sudo de `sylvain`) :

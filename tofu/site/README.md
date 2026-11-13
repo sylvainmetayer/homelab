@@ -85,6 +85,7 @@ Cinq clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le 
 | `SITE_WEBMENTION_IO_TOKEN` | variable `WEBMENTION_IO_TOKEN` (secret, production) du projet Pages | `src/_data/webmentions.js` au build |
 | `SITE_SONAR_TOKEN` | secret GitHub `SONAR_TOKEN` | workflow *SonarCloud* |
 | `SITE_FRESHRSS_OPML_URL` | variables `FRESHRSS_OPML_URL`, `FRESHRSS_ACCESS_TOKEN_ID` et `FRESHRSS_ACCESS_TOKEN` (secrets, production) du projet Pages ; les deux dernières viennent de la sortie `rss_site_build_access_token` de `tofu/pangolin_config` (appliquer celle-ci d'abord), sans elle aucune des trois n'est créée | `src/_data/freshrss.js` au build (export OPML des abonnements, page « following ») |
+| `SITE_SETLISTFM_API_KEY` | variables `SETLISTFM_API_KEY` (secret) et `SETLISTFM_USER` (en clair, nom public du profil) du projet Pages, en production | page `/concerts/` du site au build |
 | `SITE_CF_ANALYTICS_TOKEN` | variables `CF_ANALYTICS_TOKEN` (secret), `CF_ACCOUNT_ID` et `CF_ANALYTICS_SITE_TAG` (production) du projet Pages | `src/_data/popularPaths.js` au build (« les plus lus ») |
 
 ### 1. Obtenir les valeurs

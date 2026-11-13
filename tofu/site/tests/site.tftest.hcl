@@ -481,3 +481,34 @@ run "url_opml_sans_jeton_pangolin" {
     error_message = "Sans le jeton Pangolin, aucune variable FRESHRSS_*."
   }
 }
+
+# Avec la clé d'API setlist.fm (SOPS), la production reçoit SETLISTFM_API_KEY en
+# secret et SETLISTFM_USER en clair ; les previews ne reçoivent rien.
+run "setlistfm_en_production_seulement" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        CLOUDFLARE_API_TOKEN   = "fake-cloudflare-token"
+        CLOUDFLARE_ACCOUNT_ID  = "0123456789abcdef0123456789abcdef"
+        SITE_PAGES_DEPLOY_HOOK = "https://example.invalid/fake-deploy-hook"
+        SITE_SETLISTFM_API_KEY = "fake"
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["SETLISTFM_API_KEY"].type == "secret_text" &&
+      cloudflare_pages_project.site.deployment_configs.production.env_vars["SETLISTFM_USER"].type == "plain_text"
+    )
+    error_message = "La production doit recevoir SETLISTFM_API_KEY en secret et SETLISTFM_USER en clair."
+  }
+
+  assert {
+    condition     = try(length(cloudflare_pages_project.site.deployment_configs.preview.env_vars), 0) == 0
+    error_message = "Les previews ne doivent recevoir aucune variable setlist.fm."
+  }
+}
