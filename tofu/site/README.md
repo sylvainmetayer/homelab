@@ -14,6 +14,7 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `cloudflare_web_analytics_site.site` | Site Web Analytics existant, importé (même jeton, historique conservé) ; jeton en sortie `web_analytics_token` |
 | `ovh_domain_zone_record.atproto` | TXT `_atproto` → `did=<DID>`, pour le handle Bluesky `@sylvain.dev` (si la variable `bluesky_did` est renseignée : en valeur par défaut dans `variables.tf`, un DID est public ; passée en `-var`, l'apply suivant sans elle supprime l'enregistrement) |
 | `ovh_domain_zone_record.www` | CNAME `www` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+| `ovh_domain_zone_record.bing_verification` | CNAME `<code>.www` → `verify.bing.com`, vérification du site dans Bing Webmaster Tools |
 
 L'enregistrement A de l'apex `sylvain.dev` vers Pangolin n'est pas ici mais dans `tofu/dns/pangolin.tf`, à côté du joker (`ovh_domain_zone_record.sylvain_dev_root`, variable `sylvain_dev_apex_to_pangolin`).
 

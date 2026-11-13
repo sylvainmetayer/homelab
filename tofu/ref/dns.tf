@@ -8,3 +8,13 @@ resource "ovh_domain_zone_record" "ref" {
   ttl       = 300
   target    = "${cloudflare_pages_project.ref.subdomain}."
 }
+
+# Vérification du site dans Bing Webmaster Tools : Bing cherche le CNAME sous
+# l'hôte déclaré (<code>.ref.sylvain.dev). Le code est public.
+resource "ovh_domain_zone_record" "bing_verification" {
+  zone      = var.domain_zone
+  subdomain = "a69ff3236fe60fb42285327d98d3b099.${var.subdomain}"
+  fieldtype = "CNAME"
+  ttl       = 3600
+  target    = "verify.bing.com."
+}

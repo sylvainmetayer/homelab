@@ -12,6 +12,7 @@ Infra du site de parrainage [ref.sylvain.dev](https://ref.sylvain.dev) (code : d
 | `cloudflare_pages_project.ref` | Build `npm run build` → `_site`, déploiement à chaque push, previews sur les branches |
 | `cloudflare_pages_domain.ref` | Domaine personnalisé `ref.sylvain.dev` |
 | `ovh_domain_zone_record.ref` | CNAME `ref` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
+| `ovh_domain_zone_record.bing_verification` | CNAME `<code>.ref` → `verify.bing.com`, vérification du site dans Bing Webmaster Tools |
 | `cloudflare_web_analytics_site.ref` | Pages vues ; jeton du beacon en sortie `web_analytics_token`, comparé au plan à `site.json` du dépôt `ref` (`check "beacon_token"`) |
 
 La vérification Google Search Console de `sylvain.dev` (TXT à l'apex) vit dans `tofu/dns` : elle couvre tout le domaine, pas seulement ce site.
