@@ -54,6 +54,15 @@
       ansible.builtin.set_fact:
         flip_planning_newt_subnet: "{{ (flip_planning_newt_network.stdout | from_json)[0].IPAM.Config[0].Subnet }}"
 
+    - name: Read the newt-public network definition
+      ansible.builtin.command: docker network inspect newt-public
+      register: flip_planning_newt_public_network
+      changed_when: false
+
+    - name: Extract the newt-public subnet
+      ansible.builtin.set_fact:
+        flip_planning_newt_public_subnet: "{{ (flip_planning_newt_public_network.stdout | from_json)[0].IPAM.Config[0].Subnet }}"
+
     - name: Verify each Flip Planning instance
       ansible.builtin.include_tasks: tasks/verify_instance.yml
       loop: "{{ flip_planning_instances }}"
@@ -252,6 +261,7 @@
       vars:
         showcase_compose: "{{ flip_planning_showcase_compose_raw.stdout | from_json }}"
         showcase_env: "{{ (flip_planning_env_files.results[0].content | b64decode).splitlines() }}"
+        showcase_env_text: "{{ '\n' ~ (flip_planning_env_files.results[0].content | b64decode) }}"
         prod_env: "{{ (flip_planning_env_files.results[1].content | b64decode).splitlines() }}"
         reset_unit: "{{ (flip_planning_reset_unit.content | b64decode).splitlines() }}"
         reset_push_line: >-
@@ -291,6 +301,18 @@
           - flip_planning_reset_timer.status.ActiveState == 'inactive'
           - "'03:30:00 Europe/Paris' in flip_planning_reset_timer.status.TimersCalendar"
           - showcase_containers | select('match', '^exemple-planning') | list | length == showcase_containers | length
+          # Sans SSO : sur newt-public, jamais sur `newt` ; la base sur aucun des deux.
+          - showcase_compose.networks['newt-public'].external
+          - "'newt' not in showcase_compose.networks"
+          - "'newt-public' in showcase_compose.services.app.networks"
+          - "'newt-public' in showcase_compose.services.mailpit.networks"
+          - "'newt-public' in showcase_compose.services.assets.networks"
+          - "'newt' not in showcase_compose.services.app.networks"
+          - "'newt-public' not in showcase_compose.services.postgres.networks"
+          # Proxys de confiance : le sous-réseau de newt-public, pas celui de newt
+          # (lu une fois pour les instances précédentes).
+          - flip_planning_newt_public_subnet != flip_planning_newt_subnet
+          - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_public_subnet ~ "\n") in showcase_env_text
           - showcase_containers | intersect(flip_planning_containers['flip_planning'] + flip_planning_containers['demo_planning']) | length == 0
         fail_msg: >-
           Vitrine : compose, .env, reset ou timer inattendus

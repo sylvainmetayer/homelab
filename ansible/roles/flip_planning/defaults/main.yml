@@ -446,7 +446,13 @@ flip_planning_reset_push_config: "{{ flip_planning_base_path }}/reset-push.curl"
 flip_planning_trusted_proxies: ""
 
 # The docker network newt attaches to; the app joins it to be reachable.
+# A public instance without SSO sets `newt-public` in its role entry (README of
+# the newt role).
 flip_planning_newt_network: "newt"
+
+# Subnet read from each newt network at deploy time, by network name: filled by
+# the role itself (set_fact), left empty here.
+flip_planning_proxy_subnets: {}
 
 # pgAdmin, exposed on the /db sub-path of flip_planning_domain
 flip_planning_pgadmin_enabled: true

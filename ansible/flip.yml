@@ -268,6 +268,9 @@
         flip_planning_horloge_simulee_autorisee: true
         # Fictional data only, and nobody's personal data to declare.
         flip_planning_legal_demo_instance: true
+        # Public without SSO: on newt-public, not on `newt` where it would
+        # reach Flip Planning and the others (README of the newt role).
+        flip_planning_newt_network: "{{ 'newt-public' if newt_public_network_enabled | default(false) else 'newt' }}"
         flip_planning_pgadmin_enabled: false
         flip_planning_admin_password: "demo"
         flip_planning_db_password: "{{ exemple_planning_db_password }}"
