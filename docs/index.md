@@ -5,7 +5,7 @@ publiée depuis son dossier `docs/` à chaque merge sur `main`.
 
 - **Un incident en cours** : [runbooks](runbooks/README.md), un fichier par
   panne (symptôme, diagnostic, réparation, vérification).
-- **La carte** : [architecture](architecture.md), les
+- **La carte** : les [schémas](carte.md), l'[architecture](architecture.md), les
   [applications](apps.md) et leur hôte.
 - **Le pourquoi des choix** : les [décisions d'architecture](adr/README.md).
 - **Les règles du dépôt** : les conventions (Ansible, CI, secrets, tests...),

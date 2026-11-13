@@ -127,6 +127,7 @@ nav:
       - runbooks/support-a-distance.md
       - runbooks/support-a-distance-famille.md
       - runbooks/support-a-distance-famille-sans-tofu.md
+  - Carte: carte.md
   - Architecture: architecture.md
   - Applications: apps.md
   - Sauvegardes: backup-restore.md
