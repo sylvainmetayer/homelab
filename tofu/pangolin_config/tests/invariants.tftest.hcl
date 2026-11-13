@@ -414,6 +414,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_site.pc_papa
+  values = { id = 8, newt_id = "newt-pc-papa", newt_secret = "secret-pc-papa" }
+}
+
+override_resource {
   target = pangolin_role.support
   values = { id = 97 }
 }
@@ -457,6 +462,16 @@ override_resource {
 override_resource {
   target = pangolin_target.remote_desktop["pc_sylvain_rdp"]
   values = { id = 3112 }
+}
+
+override_resource {
+  target = pangolin_resource.remote_desktop["pc_papa_vnc"]
+  values = { id = 3103 }
+}
+
+override_resource {
+  target = pangolin_target.remote_desktop["pc_papa_vnc"]
+  values = { id = 3113 }
 }
 
 # Ressources publiques : un identifiant par instance de pangolin_resource.website
