@@ -114,7 +114,9 @@
       ansible.builtin.assert:
         that:
           - docker_service_filter_status.status.ExecMainStatus == '7'
-          - (docker_service_filter_out.content | b64decode).splitlines() == ['Attaching to app-1, app-db-1', 'app-1 exited with code 3', 'Container app-1  Started']
+          - >-
+            (docker_service_filter_out.content | b64decode).splitlines()
+            == ['Attaching to app-1, app-db-1', 'app-1 exited with code 3', 'Container app-1  Started']
         fail_msg: >-
           code {{ docker_service_filter_status.status.ExecMainStatus }}, sortie
           {{ (docker_service_filter_out.content | b64decode).splitlines() }}
