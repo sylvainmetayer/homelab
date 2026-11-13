@@ -17,12 +17,28 @@ services:
     restart: unless-stopped
     # Comme l'amont : pg_stat_statements pour les requêtes lentes, et un
     # /dev/shm plus grand que les 64 Mo par défaut (requêtes parallèles).
+    #
+    # Écritures disque (mesure du 2026-11-13, docs/conventions/resource-limits.md
+    # « Disk I/O ») : 1,2 Gio en 21 h, dont 84 % de pages entières dans le WAL
+    # (pg_stat_wal : 547 000 wal_fpi pour 5,2 Gio de WAL depuis le 2026-11-01).
+    # Chaque checkpoint (toutes les 5 min, 3 369 « timed ») remet à zéro le
+    # « première modification d'une page depuis le checkpoint » : les quelques
+    # pages de la file de jobs (`queue`, 4,4 M mises à jour) sont réécrites en
+    # entier à chaque fois, puis écrites à nouveau dans les fichiers de données.
+    # checkpoint_timeout 15 min : trois fois moins de ces réécritures. Aucun
+    # effet sur la durabilité (chaque commit reste fsyncé) ; seule la reprise
+    # après un arrêt brutal rejoue jusqu'à 15 min de WAL (quelques Mio ici).
+    # wal_compression : compresse ces pages entières (pglz, toujours compilé).
     command:
       - postgres
       - -c
       - shared_preload_libraries=pg_stat_statements
       - -c
       - pg_stat_statements.track=top
+      - -c
+      - checkpoint_timeout=15min
+      - -c
+      - wal_compression=on
     shm_size: 256mb
     security_opt:
       - no-new-privileges:true
