@@ -74,10 +74,13 @@ ExecStartPre=/usr/bin/docker compose pull --policy missing
 # (« conteneur-1  | ligne ») : ~80 % du journal, donc des écritures de journald
 # (~50 Ko/s pour ~250 o/s de texte sur la VM docker), pour des lignes que le
 # pilote json-file de Docker garde déjà (et que log_agent lit à la source).
-# grep les retire et laisse passer le reste de la sortie standard
-# (« Attaching to … », « conteneur-1 exited with code N ») ; la sortie
-# d'erreur (création, démarrage, arrêt des conteneurs, erreurs) n'est pas
-# filtrée. Ni `--no-attach` (`up` rend la main dès que les conteneurs
+# grep les retire et laisse passer le reste (« Attaching to … »,
+# « conteneur-1 exited with code N », création, démarrage et arrêt des
+# conteneurs, erreurs de compose, qui ne portent pas ce préfixe). `up` écrit
+# sur sa sortie d'erreur les lignes que le conteneur écrit sur la sienne
+# (homebox, homepage-*, tout ce qui journalise sur stderr) : relevées dans le
+# journal de la VM docker le 2026-11-13, 56 % des entrées du manager user
+# (« homebox  | request finished »), d'où le `2>&1`. Ni `--no-attach` (`up` rend la main dès que les conteneurs
 # attachés s'arrêtent, et les attache tous si on les exclut tous) ni
 # LogFilterPatterns= (sans effet dans une unité user, absent du systemd 252
 # du NAS) ne conviennent. -a : une ligne binaire ne coupe pas la sortie de
@@ -85,7 +88,7 @@ ExecStartPre=/usr/bin/docker compose pull --policy missing
 # sortie de `up`, pas celui de grep (1 s'il n'a rien laissé passer).
 # /bin/bash et /bin/grep (comme /bin/sh plus haut) : présents que /usr soit
 # fusionné ou non (UGOS sur le NAS).
-ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
+ExecStart=/bin/bash -c '/usr/bin/docker compose up --remove-orphans 2>&1 | /bin/grep -a --line-buffered -v -E "^[A-Za-z0-9][A-Za-z0-9_.-]* +[|]"; exit "$${PIPESTATUS[0]}"'
 # `stop`, pas `down`, délibérément : `down` supprimerait les conteneurs, et
 # avec eux le contenu des volumes anonymes (VOLUME d'une image que le compose
 # ne monte pas) au prochain `up`. Les conteneurs arrêtés sont marqués « stoppés
