@@ -3975,9 +3975,8 @@ run "domain_redirects_keep_their_behaviour" {
 }
 
 # Passerelle IA (ai_gateway.tf) : fournisseur Anthropic seul, modèles en liste
-# d'autorisation, budgets en tokens durs (sur `lifetime`), chaque clé limitée à la passerelle et
-# plafonnée, journal hors de Tofu.
-run "ai_gateway_keys_are_scoped_and_capped" {
+# d'autorisation, chaque clé limitée à la passerelle, journal hors de Tofu.
+run "ai_gateway_keys_are_scoped" {
   command = apply
 
   assert {
@@ -4000,28 +3999,9 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       alltrue([
         for k, key in pangolin_virtual_api_key.ai :
         !key.all_resources && length(key.resource_ids) == 1 && contains(key.resource_ids, pangolin_resource.ai_gateway["ia"].id)
-        && pangolin_ai_budget.key[k].virtual_api_key_id == key.id
-        && pangolin_ai_budget.key_tokens[k].virtual_api_key_id == key.id
-        && pangolin_ai_budget.key[k].amount <= pangolin_ai_budget.total["ia"].amount
-        && pangolin_ai_budget.key_tokens[k].amount <= pangolin_ai_budget.total_tokens["ia"].amount
       ])
-      # Les dollars en suivi (soft) : le catalogue de prix de Pangolin ne
-      # connaît pas tous les modèles ; les tokens bloquent (hard).
-      && alltrue([
-        for b in concat(values(pangolin_ai_budget.key), values(pangolin_ai_budget.total)) :
-        b.unit == "usd" && b.period == "monthly" && b.enforcement == "soft" && b.enabled
-      ])
-      && alltrue([
-        for b in concat(values(pangolin_ai_budget.key_tokens), values(pangolin_ai_budget.total_tokens)) :
-        b.unit == "tokens" && b.period == "lifetime" && b.enforcement == "hard" && b.enabled
-      ])
-      && pangolin_ai_budget.total["ia"].amount == 30
-      && pangolin_ai_budget.total_tokens["ia"].amount == local.ai_budget_total_tokens
-      && alltrue([for b in values(pangolin_ai_budget.key_tokens) : b.amount > 0])
-      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key)
-      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key_tokens)
     )
-    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA et porter deux budgets : en tokens, bloquant, sur toute la durée (bug des périodes de Pangolin 1.26.0), sous le plafond en tokens de l'organisation ; en dollars, en suivi seul, sous les 30 $ de l'organisation."
+    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA (pas de budget de passerelle pour l'instant, voir ai_gateway.tf)."
   }
 }
 

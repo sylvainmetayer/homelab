@@ -16,8 +16,8 @@ conso par appli ni plafond.
   Opus 5.5, en Tofu (`tofu/pangolin_config/ai_gateway.tf`).
 - **Une clé virtuelle par appli**, lue par Ansible dans le state
   (`ai_gateway_keys`), jamais en SOPS (seule la clé Anthropic l'est).
-- **Deux budgets par clé** : tokens, bloquant, sur `lifetime` ; dollars, suivi
-  seul. En 1.26.0 toute période compte 0 (fosrl/pangolin#4077) et le catalogue
+- **Deux budgets par clé** (retirés le 2026-11-13, voir Conséquences) : tokens,
+  bloquant, sur `lifetime` ; dollars, suivi seul. En 1.26.0 toute période compte 0 (fosrl/pangolin#4077) et le catalogue
   de prix ignore les modèles 5.5.
 - **Format OpenAI** pour les applis qui ne parlent que lui : le point
   compatible d'Anthropic (`openai_chat`).
@@ -38,6 +38,9 @@ conso par appli ni plafond.
 - Conso par appli dans Pangolin ; une clé qui fuit se remplace seule (`-replace`).
 - Budgets `lifetime` sans remise à zéro : à relever à la main, à repasser en
   `monthly` quand #4077 sera publiée.
+- **Mise à jour du 2026-11-13** : les budgets sont retirés du code, jamais
+  appliqués en entier ; seule la limite du workspace Anthropic plafonne la
+  dépense. À remettre (mensuels) quand une version de Pangolin contiendra #4077.
 - Pas d'embeddings (Anthropic n'en sert pas) ; si Pangolin tombe, l'IA des applis aussi.
 
 ## Liens
