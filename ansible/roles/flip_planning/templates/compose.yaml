@@ -62,7 +62,7 @@ services:
       # Pangolin's tunnel, and this traffic never leaves the host.
       - {{ flip_planning_container_prefix }}-keycloak
 {% endif %}
-      - newt
+      - {{ flip_planning_newt_network }}
 
   postgres:
     mem_limit: 512m
@@ -102,7 +102,7 @@ services:
       MP_WEBROOT: /mail/
     networks:
       - {{ flip_planning_container_prefix }}
-      - newt
+      - {{ flip_planning_newt_network }}
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
 
   # BRANDING_LOGO_URL / MASCOT_URL are URLs the browser fetches, not file paths:
@@ -122,7 +122,7 @@ services:
     volumes:
       - ./assets:/usr/share/nginx/html/assets:ro
     networks:
-      - newt
+      - {{ flip_planning_newt_network }}
 
 {% if flip_planning_keycloak_enabled %}
 
@@ -181,7 +181,7 @@ services:
       - {{ flip_planning_container_prefix }}-keycloak
       # Mailpit, for the invitations, codes and resets the realm sends.
       - {{ flip_planning_container_prefix }}
-      - newt
+      - {{ flip_planning_newt_network }}
 
   keycloak-db:
     mem_limit: 512m
@@ -240,7 +240,7 @@ services:
       - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
     networks:
       - {{ flip_planning_container_prefix }}
-      - newt
+      - {{ flip_planning_newt_network }}
 {% endif %}
 
 networks:
@@ -254,7 +254,7 @@ networks:
   {{ flip_planning_container_prefix }}-keycloak:
     internal: true
 {% endif %}
-  newt:
+  {{ flip_planning_newt_network }}:
     external: true
 
 volumes:
