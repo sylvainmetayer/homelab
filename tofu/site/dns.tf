@@ -9,6 +9,16 @@ resource "ovh_domain_zone_record" "www" {
   target    = "${cloudflare_pages_project.site.subdomain}."
 }
 
+# Vérification du site dans Bing Webmaster Tools : Bing cherche le CNAME sous
+# l'hôte déclaré (<code>.www.sylvain.dev). Le code est public.
+resource "ovh_domain_zone_record" "bing_verification" {
+  zone      = var.domain_zone
+  subdomain = "09a445c40a86467fe5577a2c6ce7c67b.${var.subdomain}"
+  fieldtype = "CNAME"
+  ttl       = 3600
+  target    = "verify.bing.com."
+}
+
 # L'apex sylvain.dev (A vers Pangolin, redirection 301 vers www) est dans
 # tofu/dns/pangolin.tf, à côté du joker : variable sylvain_dev_apex_to_pangolin.
 

@@ -242,6 +242,15 @@ run "cname_ovh_court_circuite_le_joker" {
   }
 
   assert {
+    condition = (
+      ovh_domain_zone_record.bing_verification.subdomain == "a69ff3236fe60fb42285327d98d3b099.ref" &&
+      ovh_domain_zone_record.bing_verification.fieldtype == "CNAME" &&
+      ovh_domain_zone_record.bing_verification.target == "verify.bing.com."
+    )
+    error_message = "La vérification Bing est un CNAME <code>.ref vers verify.bing.com., point final compris."
+  }
+
+  assert {
     condition     = output.pages_subdomain == "ref-4ab.pages.dev"
     error_message = "La sortie pages_subdomain doit être le sous-domaine du projet Pages."
   }
