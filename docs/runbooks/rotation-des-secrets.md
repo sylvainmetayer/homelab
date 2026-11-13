@@ -17,6 +17,18 @@ ses étapes ci-dessous (`how`). Plus bas, « fichier racine » désigne
 | `encryption` | clés qui chiffrent des données (passphrase borg, des states, clés de session, secrets serveur, clé age de la CI) | sur incident seulement |
 | `identifier` | identifiants, adresses, IP, mentions légales : pas des secrets | jamais |
 
+## Copies dans l'environnement `tofu-drift`
+
+Le plan nocturne de `pangolin_config` (ADR 0035) lit des **copies** de huit
+valeurs, posées par `tofu/github` : les variables du module (un JSON, venu de
+`secrets/secrets.sops.yaml` par `mise.toml`), `state_s3_*` et
+`tofu_state_passphrase`, `ntfy_github_token`, le client OLM `ci-plan` et l'URL
+push du moniteur. Après la rotation d'une de ces valeurs (clés Pangolin,
+Uptime Kuma, Pocket ID, Telegram, ntfy, Anthropic, PIN, passphrase du state),
+lancer `tofu -chdir=tofu/github apply` **par `mise exec --`** (sinon le JSON
+part vide), puis un `workflow_dispatch` de *Plan pangolin_config* : sans cela le
+plan de la nuit échoue sur une 401 ou un déchiffrement et sonne.
+
 ## Comment l'alerte arrive
 
 - **Lint** (chaque PR) : `.github/scripts/check_secret_rotation.py` échoue

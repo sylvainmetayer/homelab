@@ -121,6 +121,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DRIFT_PLAN_STATE_S3_SECRET_KEY }}
           TF_VAR_pangolin_config_state_passphrase: ${{ secrets.DRIFT_PLAN_STATE_PASSPHRASE }}
         run: |
+          umask 077
           rc=0
           timeout 25m tofu -chdir=tofu/pangolin_config plan -input=false -lock=false -no-color -detailed-exitcode \
             -var-file="$RUNNER_TEMP/plan.tfvars.json" > "$RUNNER_TEMP/plan.txt" 2>&1 || rc=$?
@@ -128,6 +129,12 @@ jobs:
           summary="$(grep -E '^Plan: [0-9]+ to add, [0-9]+ to change, [0-9]+ to destroy\.$' "$RUNNER_TEMP/plan.txt" | tail -n 1 || true)"
           echo "summary=$summary" >> "$GITHUB_OUTPUT"
           echo "tofu plan exit code: $rc ${summary:+($summary)}"
+          if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then
+            # La cause en mots fixes, jamais une ligne du texte (dépôt public).
+            for cause in timeout "no such host" refused "reset by peer" unauthorized forbidden decrypt lock; do
+              ! grep -qi -- "$cause" "$RUNNER_TEMP/plan.txt" || echo "tofu plan failed: $cause"
+            done
+          fi
           # 0 et 2 : le plan a tourné, `notify` décide. Autre : le job échoue.
           [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ]
 
