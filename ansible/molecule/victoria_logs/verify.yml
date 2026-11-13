@@ -47,6 +47,7 @@
           - victoria_logs_storage.container_name == 'victoria-logs'
           - victoria_logs_storage.networks.keys() | list == ['victoria-logs']
           - victoria_logs_storage.ports is not defined
+          - "'-inmemoryDataFlushInterval=1m' in victoria_logs_storage.command"
           - victoria_logs_auth.container_name == 'victoria-logs-auth'
           - victoria_logs_auth.networks.keys() | sort == ['mcp-auth', 'newt', 'victoria-logs']
           - victoria_logs_auth.ports | map(attribute='host_ip') | sort == ['127.0.0.1', '192.168.1.216']
