@@ -93,6 +93,17 @@
       vars:
         healthlog_db: "{{ healthlog_compose.services['healthlog-db'] }}"
 
+    # Moins d'écritures disque : checkpoints espacés et pages entières du WAL
+    # compressées, sans toucher à la durabilité (pas de synchronous_commit/fsync).
+    - name: Assert the database spaces its checkpoints and keeps fsync on
+      ansible.builtin.assert:
+        that:
+          - "'checkpoint_timeout=15min' in healthlog_db.command"
+          - "'wal_compression=on' in healthlog_db.command"
+          - healthlog_db.command | select('search', 'synchronous_commit|fsync|full_page_writes') | list | length == 0
+      vars:
+        healthlog_db: "{{ healthlog_compose.services['healthlog-db'] }}"
+
     # Pas de copie S3 ni de dump nocturne de HealthLog : borgmatic sauvegarde.
     # Pas d'appel sortant de géolocalisation ni de vérification de version.
     - name: Assert healthlog keeps its backups and lookups off
