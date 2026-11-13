@@ -9,7 +9,19 @@ After=network-online.target
 [Service]
 Type=simple
 EnvironmentFile={{ newt_service_config_dir }}/env
+{% if newt_service_self_update %}
+# Mise à jour automatique : newt remplace son propre binaire (fichier
+# temporaire à côté, puis rename, puis re-exec, même PID). Il vit donc dans
+# l'état du service, seul endroit inscriptible ; la copie installée n'est
+# recopiée que si elle est plus récente (premier démarrage, ou montée de
+# version du rôle). shortcut: comparaison par date, pas par version ; une copie
+# installée plus ancienne que la version auto-mise à jour la rétrograde
+# jusqu'à la prochaine vérification de newt (2 minutes après, puis toutes les 6 h).
+ExecStartPre=/bin/sh -c 'if [ ! -x /var/lib/newt/newt ] || [ {{ newt_service_binary }} -nt /var/lib/newt/newt ]; then install -m 0755 {{ newt_service_binary }} /var/lib/newt/newt; fi'
+ExecStart=/var/lib/newt/newt
+{% else %}
 ExecStart={{ newt_service_binary }}
+{% endif %}
 Restart=always
 RestartSec=10
 # Compte éphémère sans privilège : newt n'a besoin que du réseau (pile

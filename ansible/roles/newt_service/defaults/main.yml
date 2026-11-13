@@ -17,5 +17,9 @@ newt_service_endpoint: "{{ newt_endpoint }}"
 newt_service_id: ""
 newt_service_secret: ""
 
+# Newt remplace lui-même son binaire (README du rôle). Pour les PC de la
+# famille ; désactivé par défaut : binaire en lecture seule, version figée.
+newt_service_self_update: false
+
 newt_service_binary: /usr/local/bin/newt
 newt_service_config_dir: /etc/newt
