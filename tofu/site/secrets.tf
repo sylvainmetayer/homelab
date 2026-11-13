@@ -26,6 +26,12 @@ locals {
   # GitHub Actions, le workflow sonarcloud du dépôt site saute l'analyse (github.tf).
   sonar_token = try(data.sops_file.secrets.data["SITE_SONAR_TOKEN"], null)
 
+  # Clé d'API setlist.fm (https://www.setlist.fm/settings/api), lue au build de
+  # production par la page /concerts/ du site. Le nom d'utilisateur est public
+  # (profil setlist.fm), il vit en clair dans cloudflare.tf. Absente = pas de
+  # variables SETLISTFM_*, la page n'affiche rien (cloudflare.tf).
+  setlistfm_api_key = try(data.sops_file.secrets.data["SITE_SETLISTFM_API_KEY"], null)
+
   # Export OPML des abonnements FreshRSS (page « following » du site,
   # src/_data/freshrss.js) : l'URL porte le jeton de requête utilisateur de
   # FreshRSS (t=), les en-têtes Pangolin viennent de tofu/pangolin_config
