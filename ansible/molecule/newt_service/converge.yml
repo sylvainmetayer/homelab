@@ -11,7 +11,4 @@
         newt_service_id: "molecule-newt-id"
         newt_service_secret: "molecule-newt-secret"
   roles:
-    # Variante opt-in (PC de la famille) : le verify contrôle son rendu.
     - role: newt_service
-      vars:
-        newt_service_self_update: true
