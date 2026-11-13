@@ -201,7 +201,7 @@ Rotation : `docs/runbooks/rotation-des-secrets.md`.
 
 HealthLog accepte une URL de base : tout hôte qui n'est pas `anthropic.com`
 passe par son client OpenAI (`src/lib/ai/anthropic-host.ts`). Pour passer par
-la passerelle de Pangolin (une clé et un budget à HealthLog, sans clé
+la passerelle de Pangolin (une clé à HealthLog, sans clé
 Anthropic dans l'appli) : dans `/settings/ai`, URL de base
 `https://ia.sylvain.cloud/v1`, clé = clé virtuelle `healthlog`, lue depuis un
 worktree à jour de `main`, sans l'afficher ailleurs que dans le champ :
