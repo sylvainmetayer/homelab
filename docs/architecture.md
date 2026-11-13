@@ -704,13 +704,12 @@ flowchart LR
   compte de l'administrateur n'ouvrant plus que par Pocket ID). Elles font
   autorité : une alerte ajoutée dans l'interface est supprimée au déploiement
   suivant. Envoi par e-mail (SMTP Infomaniak réglé dans l'interface du hub),
-  et par Telegram dès que les clés sops `beszel_telegram_bot_token` et
-  `beszel_telegram_chat_id` existent (URL shoutrrr) : elles ne sont pas
-  créées aujourd'hui, Beszel n'alerte donc que par e-mail. Test du canal
-  Telegram, une fois les clés posées :
-  `ansible-playbook docker.yml --tags beszel_alerts_test` (le bouton « Test »
-  des réglages, `POST /api/beszel/test-notification` ; il refuse de tourner
-  sans canal Telegram). Si la VM docker tombe,
+  et par Telegram (URL shoutrrr) : les clés sops `beszel_telegram_bot_token`
+  et `beszel_telegram_chat_id` existent, le rôle pose donc les deux canaux.
+  Rien dans le dépôt ne dit que ce test a tourné de bout en bout : avant de
+  s'y fier, `ansible-playbook docker.yml --tags beszel_alerts_test` (le
+  bouton « Test » des réglages, `POST /api/beszel/test-notification` ; il
+  refuse de tourner sans canal Telegram). Si la VM docker tombe,
   Beszel se tait : Uptime Kuma (hors VM) le voit par le moniteur
   `Healthcheck Beszel`.
 - **Limites connues** : sur le Pi, le contrôleur cgroup mémoire, coupé par
