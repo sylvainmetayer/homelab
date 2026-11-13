@@ -11,7 +11,7 @@ labels = {
 
 # Configuration Pangolin
 pangolin_config = {
-  dashboard_url = "pangolin.sylvain.cloud"
+  dashboard_url = "hall.sylvain.cloud"
   base_domain   = "sylvain.cloud"
   log_level     = "info"
 }

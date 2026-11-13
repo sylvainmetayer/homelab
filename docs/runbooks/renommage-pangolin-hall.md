@@ -128,8 +128,8 @@ publique, le mur SSO n'y est pour rien) ; console Hetzner si le SSH ne répond p
    moniteur `pangolin_dashboard_legacy_api`, la seconde URL de
    `callback_urls` et `pangolin_dashboard_legacy_host` (`pocket_id.tf`). Un
    enregistrement DNS suffit à garder `pangolin.` pour le SSH et `known_hosts`.
-3. `tofu/pangolin` (autre sujet, non touché ici) : `terraform.tfvars`
-   `dashboard_url` à passer à hall (valeur donnée au `templatefile` du
-   cloud-init `user_data.yaml`, qui ne la lit pas aujourd'hui ; `user_data` est
-   dans `ignore_changes`, aucun remplacement de VM). Aucune occurrence du nom dans
-   `flip.tf` ni dans le banc `drill`.
+3. `tofu/pangolin` : fait, `terraform.tfvars` `dashboard_url` vaut `hall.sylvain.cloud`
+   (valeur donnée au `templatefile` du cloud-init `user_data.yaml`, qui ne la lit
+   pas ; `user_data` est dans `ignore_changes`) : le plan ne change que des
+   sorties, aucun remplacement de VM. Aucune occurrence du nom dans `flip.tf` ni
+   dans le banc `drill`.
