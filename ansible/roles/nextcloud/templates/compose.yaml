@@ -53,7 +53,7 @@ services:
     security_opt:
       - no-new-privileges:true
     restart: unless-stopped
-    image: mariadb:12.3.3@sha256:d46e102fa8b9b72bfcdeb56f9dd538742092119dc8b11f31fe662605cd234cd9
+    image: mariadb:12.3.3@sha256:4ebbcf100a3ba320766dfa0e1af008df12261301db6ef72798c7650f70794aed
     # Réglages remontés par les vérifications de base de données de Nextcloud
     # (Administration > Vue d'ensemble). Options passées à mariadbd par
     # l'entrypoint de l'image.

@@ -10,7 +10,7 @@ services:
     # ~23 Mio contre ~9 en 7.4 (mesuré le 2026-11-04, à vide). 7.4 et 8.2
     # écrivent le RDB 12 : un retour en 7.4 relit le dump, tant qu'aucune clé
     # de module n'y entre.
-    image: redis:8.2-alpine@sha256:fe9daae35cd4fd6ec22416aa4fe0cf6b3e36741e06ff45b9986253fe2a81c041
+    image: redis:8.2-alpine@sha256:da23c2478319ceb4903857d77a2fd7aa5137d9e9d4c8165dafbacedac6403e95
     container_name: dawarich-redis
     security_opt:
       - no-new-privileges:true
