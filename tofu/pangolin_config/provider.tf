@@ -22,7 +22,7 @@ terraform {
     }
     # Clients OIDC et groupes de Pocket ID (pocket_id.tf, ADR 0030).
     pocketid = {
-      source  = "trozz/pocketid"
+      source  = "pocket-id/pocketid"
       version = "= 2.5.0"
     }
   }

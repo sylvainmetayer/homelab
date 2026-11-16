@@ -83,7 +83,7 @@ output "uptime_backup_pocket_id_url" {
 }
 
 # Les clients OIDC de Pocket ID, déclarés ici par son API (provider
-# trozz/pocketid, clé d'administration STATIC_API_KEY posée par le rôle
+# pocket-id/pocketid, clé d'administration STATIC_API_KEY posée par le rôle
 # pocket_id) : aucun identifiant ni secret à recopier à la main. Chaque secret
 # est un random_password de ce state, que Pocket ID reçoit à la création et
 # que Pangolin (pangolin_idp) ou Ansible (sortie lue par docker.yml)

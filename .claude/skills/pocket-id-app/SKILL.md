@@ -7,7 +7,7 @@ description: Connect an existing homelab app to Pocket ID (OIDC login at id.sylv
 
 Pocket ID (ADR 0030, `docs/runbooks/pocket-id.md`) is the passkey-only OIDC
 provider. Its clients and groups are declared in
-`tofu/pangolin_config/pocket_id.tf` through its API (provider `trozz/pocketid`,
+`tofu/pangolin_config/pocket_id.tf` through its API (provider `pocket-id/pocketid`,
 admin key `pocket_id_static_api_key` = the container's `STATIC_API_KEY`).
 Homebox (client + group `homebox`) and the Pangolin wall (IdP « Pocket ID »)
 are the two reference implementations: copy them.
