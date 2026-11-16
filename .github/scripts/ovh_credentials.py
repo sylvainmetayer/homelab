@@ -70,7 +70,7 @@ ZONES = ("sylvain.cloud", "sylvain.dev", "sylvainmetayer.fr", "metayer.dev")
 WRITE = ("GET", "POST", "PUT", "DELETE")
 # Version des .terraform.lock.hcl ; le test échoue si elle change, pour relire
 # les routes ci-dessous dans le source de la nouvelle version.
-PROVIDER_VERSION = "2.24.0"
+PROVIDER_VERSION = "2.25.0"
 # Routes du provider hors ressources (ovh/config.go, authenticate()) :
 # GET /auth/details au démarrage, refusée = provider en erreur, donc tout plan.
 # GET /auth/time (go-ovh, dérive d'horloge) est sans authentification : pas de règle.
