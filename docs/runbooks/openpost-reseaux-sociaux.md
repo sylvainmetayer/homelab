@@ -21,7 +21,7 @@ Guides amont, à relire si un écran ne correspond plus :
 <https://openpo.st/docs/self-hosting/integrations/tiktok>,
 <https://openpo.st/docs/self-hosting/integrations/youtube>.
 
-## Ce qu'il faut avoir
+## Ce qu'il faut avoir (Facebook, Instagram)
 
 - Un compte développeur Meta (<https://developers.facebook.com/apps/>), celui
   du profil Facebook qui administre la page.
@@ -153,8 +153,11 @@ confirmer).
 
 ### L'app TikTok
 
-1. <https://developers.tiktok.com/apps/> : créer une app, puis un **Sandbox**
-   dedans (Client Key à lui, pas de revue).
+1. Avec un compte TikTok for Developers,
+   <https://developers.tiktok.com/apps/> : créer une app, puis un **Sandbox**
+   dedans (Client Key à lui, pas de revue ; le guide amont ne parle pas de
+   sandbox : qu'il permette la vérification du domaine ci-dessous est à
+   confirmer, sinon reprendre sur l'app elle-même).
 2. Produits **Login Kit** et **Content Posting API** (« Direct Post » activé).
 3. Login Kit, plateforme Web, Redirect URI :
 
@@ -210,7 +213,7 @@ rien d'autre que ses médias sous `/media/` : passer par le DNS.
 | Symptôme | Vérifier |
 |---|---|
 | Échec à la connexion | URL de redirection identique des deux côtés ; scope demandé absent de l'app ; compte absent des *Target users* du sandbox |
-| TikTok ne récupère pas le média (`url_ownership_unverified`) | domaine vérifié dans *URL properties* ; le `curl` de `/media/` du tableau Facebook, Instagram plus bas |
+| TikTok ne récupère pas le média (`url_ownership_unverified`) | domaine vérifié dans *URL properties* ; `curl -sI https://posts.sylvain.cloud/media/00000000-0000-4000-8000-000000000000` depuis l'extérieur répond `401` d'OpenPost, pas la page de connexion de Pangolin ni un `403` |
 | Publication refusée ou privée | app non auditée : compte en privé et visibilité « moi uniquement » en Direct Post ; scope ajouté depuis : reconnecter le compte |
 
 ## YouTube
@@ -223,7 +226,9 @@ formulaire à part chez Google, à demander si l'essai convainc.
 
 ### Le projet Google
 
-1. <https://console.cloud.google.com/> : créer un projet.
+1. Avec le compte Google propriétaire de la chaîne (ou un autre, la chaîne
+   se choisit à la connexion), <https://console.cloud.google.com/> : créer un
+   projet.
 2. **APIs & Services → Library** : activer **YouTube Data API v3** et
    **YouTube Analytics API**.
 3. **Google Auth Platform** : écran de consentement, audience **External**,
@@ -307,6 +312,6 @@ contenu.
 La sauvegarde Borg `openpost` porte la base et le `.env` : les identifiants de
 l'app et les connexions (page, compte Instagram) reviennent avec eux. Si la clé
 `OPENPOST_ENCRYPTION_KEY` a changé (`app_secrets_seed` différent), la base ne
-se relit plus : refaire les étapes 2 et 3 et la partie « OpenPost » d'Instagram ;
-l'app Meta, elle, n'a pas bougé (de même pour TikTok et YouTube : partie
-« OpenPost » de chacun).
+se relit plus : refaire les étapes 2 et 3 de Facebook et la partie
+« OpenPost » d'Instagram, de TikTok et de YouTube ; les apps chez Meta, TikTok
+et Google, elles, n'ont pas bougé.
