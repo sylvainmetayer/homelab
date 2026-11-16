@@ -15,7 +15,7 @@ blocky_service: blocky
 blocky_base_path: "{{ docker_base_path }}/{{ blocky_service }}"
 
 # renovate: datasource=github-releases depName=0xERR0R/blocky
-blocky_binary_version: "v0.35.0"
+blocky_binary_version: "v0.36.0"
 # Sommes des archives de la release (blocky_checksums.txt) : get_url refuse
 # tout autre fichier. Une montée de version doit aussi les changer.
 blocky_binary_sha256:
