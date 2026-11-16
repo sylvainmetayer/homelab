@@ -109,14 +109,6 @@ provider "registry.opentofu.org/hashicorp/random" {
   ]
 }
 
-provider "registry.opentofu.org/stackopshq/pangolin" {
-  version     = "1.7.0-sylvain.6"
-  constraints = "1.7.0-sylvain.6"
-  hashes = [
-    "h1:w/PXitYdgjtpaLtwhxXWAJIL+IlqXLMp7upVsJ268jk=",
-  ]
-}
-
 provider "registry.opentofu.org/pocket-id/pocketid" {
   version     = "2.5.0"
   constraints = "2.5.0"
@@ -142,5 +134,13 @@ provider "registry.opentofu.org/pocket-id/pocketid" {
     "zh:cc4bcba93f51c6b1dce4a3b71428be06cdb3d8758b612d56c2e75bc2e42d0ddc",
     "zh:e5a85765b3640eb8f95a04e3d360e180e133391b41d73abd88e524bf233afbfd",
     "zh:f809ab383cca0a5f83072981c64208cbd7fa67e986a86ee02dd2c82333221e32",
+  ]
+}
+
+provider "registry.opentofu.org/stackopshq/pangolin" {
+  version     = "1.7.0-sylvain.6"
+  constraints = "1.7.0-sylvain.6"
+  hashes = [
+    "h1:w/PXitYdgjtpaLtwhxXWAJIL+IlqXLMp7upVsJ268jk=",
   ]
 }
