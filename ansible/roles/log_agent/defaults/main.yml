@@ -60,6 +60,11 @@ log_agent_redactions:
   # Jeton d'accès ntfy (tk_ + 29 caractères, rôle ntfy).
   - pattern: '\btk_[A-Za-z0-9]{29}\b'
     replacement: tk_***
+  # Jeton ntfy passé en ?auth= (« Bearer <jeton> » en base64 URL, rôle
+  # mediamanager) : httpx écrit l'URL entière dans les journaux du conteneur,
+  # et le motif tk_ ci-dessus ne reconnaît pas la forme encodée.
+  - pattern: '[?&]auth=[A-Za-z0-9_-]+'
+    replacement: ?auth=***
 
 # Lignes du journal d'accès de Traefik écartées : les envois des agents
 # eux-mêmes (sinon chaque lot en ferait une ligne de plus à envoyer).
