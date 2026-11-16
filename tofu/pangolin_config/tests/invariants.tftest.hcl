@@ -1637,6 +1637,7 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "ntfy /github",
       "ntfy /canary",
       "ntfy /healthlog",
+      "ntfy /mediamanager",
       "OpenPost /media/*",
       "Promptoramix /coup",
       "Promptoramix /health",

@@ -646,7 +646,7 @@ Les comptes et jetons sont déclarés dans `server.yml` (rôle `ntfy`), que
 ntfy relit à chaque démarrage : aucune commande dans l'appli.
 
 - Jeton d'un producteur (`ntfy_scripts_token`,
-  `ntfy_github_token`, `ntfy_canary_token`, `ntfy_healthlog_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
+  `ntfy_github_token`, `ntfy_canary_token`, `ntfy_healthlog_token`, `ntfy_mediamanager_token` dans `secrets/ansible.sops.yaml`, `ntfy_uptime_kuma_token` dans le fichier
   racine) : `printf 'tk_%s' "$(openssl rand -hex 15 | cut -c1-29)"`, puis
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
@@ -716,6 +716,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   (`/settings/notifications`, carte ntfy) : après sa rotation, l'y recoller et
   envoyer un test. Cinq échecs d'affilée d'ici là coupent le canal : le
   réactiver sur la carte (`ansible/roles/healthlog/README.md`).
+- `ntfy_mediamanager_token` est rendu dans le `config.toml` de MediaManager :
+  après sa rotation, déployer `docker.yml --tags ntfy` puis
+  `nas.yml --tags mediamanager`.
 
 ### Jetons pièges
 
