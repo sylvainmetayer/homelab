@@ -283,7 +283,7 @@ jobs:
       # Sans somme : uvx l'installe depuis PyPI (en épingler une demande un
       # fichier d'exigences avec hachages, plus qu'une ligne).
       # renovate: datasource=pypi depName=zizmor
-      ZIZMOR_VERSION: 1.30.1
+      ZIZMOR_VERSION: 1.32.0
       # Le verrou .github/workflows/actions.lock (ADR 0036). Binaire installé
       # par son tag (`gh extension install --pin` n'accepte pas de somme),
       # suivi par Renovate (gestionnaire regex des workflows), sans automerge.
