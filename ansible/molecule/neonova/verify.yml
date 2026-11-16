@@ -18,6 +18,7 @@
         verify_compose_healthchecks:
           - app
           - aide
+          - apercu
 
     # Paquet GHCR privé : l'identifiant ne sert qu'à dc@neonova.
     - name: Stat the registry config of neonova

@@ -608,6 +608,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["neonova_apercu"]
+  values = { id = 100 }
+}
+
+override_resource {
   target = pangolin_resource.website["enclosed"]
   values = { id = 67 }
 }

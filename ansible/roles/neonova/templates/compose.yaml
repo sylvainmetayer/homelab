@@ -55,6 +55,31 @@ services:
     networks:
       - newt
 
+  # Aperçu de production (même site que app, brouillons exclus), publié par le même build.
+  apercu:
+    image: ghcr.io/neonova-services/neonova-site:apercu-prod
+    pull_policy: always
+    container_name: neonova-apercu
+    # nginx sur des fichiers statiques, à deux processus environ.
+    mem_limit: 64m
+    # nginx-unprivileged n'écrit que son pid et ses fichiers temporaires dans /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - newt
+
 networks:
   newt:
     external: true

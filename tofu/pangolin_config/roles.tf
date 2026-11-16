@@ -8,6 +8,7 @@ locals {
     "immich",
     "neonova",
     "neonova-aide",
+    "neonova-apercu",
     "immich-selfie-timelapse",
     "immich-swipe",
     "immich-kiosk",
