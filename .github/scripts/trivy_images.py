@@ -25,6 +25,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
+# Private GHCR packages: the workflow reads the registry anonymously, so a scan
+# of one would fail the run (ansible/roles/neonova, package of Neonova-services).
+PRIVATE_PREFIXES = ("ghcr.io/neonova-services/",)
+
 # An image reference: [registry/]repository[:tag][@sha256:<digest>].
 REF = r"[a-z0-9][a-z0-9._\-/]*(?::[A-Za-z0-9_][A-Za-z0-9._\-]*)?(?:@sha256:[0-9a-f]{64})?"
 # `image: <ref>` in a compose file, quoted or not, optional trailing comment.
@@ -63,7 +67,8 @@ def refs_in(text, pattern):
         match = pattern.match(line)
         # A bare word (no `/`, `:` nor `@`) is a variable name or a Jinja
         # leftover, never an image of ours (they all carry a tag).
-        if match and re.search(r"[/:@]", match["ref"]):
+        if (match and re.search(r"[/:@]", match["ref"])
+                and not match["ref"].startswith(PRIVATE_PREFIXES)):
             yield match["ref"], match.groupdict().get("key") or service
 
 
