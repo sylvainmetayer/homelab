@@ -2,9 +2,10 @@
 services:
   app:
     # Image de démo du site de Neonova (dépôt et package privés
-    # Neonova-services/neonova-site, identifiant GHCR posé par le rôle). Elle suit le tag main, sans digest, exprès : le workflow
-    # de ce dépôt lance le déploiement à la fin de chaque build, et le rôle
-    # redémarre dc@, qui retélécharge l'image grâce à pull_policy: always.
+    # Neonova-services/neonova-site, identifiant GHCR posé par le rôle). Elle
+    # suit le tag main, sans digest, exprès : le workflow de ce dépôt lance le
+    # déploiement à la fin de chaque build, et le rôle redémarre dc@, qui
+    # retélécharge l'image grâce à pull_policy: always.
     image: ghcr.io/neonova-services/neonova-site:main
     pull_policy: always
     container_name: neonova

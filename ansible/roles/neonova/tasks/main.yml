@@ -17,6 +17,13 @@
     - "{{ neonova_base_path }}/.docker"
     - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@neonova.service.d"
 
+# no_log masquerait une variable indéfinie : le message dit ce qui manque.
+- name: Check the GHCR token is set
+  ansible.builtin.assert:
+    that: neonova_ghcr_token is defined
+    fail_msg: "neonova_ghcr_token manque dans secrets/ansible.sops.yaml (README du rôle neonova)"
+    quiet: true
+
 - name: Write the GHCR credentials of dc@neonova
   diff: false
   no_log: true

@@ -133,6 +133,16 @@ class Names(unittest.TestCase):
         })
         self.assertEqual(entries, [{"ref": "ghcr.io/org/a:pr-1", "name": "org-a"}])
 
+    def test_private_ghcr_package_is_skipped(self):
+        entries = scan({
+            "ansible/roles/a/templates/compose.yaml": (
+                "services:\n"
+                "  app:\n    image: ghcr.io/neonova-services/neonova-site:main\n"
+                "  web:\n    image: nginx:1.0\n"
+            ),
+        })
+        self.assertEqual(entries, [{"ref": "nginx:1.0", "name": "nginx"}])
+
     def test_registry_with_port_is_dropped(self):
         self.assertEqual(ti.split_ref(f"registry:5000/org/app:1@{D1}"), ("org-app", "1", D1))
         self.assertEqual(ti.split_ref("org/app"), ("org-app", "", ""))
