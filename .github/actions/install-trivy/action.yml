@@ -14,7 +14,7 @@ runs:
       env:
         # renovate: datasource=github-releases depName=aquasecurity/trivy
         TRIVY_VERSION: 0.76.2
-        TRIVY_SHA256: e24b1c51293c1b15e4ba8d45bbc7891ba053f90278ec2698f3562c993e145fe7
+        TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
       run: |
         curl --proto '=https' --tlsv1.2 -fsSLo /tmp/trivy.tgz \
           "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
