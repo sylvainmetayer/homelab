@@ -53,7 +53,7 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
    appareil » (QR code, 5 minutes). Sans mot de passe ni TOTP, un seul passkey
    perdu est un compte à récupérer (secours ci-dessous).
 4. **Clients OIDC, déclarés par Tofu** (`tofu/pangolin_config/pocket_id.tf`,
-   provider `trozz/pocketid`). Le rôle `pocket_id` pose `STATIC_API_KEY`
+   provider `pocket-id/pocketid`). Le rôle `pocket_id` pose `STATIC_API_KEY`
    (clé SOPS `pocket_id_static_api_key`, la même dans les deux fichiers) ;
    `tofu apply` crée le groupe `homebox`, les clients `Homebox` et `Pangolin`
    (confidentiels, PKCE exigé, secrets en `random_password` du state) et

@@ -117,7 +117,7 @@ provider "registry.opentofu.org/stackopshq/pangolin" {
   ]
 }
 
-provider "registry.opentofu.org/trozz/pocketid" {
+provider "registry.opentofu.org/pocket-id/pocketid" {
   version     = "2.5.0"
   constraints = "2.5.0"
   hashes = [

@@ -93,7 +93,7 @@ n'y trouveraient aucun hôte.
 
 Un `tofu plan` ou un `tofu output` de `tofu/pangolin_config`, cité dans
 plusieurs runbooks, suppose le module initialisé : `mise run provider-fork`
-(télécharge le fork du provider Pangolin et le miroir `trozz/pocketid`) **avant**
+(télécharge le fork du provider Pangolin) **avant**
 `mise exec -- tofu -chdir=tofu/pangolin_config init`. Son state est chiffré
 comme les autres : l'environnement de mise doit porter la phrase de passe
 (`TF_VAR_pangolin_config_state_passphrase`, [conventions/opentofu.md](../conventions/opentofu.md)).
