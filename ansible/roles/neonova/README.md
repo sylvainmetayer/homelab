@@ -8,6 +8,8 @@ Aucune donnée, aucune sauvegarde. L'image suit le tag `main`, sans digest ni Re
 
 Le même projet compose sert le site d'aide (`aide-neonova.sylvain.dev`, conteneur `neonova-aide`, tag `aide` du même package) : le dossier `aide/` du dépôt construit par Zensical. Même SSO, même PIN, même déploiement.
 
+Un troisième conteneur sert l'aperçu de production (`apercu-neonova.sylvain.dev`, conteneur `neonova-apercu`, tag `apercu-prod` du même package) : le même site que la démo, brouillons exclus. Même SSO, même PIN, même déploiement.
+
 ## Identifiant GHCR
 
 Le package `ghcr.io/neonova-services/neonova-site` est privé (compte `Neonova-services`, depuis le transfert du dépôt le 2026-11-16) : le rôle écrit `{{ neonova_base_path }}/.docker/config.json` (compte `neonova_ghcr_user`, jeton de la clé SOPS `neonova_ghcr_token`, un PAT classic `read:packages`) et un drop-in `~/.config/systemd/user/dc@neonova.service.d/registry.conf` qui pose `DOCKER_CONFIG` pour cette seule unité. Rien dans `~/.docker` : avec un jeton expiré ou révoqué là, ghcr.io refuserait tous les pulls de la VM, images publiques comprises.

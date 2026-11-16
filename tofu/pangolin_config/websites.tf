@@ -83,6 +83,7 @@ locals {
     monica                  = local.monica_website
     neonova                 = local.neonova_website
     neonova_aide            = local.neonova_aide_website
+    neonova_apercu          = local.neonova_apercu_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
     openwebui               = local.openwebui_website
