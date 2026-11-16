@@ -1,19 +1,25 @@
-# OpenPost (posts.sylvain.cloud) : brancher une page Facebook et un compte Instagram, les rebrancher, publication en échec
+# OpenPost (posts.sylvain.cloud) : brancher Facebook, Instagram, TikTok et YouTube, les rebrancher, publication en échec
 
 Procédure, pas un incident. OpenPost tourne sur flip (rôle `openpost`,
 `dc@openpost`, [README du rôle](../../ansible/roles/openpost/README.md)). Les
 identifiants des réseaux ne sont ni dans SOPS ni dans le dépôt : ils se
 saisissent dans l'interface et sont chiffrés dans la base avec
 `OPENPOST_ENCRYPTION_KEY`. Ce qui suit est donc à refaire à la main après une
-perte de la base sans sauvegarde, ou pour une nouvelle app Meta.
+perte de la base sans sauvegarde, ou pour une nouvelle app chez un réseau.
 
 Réseaux branchés à ce jour, depuis le 2026-11-12 : **Facebook (une page)** et
 **Instagram** (un compte professionnel lié à cette page), par la même app
 Meta.
 
+[TikTok](#tiktok) et [YouTube](#youtube) sont écrits le 2026-11-16 d'après les
+guides amont, **pas encore essayés** : ce qui y est marqué « à confirmer » se
+corrige au premier branchement, et cette phrase s'en va.
+
 Guides amont, à relire si un écran ne correspond plus :
 <https://openpo.st/docs/self-hosting/integrations/facebook>,
-<https://openpo.st/docs/self-hosting/integrations/instagram>.
+<https://openpo.st/docs/self-hosting/integrations/instagram>,
+<https://openpo.st/docs/self-hosting/integrations/tiktok>,
+<https://openpo.st/docs/self-hosting/integrations/youtube>.
 
 ## Ce qu'il faut avoir
 
@@ -135,7 +141,144 @@ identifiants, non utilisé ici).
 3. Vérification : publier une **image JPEG** avec une courte légende
    (Instagram refuse un post sans média), la voir sur le compte, la supprimer.
 
-## Si ça ne marche pas
+## TikTok
+
+Sans audit de TikTok, la **publication directe reste privée** : visibilité
+« moi uniquement », compte passé en privé au moment de publier. TikTok
+n'accorde pas l'audit à une app qui ne publie que sur les comptes de sa propre
+équipe (*Content Sharing Guidelines*) : ne pas compter dessus. Le mode
+**Upload** est la voie du foyer : la vidéo arrive dans la boîte de réception
+de l'app TikTok, où l'on termine la publication (visibilité choisie là : à
+confirmer).
+
+### L'app TikTok
+
+1. <https://developers.tiktok.com/apps/> : créer une app, puis un **Sandbox**
+   dedans (Client Key à lui, pas de revue).
+2. Produits **Login Kit** et **Content Posting API** (« Direct Post » activé).
+3. Login Kit, plateforme Web, Redirect URI :
+
+   ```text
+   https://posts.sylvain.cloud/api/v1/accounts/tiktok/callback
+   ```
+
+4. Les six scopes qu'OpenPost demande d'un bloc :
+
+   | Scope | Sert à |
+   |---|---|
+   | `user.info.basic` | identité, nom affiché, avatar |
+   | `video.publish` | publication directe |
+   | `video.upload` | envoi dans la boîte de réception |
+   | `user.info.profile` | nom d'utilisateur |
+   | `user.info.stats`, `video.list` | statistiques, rapprochement des vidéos publiées |
+
+   Si le sandbox refuse les trois derniers (API Display, à confirmer) : poser
+   `OPENPOST_DISABLE_TIKTOK_DISPLAY_API=true` dans le `.env` du rôle
+   (`ansible/roles/openpost/templates/env.j2`, non câblé à ce jour) ; OpenPost
+   ne demande alors que les trois premiers.
+5. **Sandbox settings → Target users** : ajouter le compte TikTok qui publiera.
+6. Relever la **Client Key** et le **Client Secret** du sandbox.
+
+### La preuve de propriété du domaine
+
+OpenPost remet à TikTok une URL `https://posts.sylvain.cloud/media/<uuid>` à
+venir chercher (`PULL_FROM_URL`) : TikTok exige que le domaine soit vérifié.
+La vérification par fichier (préfixe d'URL) est impossible, OpenPost ne sert
+rien d'autre que ses médias sous `/media/` : passer par le DNS.
+
+1. Dans l'app, **URL properties → Verify → Domain** : `sylvain.cloud`
+   (l'apex couvre `posts.` : à confirmer).
+2. TikTok donne une valeur `tiktok-developers-site-verification=…` : un
+   enregistrement TXT à l'apex dans `tofu/dns`, sur le modèle de
+   `search_console.tf`, en PR, puis `tofu apply` du module.
+3. « Verify » chez TikTok. L'enregistrement reste en place ensuite.
+
+### OpenPost
+
+1. **Settings → Instance → Configuration → Provider apps** → **TikTok** :
+   Client Key, Client Secret, la même URL de redirection. Enregistrer ; TikTok
+   grisé dans l'espace de travail : `systemctl --user restart dc@openpost` sur
+   flip.
+2. **Settings → Workspace → Social accounts → TikTok**, accorder les
+   permissions.
+3. Vérification : une courte vidéo en mode **Upload**, attendue dans la boîte
+   de réception de l'app TikTok ; puis une en **Direct Post**, compte en
+   privé, attendue en « moi uniquement ». Les supprimer.
+
+### Si ça ne marche pas (TikTok)
+
+| Symptôme | Vérifier |
+|---|---|
+| Échec à la connexion | URL de redirection identique des deux côtés ; scope demandé absent de l'app ; compte absent des *Target users* du sandbox |
+| TikTok ne récupère pas le média (`url_ownership_unverified`) | domaine vérifié dans *URL properties* ; le `curl` de `/media/` du tableau Facebook, Instagram plus bas |
+| Publication refusée ou privée | app non auditée : compte en privé et visibilité « moi uniquement » en Direct Post ; scope ajouté depuis : reconnecter le compte |
+
+## YouTube
+
+Rien dans le dépôt, pas de DNS : OpenPost envoie le fichier lui-même. Tant que
+le projet Google n'a pas passé l'audit de l'API YouTube, les vidéos envoyées
+par l'API restent **privées** (projets créés après le 2020-07-28), sans doute
+verrouillées ainsi dans YouTube Studio (à confirmer). L'audit est un
+formulaire à part chez Google, à demander si l'essai convainc.
+
+### Le projet Google
+
+1. <https://console.cloud.google.com/> : créer un projet.
+2. **APIs & Services → Library** : activer **YouTube Data API v3** et
+   **YouTube Analytics API**.
+3. **Google Auth Platform** : écran de consentement, audience **External**,
+   nom de l'app et e-mail de contact, domaine autorisé `sylvain.cloud`, le
+   compte Google de la chaîne en **test user**.
+4. **Data Access** : les cinq scopes qu'OpenPost demande d'un bloc.
+
+   ```text
+   https://www.googleapis.com/auth/youtube.readonly
+   https://www.googleapis.com/auth/yt-analytics.readonly
+   https://www.googleapis.com/auth/youtube.upload
+   https://www.googleapis.com/auth/youtube
+   https://www.googleapis.com/auth/youtube.force-ssl
+   ```
+
+5. **Clients** : un **OAuth client ID** de type **Web application**,
+   Authorized redirect URI :
+
+   ```text
+   https://posts.sylvain.cloud/api/v1/accounts/youtube/callback
+   ```
+
+6. Relever le **Client ID** et le **Client Secret**.
+
+En « Testing », Google révoque la connexion au bout de **7 jours** : il faut
+reconnecter la chaîne. Passer l'app en **In production** sans demander la
+vérification garde l'écran « app non vérifiée » mais le jeton ne périme plus
+(à confirmer).
+
+### OpenPost
+
+1. **Provider apps** → **YouTube** : Client ID, Client Secret, la même URL de
+   redirection. Enregistrer ; YouTube grisé :
+   `systemctl --user restart dc@openpost` sur flip.
+2. **Social accounts → YouTube** : le compte Google propriétaire de la
+   chaîne, passer l'écran « app non vérifiée », choisir la chaîne.
+3. Vérification : une courte vidéo en **Private**, « Made for kids » sur
+   **No** ; statut « publié » dans OpenPost, vidéo dans YouTube Studio. Y
+   essayer de la passer en public : c'est ce qui dit si l'audit est
+   indispensable. La supprimer.
+
+Une publication programmée par YouTube (`publish_at`) part en **Private** avec
+une date RFC 3339 ; OpenPost l'annonce publiée dès l'envoi terminé.
+
+### Si ça ne marche pas (YouTube)
+
+| Symptôme | Vérifier |
+|---|---|
+| Google bloque le consentement | compte dans les *test users* ; les cinq scopes dans *Data Access* |
+| Aucune chaîne proposée | le compte Google choisi possède la chaîne |
+| Envoi en échec, ou vidéo restée privée | YouTube Data API v3 activée ; projet non audité : privé seulement |
+| « redirect_uri_mismatch » | URL identique chez Google et dans OpenPost |
+| « Reconnecter le compte » chaque semaine | app en « Testing » : jeton de 7 jours |
+
+## Si ça ne marche pas (Facebook, Instagram)
 
 | Symptôme | Vérifier |
 |---|---|
@@ -165,4 +308,5 @@ La sauvegarde Borg `openpost` porte la base et le `.env` : les identifiants de
 l'app et les connexions (page, compte Instagram) reviennent avec eux. Si la clé
 `OPENPOST_ENCRYPTION_KEY` a changé (`app_secrets_seed` différent), la base ne
 se relit plus : refaire les étapes 2 et 3 et la partie « OpenPost » d'Instagram ;
-l'app Meta, elle, n'a pas bougé.
+l'app Meta, elle, n'a pas bougé (de même pour TikTok et YouTube : partie
+« OpenPost » de chacun).
