@@ -91,13 +91,14 @@ quelle des deux côtés).
 | Facebook (pages) | developers.facebook.com | pages seulement, pas de profil ; droit `pages_manage_posts` ; sans revue Meta, seuls les comptes ajoutés à l'app publient |
 | Instagram | la même app Meta | compte professionnel, par login Instagram direct ou page Facebook liée |
 | Threads | app « Threads API » | s'inviter comme testeur |
-| YouTube | console.cloud.google.com, client OAuth, API YouTube Data v3 | écran de consentement en « test » : jeton de 7 jours |
+| YouTube | console.cloud.google.com, client OAuth, API YouTube Data v3 | écran de consentement en « test » : jeton de 7 jours ; projet non audité : vidéos privées |
 | LinkedIn | linkedin.com/developers | accès page à faire approuver à part |
 | X | developer.x.com, OAuth 1.0a en écriture | offre gratuite très limitée ; OpenPost plafonne la dépense (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD`) |
-| TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) |
+| TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) ; app non auditée : publication directe privée |
 | Pinterest, Telegram, bot Discord | — | pas dans le formulaire : JSON `OPENPOST_PROVIDER_APPS`, non câblé dans le rôle |
 
-Pas à pas de Facebook et d'Instagram (app Meta, permissions, test, dépannage) :
+Pas à pas de Facebook et d'Instagram (app Meta, permissions, test, dépannage),
+de TikTok et de YouTube (écrits le 2026-11-16, pas encore essayés) :
 `docs/runbooks/openpost-reseaux-sociaux.md`.
 
 Bluesky (mot de passe d'application), Mastodon et les autres réseaux fédérés se
