@@ -394,12 +394,12 @@
       "automerge": true
     },
     {
-      "description": "neonova-services is our own image (static demo of the Neonova site, ansible/roles/neonova): it follows the main tag on purpose, no digest, its build triggers the deploy workflow directly",
+      "description": "neonova-site is our own image (static demo of the Neonova site, ansible/roles/neonova): it follows the main tag on purpose, no digest, its build triggers the deploy workflow directly",
       "matchDatasources": [
         "docker"
       ],
       "matchPackageNames": [
-        "ghcr.io/sylvainmetayer/neonova-services"
+        "ghcr.io/neonova-services/neonova-site"
       ],
       "enabled": false
     },

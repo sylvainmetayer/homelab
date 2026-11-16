@@ -1,12 +1,42 @@
 ---
 # Site statique sans donnée : aucune sauvegarde, tout est dans l'image.
-- name: Ensure Neonova folder exists
+# Paquet GHCR privé (compte Neonova-services) : identifiant rangé dans un
+# DOCKER_CONFIG propre à dc@neonova, pas dans ~/.docker. Là, un jeton expiré ou
+# révoqué ferait refuser par ghcr.io tous les pulls de la VM, images publiques
+# comprises. Avant le compose : sans la clé SOPS, le rôle échoue ici et la démo
+# garde l'image qu'elle a.
+- name: Ensure the registry config and drop-in folders exist
   ansible.builtin.file:
     mode: "0700"
-    path: "{{ neonova_base_path }}"
+    path: "{{ item }}"
     state: directory
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
+  loop:
+    - "{{ neonova_base_path }}"
+    - "{{ neonova_base_path }}/.docker"
+    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@neonova.service.d"
+
+- name: Write the GHCR credentials of dc@neonova
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: "{{ {'auths': {'ghcr.io': {'auth': (neonova_ghcr_user ~ ':' ~ neonova_ghcr_token) | b64encode}}} | to_json }}\n"
+    dest: "{{ neonova_base_path }}/.docker/config.json"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Pris par le daemon_reload du redémarrage, plus bas.
+- name: Point dc@neonova at its registry config
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Environment=DOCKER_CONFIG={{ neonova_base_path }}/.docker
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@neonova.service.d/registry.conf"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
 
 - name: Template compose configuration
   diff: false

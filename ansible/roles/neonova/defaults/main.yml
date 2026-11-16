@@ -1,2 +1,4 @@
 ---
 neonova_base_path: "{{ docker_base_path }}/neonova"
+# Compte du jeton neonova_ghcr_token (clé SOPS, read:packages).
+neonova_ghcr_user: sylvainmetayer

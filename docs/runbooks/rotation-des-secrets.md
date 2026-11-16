@@ -830,6 +830,18 @@ du site d'aide (`tofu/pangolin_config/website_neonova.tf`), donné au client : n
 cela rien n'est envoyé et le plan reste vide), puis `tofu apply` de
 `pangolin_config`.
 
+### Jeton GHCR Neonova
+
+`neonova_ghcr_token` (`secrets/ansible.sops.yaml`) tire l'image privée
+`ghcr.io/neonova-services/neonova-site` sur la VM docker (rôle `neonova`). C'est un
+PAT classic du compte `neonova_ghcr_user`, portée `read:packages` seule (les jetons
+fine-grained ne lisent pas les packages) : il lit tous les packages que ce compte
+peut lire, pas seulement celui-là. Nouveau jeton sur GitHub (Settings → Developer
+settings → Personal access tokens → Tokens (classic)), `sops set`, bump du
+sous-module, puis `ansible-playbook docker.yml --tags neonova` (ou la fusion) : le
+redémarrage de `dc@neonova` retire l'image avec le nouveau jeton. Révoquer l'ancien
+ensuite.
+
 ### Secrets du site sylvain.dev
 
 `SITE_PAGES_DEPLOY_HOOK`, `SITE_WEBMENTION_IO_TOKEN`, `SITE_SONAR_TOKEN`
