@@ -65,6 +65,12 @@ ntfy_publishers:
   - name: healthlog
     topic: healthlog
     token: "{{ ntfy_healthlog_token | default('') }}"
+  # Notifications de MediaManager (NAS : import réussi ou échoué) : son propre
+  # jeton, que MediaManager passe dans l'URL (?auth=) et journalise donc ;
+  # écriture seule sur ce topic. Clé SOPS ntfy_mediamanager_token.
+  - name: mediamanager
+    topic: mediamanager
+    token: "{{ ntfy_mediamanager_token | default('') }}"
 
 # --- Alerte « aucun abonné » (ntfy-subscribers-check.timer) ------------------
 # Détail dans README.md (« Alerte : aucun abonné »). Toutes les

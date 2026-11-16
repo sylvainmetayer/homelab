@@ -444,6 +444,18 @@ Le rappel est bâti depuis la requête : `FORWARDED_ALLOW_IPS: "*"` fait croire
 à uvicorn le `X-Forwarded-Proto` de nas-proxy (joint seulement par lui), et les
 deux origines (443, 8443) sont déclarées. Le mot de passe reste.
 
+## Notifications
+
+MediaManager prévient sur ntfy (topic `mediamanager`, à abonner dans l'appli)
+quand un import réussit ou échoue : un téléchargement fini mais jamais rangé
+ne passe plus inaperçu (vu le 16/11 : une saison aux fichiers nommés `E01`
+sans `S01`, que l'import ne reconnaît pas ; les renommer en `S01E01` depuis
+qBittorrent, « Renommer les fichiers », suffit). MediaManager ne connaît ni
+Telegram ni l'en-tête `Authorization` : le jeton part dans l'URL (`?auth=`),
+que httpx écrit dans les journaux à chaque envoi. D'où un jeton à lui
+(`ntfy_mediamanager_token`, écriture seule sur ce topic, rôle `ntfy`), jamais
+celui des hôtes.
+
 ## Version
 
 Image `master` épinglée par digest (commit `98f2532`, 05/07/2026), pas une

@@ -44,6 +44,14 @@ name = "Pocket ID"
 enabled = false
 {% endif %}
 
+{% if mediamanager_ntfy_token | length > 0 %}
+[notifications.ntfy]
+# ?auth= : l'en-tête Authorization (« Bearer <jeton> ») en base64 URL sans
+# remplissage, seule forme que ntfy accepte hors en-tête.
+enabled = true
+url = {{ (mediamanager_ntfy_url ~ '/' ~ mediamanager_ntfy_topic ~ '?auth=' ~ (('Bearer ' ~ mediamanager_ntfy_token) | b64encode | replace('+', '-') | replace('/', '_') | regex_replace('=+$', ''))) | to_json }}
+
+{% endif %}
 [torrents.qbittorrent]
 # Derrière gluetun (network_mode: service:gluetun) : joint par le nom du
 # service gluetun sur le réseau du projet. Coupé tant que le VPN n'est pas

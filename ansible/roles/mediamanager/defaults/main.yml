@@ -69,6 +69,14 @@ mediamanager_oidc_enabled: >-
   {{ mediamanager_oidc_client_id | length > 0
      and mediamanager_oidc_client_secret | length > 0
      and mediamanager_oidc_issuer | length > 0 }}
+# Notifications (import réussi ou échoué) vers ntfy, topic et jeton propres
+# (rôle ntfy, ntfy_publishers). MediaManager ne sait pas poser d'en-tête : le
+# jeton part dans l'URL (?auth=, config.toml.j2), que httpx écrit dans les
+# journaux à chaque envoi. D'où un jeton à lui, en écriture seule sur ce
+# topic, jamais celui des hôtes. Sans jeton : pas de notification.
+mediamanager_ntfy_url: https://ntfy.sylvain.cloud
+mediamanager_ntfy_topic: mediamanager
+mediamanager_ntfy_token: "{{ ntfy_mediamanager_token | default('') }}"
 # Métadonnées par le relais du développeur (défaut de MediaManager) ; en
 # français pour une œuvre originale française, en anglais sinon.
 mediamanager_tmdb_primary_languages: ["fr"]
