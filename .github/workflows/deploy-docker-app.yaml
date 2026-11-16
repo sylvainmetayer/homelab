@@ -258,7 +258,7 @@ jobs:
       # secondes même quand rien n'est à déployer.
       - name: Install ansible + deps
         run: |
-          pip install --quiet --only-binary :all: uv==0.13.7
+          pip install --quiet --only-binary :all: uv==0.13.8
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
