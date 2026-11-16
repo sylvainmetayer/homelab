@@ -80,8 +80,8 @@ beszel_agent_binary_version: "0.21.2"
 # get_url refuse tout autre fichier. Une montée de version doit aussi les
 # changer.
 beszel_agent_binary_sha256:
-  amd64: 3b6ee592632ec03b9a43312e99a40203a7b3d83fe40dd0c25acda1eb915ea7c0
-  arm64: a6ea544976b9a74398ac88d5da5bb96813d9a2e353a37bbfdb6a903fa8ba1838
+  amd64: 0359a4c3b9d800ba865b2be4081c7f0df8ba29a8c5c0ac76e72f490f28496909
+  arm64: 4f5dcea27c3f9e2ba30218e7d7039f4df548ded1c470df9eefe00975722aad13
 beszel_agent_binary_dir: /usr/local/lib/beszel-agent
 beszel_agent_config_dir: /etc/beszel-agent
 # Services systemd suivis par l'agent (mode binary seulement : en conteneur,
