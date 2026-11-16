@@ -85,6 +85,10 @@
     - name: Assert the configuration is private and leaves the downloads off
       vars:
         mm_verify_config: "{{ mm_verify_config_raw.content | b64decode }}"
+        # « Bearer <jeton> » en base64 URL sans « = », comme config.toml.j2.
+        mm_verify_ntfy_auth: >-
+          {{ ('Bearer ' ~ ntfy_mediamanager_token) | b64encode | replace('+', '-') | replace('/', '_')
+             | regex_replace('=+$', '') }}
       ansible.builtin.assert:
         that:
           - mm_verify_config_stat.stat.pw_name == 'sylvain'
@@ -95,8 +99,9 @@
           - mm_verify_config is search('(?m)^frontend_url = "https://mediamanager.sylvain.cloud"$')
           - mm_verify_config is search('(?m)^cors_urls = \\["https://mediamanager.sylvain.cloud", "https://mediamanager.sylvain.cloud:8443"\\]$')
           # OIDC rendu (sorties fictives du converge) ; qBittorrent et Prowlarr coupés.
-          # ntfy : le jeton fictif en ?auth= (« Bearer <jeton> » en base64 URL sans « = »).
-          - mm_verify_config is search('(?m)^\\[notifications\\.ntfy\\]\\n(#.*\\n)*enabled = true\\nurl = "https://ntfy\\.sylvain\\.cloud/mediamanager\\?auth=' ~ (('Bearer ' ~ ntfy_mediamanager_token) | b64encode | regex_replace('=+$', '')) ~ '"$')
+          # ntfy : le jeton fictif en ?auth=.
+          - mm_verify_config is search('(?m)^\\[notifications\\.ntfy\\]\\n(#.*\\n)*enabled = true$')
+          - mm_verify_config is search('(?m)^url = "https://ntfy\\.sylvain\\.cloud/mediamanager\\?auth=' ~ mm_verify_ntfy_auth ~ '"$')
           - mm_verify_config | regex_findall('(?m)^enabled = false$') | length == 2
           - mm_verify_config is search('(?m)^\\[auth\\.openid_connect\\]\\n.*\\nenabled = true$')
           - mm_verify_config is search('(?m)^client_id = "molecule-pocket-id-mediamanager-client-id"$')

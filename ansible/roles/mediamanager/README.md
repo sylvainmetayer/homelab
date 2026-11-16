@@ -454,7 +454,8 @@ qBittorrent, « Renommer les fichiers », suffit). MediaManager ne connaît ni
 Telegram ni l'en-tête `Authorization` : le jeton part dans l'URL (`?auth=`),
 que httpx écrit dans les journaux à chaque envoi. D'où un jeton à lui
 (`ntfy_mediamanager_token`, écriture seule sur ce topic, rôle `ntfy`), jamais
-celui des hôtes.
+celui des hôtes. Le masque `tk_` de `log_agent_redactions` ne reconnaît pas la
+forme encodée : un motif `?auth=` la masque avant l'envoi vers VictoriaLogs.
 
 ## Version
 

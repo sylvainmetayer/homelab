@@ -114,6 +114,21 @@ tests:
             source: |
               assert_eq!(.message, "GET /api/push/*** 200")
 
+  - name: docker masks the ntfy token passed in ?auth=
+    inputs:
+      - insert_at: docker_fields
+        type: log
+        log_fields:
+          message: "POST https://ntfy.example.invalid/mediamanager?auth=aaaa-bbbb_cccc 200"
+          container_name: mediamanager
+          stream: stdout
+    outputs:
+      - extract_from: docker_fields
+        conditions:
+          - type: vrl
+            source: |
+              assert_eq!(.message, "POST https://ntfy.example.invalid/mediamanager?auth=*** 200")
+
   - name: docker keeps the container and drops the labels
     inputs:
       - insert_at: docker_fields

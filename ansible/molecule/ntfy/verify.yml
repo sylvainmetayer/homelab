@@ -279,18 +279,19 @@
         - name: Assert the provisioned accounts and grants
           vars:
             ntfy_verify_lines: "{{ ntfy_verify_access.stdout_lines | map('trim') | list }}"
+            ntfy_verify_topics: (uptime-kuma|scripts|github|canary|healthlog|mediamanager)
           ansible.builtin.assert:
             that:
               - ntfy_verify_lines | select('match', '^user sylvain [(]role:[ ]user,') | list | length == 1
-              - ntfy_verify_lines | select('match', '^user (uptime-kuma|scripts|github|canary|healthlog|mediamanager) [(]role:[ ]user,') | list | length == 6
+              - ntfy_verify_lines | select('match', '^user ' ~ ntfy_verify_topics ~ ' [(]role:[ ]user,') | list | length == 6
               - ntfy_verify_lines | select('match', '^user [^*]') | list | length == 7
               # sylvain : lecture sur le joker (« topic * », cmd/access.go),
               # lecture-écriture sur les six topics, rien d'autre en
               # écriture (ni rôle admin « all topics », ni joker en rw).
               - ntfy_verify_lines | select('match', '^- read-only access to topic [*]( |$)') | list | length == 1
               - ntfy_verify_lines | select('match', '^- read-write access to ') | list | length == 6
-              - ntfy_verify_lines | select('match', '^- read-write access to topic (uptime-kuma|scripts|github|canary|healthlog|mediamanager)\\b') | list | length == 6
-              - ntfy_verify_lines | select('match', '^- write-only access to topic (uptime-kuma|scripts|github|canary|healthlog|mediamanager)\\b') | list | length == 6
+              - ntfy_verify_lines | select('match', '^- read-write access to topic ' ~ ntfy_verify_topics ~ '\\b') | list | length == 6
+              - ntfy_verify_lines | select('match', '^- write-only access to topic ' ~ ntfy_verify_topics ~ '\\b') | list | length == 6
               - ntfy_verify_lines | select('match', '^- no access to any [(]other[)] topics') | list | length == 1
             fail_msg: "{{ ntfy_verify_access.stdout }}"
       always:
