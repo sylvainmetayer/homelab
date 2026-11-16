@@ -18,3 +18,21 @@
         verify_compose_healthchecks:
           - app
           - aide
+
+    # Paquet GHCR privé : l'identifiant ne sert qu'à dc@neonova.
+    - name: Stat the registry config of neonova
+      ansible.builtin.stat:
+        path: "{{ docker_base_path }}/neonova/.docker/config.json"
+      register: neonova_verify_registry
+
+    - name: Read the environment of dc@neonova
+      ansible.builtin.systemd:
+        name: dc@neonova
+        scope: user
+      register: neonova_verify_unit
+
+    - name: Assert dc@neonova alone reads private GHCR credentials
+      ansible.builtin.assert:
+        that:
+          - neonova_verify_registry.stat.mode == '0600'
+          - neonova_verify_unit.status.Environment == 'DOCKER_CONFIG=' ~ docker_base_path ~ '/neonova/.docker'

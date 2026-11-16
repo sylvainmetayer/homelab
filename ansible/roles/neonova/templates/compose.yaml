@@ -1,11 +1,11 @@
 ---
 services:
   app:
-    # Image de démo du site de Neonova (dépôt privé sylvainmetayer/neonova-services,
-    # package public). Elle suit le tag main, sans digest, exprès : le workflow
+    # Image de démo du site de Neonova (dépôt et package privés
+    # Neonova-services/neonova-site, identifiant GHCR posé par le rôle). Elle suit le tag main, sans digest, exprès : le workflow
     # de ce dépôt lance le déploiement à la fin de chaque build, et le rôle
     # redémarre dc@, qui retélécharge l'image grâce à pull_policy: always.
-    image: ghcr.io/sylvainmetayer/neonova-services:main
+    image: ghcr.io/neonova-services/neonova-site:main
     pull_policy: always
     container_name: neonova
     # nginx sur des fichiers statiques, à deux processus environ.
@@ -31,7 +31,7 @@ services:
 
   # Site d'aide (dossier aide/ du même dépôt, Zensical), publié par le même build.
   aide:
-    image: ghcr.io/sylvainmetayer/neonova-services:aide
+    image: ghcr.io/neonova-services/neonova-site:aide
     pull_policy: always
     container_name: neonova-aide
     # nginx sur des fichiers statiques, à deux processus environ.
