@@ -651,8 +651,9 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   `sops set --value-stdin` (valeur en JSON). Pour `ntfy_uptime_kuma_token`,
   `tofu apply` dans `tofu/pangolin_config` d'abord (la notification Uptime
   Kuma, les alertes de Pangolin de `alerts.tf` et la sortie que relit
-  `docker.yml`). Puis
-  `ansible-playbook docker.yml --tags ntfy`. Pour `ntfy_scripts_token`, aussi
+  `pangolin.yaml`). Puis
+  `ansible-playbook pangolin.yaml --tags ntfy` (ntfy tourne sur la VM
+  Pangolin, ADR 0037). Pour `ntfy_scripts_token`, aussi
   `ansible-playbook pve.yml --tags vzdump_restore_test,update_notify` (test
   de restauration vzdump, mises à jour en attente), sans quoi leurs moniteurs
   passent au rouge au passage suivant ; les autres scripts prennent le
@@ -717,7 +718,7 @@ ntfy relit à chaque démarrage : aucune commande dans l'appli.
   envoyer un test. Cinq échecs d'affilée d'ici là coupent le canal : le
   réactiver sur la carte (`ansible/roles/healthlog/README.md`).
 - `ntfy_mediamanager_token` est rendu dans le `config.toml` de MediaManager :
-  après sa rotation, déployer `docker.yml --tags ntfy` puis
+  après sa rotation, déployer `pangolin.yaml --tags ntfy` puis
   `nas.yml --tags mediamanager`.
 
 ### Jetons pièges

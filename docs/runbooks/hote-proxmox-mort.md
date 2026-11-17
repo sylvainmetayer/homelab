@@ -10,8 +10,10 @@ cette page sur GitHub ou dans un clone local.
   Pangolin), plus de ping sur 192.168.1.26, 216 et 200.
 - Plus d'accès à la maison par le client Pangolin (le Newt du site
   `proxmox-lxc` est dans le LXC), la CI ne déploie plus ni docker ni pi.
-- **ntfy, Beszel, VictoriaLogs, Homepage et cette doc sont sur la VM docker :
-  les alertes ne viennent plus que de Telegram** (Uptime Kuma est chez PikaPods).
+- **Beszel, VictoriaLogs, Homepage et cette doc sont sur la VM docker** : plus
+  de mesures ni de journaux. Les alertes continuent sur Telegram et ntfy
+  (Uptime Kuma est chez PikaPods, ntfy sur la VM Pangolin,
+  [ADR 0037](../adr/0037-ntfy-sur-la-vm-pangolin.md)).
 
 Ne tombent pas : Immich (Newt du Pi), Flip Planning, Pangolin, les sites
 Cloudflare Pages. Le DNS dépend de ce que le DHCP de la Bbox annonce

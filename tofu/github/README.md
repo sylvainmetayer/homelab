@@ -54,7 +54,7 @@ L'environnement **`ntfy-github`** (job `notify` de `trivy.yaml` et
 `ntfy_github_token` de `secrets/ansible.sops.yaml` (écriture seule sur le
 topic `github`, rôle `ntfy`) : tout ce que publie la CI passe par ce
 producteur, jamais par le `scripts` des hôtes, et ntfy ne l'accepte qu'une
-fois `docker.yml --tags ntfy` déployé.
+fois `pangolin.yaml --tags ntfy` déployé.
 
 Renommer un environnement (clé de `local.environments`) le détruit sur
 GitHub avec ses secrets, puis en crée un neuf : fusionner la PR qui change

@@ -20,8 +20,9 @@ Plus de réseau local, plus d'hôte Proxmox, de Pi ni de NAS, et plus de poste
 pour agir. De l'extérieur : `photos.sylvain.cloud` et les applis de la VM docker
 en 503 ou en page de maintenance de Pangolin, le Newt des sites `docker`, `pi`,
 `nas` et `proxmox-lxc` hors ligne. Les moniteurs Uptime Kuma (PikaPods) et
-Telegram préviennent ; ntfy, Beszel, VictoriaLogs, Homepage et le site de
-documentation étaient sur la VM docker et se taisent. **Lire cette page sur
+Telegram préviennent, ntfy aussi (il tourne sur la VM Pangolin,
+[ADR 0037](../adr/0037-ntfy-sur-la-vm-pangolin.md)) ; Beszel, VictoriaLogs,
+Homepage et le site de documentation étaient sur la VM docker et se taisent. **Lire cette page sur
 GitHub** (`docs/runbooks/perte-totale-maison.md`) ou dans un clone.
 
 ## Diagnostic : ce qui reste, ce qui est perdu
@@ -227,8 +228,8 @@ en **arrêtant l'appli avant** de rejouer son dump. Proposition d'ordre :
    et dump MariaDB), puis **HealthLog** (sa clé de chiffrement dérive de
    `backup_passphrase` : la même phrase de passe, sinon les colonnes
    chiffrées ne s'ouvrent pas), **Dawarich**, **Papra**.
-3. Le **site de documentation** (`docs_site`) et ntfy reviennent avec la pile :
-   les alertes ntfy recommencent à ce moment, pas avant.
+3. Le **site de documentation** (`docs_site`) revient avec la pile. ntfy
+   n'est pas concerné : il tourne sur la VM Pangolin et n'a pas cessé d'alerter.
 4. **Second passage Ansible, une fois les données restaurées** :
    `ansible-playbook docker.yml --tags backup` (idem `pi.yml --tags backup`
    pour le Pi et `nas.yml --tags backup` pour le NAS, à la main). Ansible ne
@@ -249,7 +250,7 @@ calendriers : le dire.
 Par ordre de valeur, sans urgence :
 
 - Les applis d'étage 2 et 3 de la matrice (Monica, Karakeep, Homebox, Grocy,
-  TREK, BookStack, Wishlist, FreshRSS, Beszel, ntfy…), depuis Borg.
+  TREK, BookStack, Wishlist, FreshRSS, Beszel…), depuis Borg.
 - **Le NAS**, si un nouveau est acheté : [disque-nas-mort.md](disque-nas-mort.md),
   partie **B** (UGOS, dossiers partagés, `nas.yml`, Jellyfin depuis Borg,
   job vzdump, première copie de kDrive à la main). Les médias repartent de

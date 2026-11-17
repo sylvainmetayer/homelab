@@ -27,11 +27,14 @@
       Producteurs ntfy sans jeton, retirés de server.yml :
       {{ ntfy_publishers | selectattr('token', 'equalto', '') | map(attribute='name') | join(', ') }}.
       uptime-kuma : appliquer tofu/pangolin_config (sortie
-      ntfy_uptime_kuma_token) avant docker.yml ; les autres : leur clé
+      ntfy_uptime_kuma_token) avant pangolin.yaml ; les autres : leur clé
       ntfy_<nom>_token dans secrets/ansible.sops.yaml.
   when: ntfy_active_publishers | length < ntfy_publishers | length
 
+# /opt appartient à root : il crée les dossiers, au nom de l'utilisateur de
+# déploiement, sous lequel tourne le conteneur (compose.yaml, `user:`).
 - name: Ensure ntfy folders exist
+  become: true
   loop:
     - "{{ ntfy_base_path }}"
     # server.yml, monté en lecture seule.
@@ -47,7 +50,6 @@
 
 - name: Template compose configuration
   diff: false
-  notify: Restart ntfy
   ansible.builtin.template:
     src: "templates/compose.yaml"
     dest: "{{ ntfy_base_path }}/compose.yaml"
@@ -59,21 +61,34 @@
 # dans run.log). Le conteneur tourne sous ce même utilisateur.
 - name: Template ntfy server configuration
   diff: false
-  notify: Restart ntfy
   ansible.builtin.template:
     src: "templates/server.yml.j2"
     dest: "{{ ntfy_base_path }}/config/server.yml"
     owner: "{{ ansible_facts['user_id'] }}"
     group: "{{ ansible_facts['user_gid'] }}"
     mode: "0600"
+  register: ntfy_server_config
 
-- name: Make sure ntfy service is running
-  ansible.builtin.systemd:
-    state: started
-    daemon_reload: true
-    name: dc@ntfy
-    scope: user
-    enabled: true
+# Pangolin : pas de docker_service (ni dc@ ni lingering), comme pocket_id.
+# `up -d` recrée le conteneur si le compose a changé et ne touche pas au reste ;
+# la restart policy le relance au démarrage de Docker. Il faut le réseau
+# « pangolin », créé par la pile (rôle pangolin, juste avant).
+#
+# server.yml est un montage : compose ne voit pas son contenu changer, et ntfy
+# ne le relit qu'au démarrage (comptes, droits et jetons compris). D'où
+# --force-recreate dès que le fichier vient d'être réécrit. Un run interrompu
+# entre les deux tâches laisse l'ancien réglage en mémoire : relancer avec
+# `docker compose up -d --force-recreate` dans {{ ntfy_base_path }}.
+- name: Start ntfy with docker compose
+  when: ntfy_compose_up | bool
+  become: true
+  ansible.builtin.command:
+    argv: >-
+      {{ ['docker', 'compose', 'up', '-d', '--remove-orphans']
+         + (['--force-recreate'] if ntfy_server_config is changed else []) }}
+    chdir: "{{ ntfy_base_path }}"
+  register: ntfy_compose_result
+  changed_when: ntfy_compose_result.stderr is search('(Creat|Recreat|Start|Remov)(ed|ing)')
 
 # ntfy crée user.db à son premier démarrage : l'attendre avant borgmatic, qui
 # résout ses bases SQLite au déploiement, pour que le premier passage la
@@ -128,7 +143,7 @@
       ntfy_subscribers_check_push_url vide : la vérification des abonnés ntfy
       ne va qu'au journal (journalctl -u ntfy-subscribers-check). Appliquer
       tofu/pangolin_config (sortie uptime_cron_ntfy_subscribers_url) avant
-      docker.yml.
+      pangolin.yaml.
 
 # 0644 : l'URL push est dans l'EnvironmentFile (0600).
 - name: Install the ntfy subscribers check service and timer

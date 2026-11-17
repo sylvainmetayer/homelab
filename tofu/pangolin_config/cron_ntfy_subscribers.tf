@@ -1,8 +1,8 @@
 # Alerte « aucun abonné » de ntfy (ntfy-subscribers-check.timer, rôle ntfy,
-# docker.yml). Le 2026-10-29, un topic retiré a fait refuser (403)
+# pangolin.yaml). Le 2026-10-29, un topic retiré a fait refuser (403)
 # l'abonnement de l'appli : plus aucune notification sur les téléphones
 # pendant 13 heures, sans alerte, le healthcheck de ntfy restant vert. Toutes
-# les 10 minutes, la VM docker relit les 8 dernières heures des relevés
+# les 10 minutes, la VM Pangolin relit les 8 dernières heures des relevés
 # « Server stats » de ntfy et pousse up si un relevé compte au moins un
 # abonné, down sinon.
 #
@@ -31,7 +31,7 @@ resource "uptimekuma_monitor_push" "cron_ntfy_subscribers" {
 }
 
 output "uptime_cron_ntfy_subscribers_url" {
-  description = "VM docker - URL push de l'alerte « aucun abonné » de ntfy (rôle ntfy, docker.yml)"
+  description = "PANGOLIN - URL push de l'alerte « aucun abonné » de ntfy (rôle ntfy, pangolin.yaml)"
   value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.cron_ntfy_subscribers.push_token}"
   sensitive   = true
 }

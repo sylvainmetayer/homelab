@@ -14,15 +14,41 @@
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
 
   tasks:
-    - name: Verify the ntfy deployment
-      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
-      vars:
-        verify_app_service: ntfy
-        verify_app_borgmatic_config: /etc/borgmatic.d/ntfy.yaml
+    # Pas de dc@ sur la VM Pangolin (verify_app.yml ne s'applique pas) : le
+    # compose à l'utilisateur de déploiement, privé, et valide.
+    - name: Stat the ntfy compose file
+      ansible.builtin.stat:
+        path: /opt/ntfy/compose.yaml
+      register: ntfy_compose_file
 
+    - name: Assert the ntfy compose file is private
+      ansible.builtin.assert:
+        that:
+          - ntfy_compose_file.stat.exists
+          - ntfy_compose_file.stat.mode == '0600'
+          - ntfy_compose_file.stat.pw_name == ansible_facts['user_id']
+
+    - name: Validate the ntfy compose file
+      ansible.builtin.command: docker compose config --quiet
+      args:
+        chdir: /opt/ntfy
+      changed_when: false
+
+    - name: Validate the ntfy borgmatic configuration
+      become: true
+      ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config /etc/borgmatic.d/ntfy.yaml"
+      changed_when: false
+
+    - name: Verify the Uptime Kuma push of ntfy
+      ansible.builtin.include_tasks: ../_shared/tasks/verify_borgmatic_push.yml
+      vars:
+        verify_borgmatic_push_config: /etc/borgmatic.d/ntfy.yaml
+
+    # /opt/ntfy, pas docker_base_path/ntfy.
     - name: Verify the ntfy healthcheck
       ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
       vars:
+        docker_base_path: /opt
         verify_compose_service: ntfy
         verify_compose_healthchecks:
           - app
@@ -30,21 +56,23 @@
     - name: Render the ntfy compose model
       ansible.builtin.command: docker compose config --format json
       args:
-        chdir: /opt/apps/ntfy
+        chdir: /opt/ntfy
       register: ntfy_compose_raw
       changed_when: false
 
     # Un seul conteneur, sous l'utilisateur de déploiement et sans capacité,
-    # sur newt seulement. Son nom est la cible de Pangolin (website_ntfy.tf).
-    - name: Assert ntfy only joins newt and runs unprivileged
+    # sur le réseau de la pile Pangolin seulement, où Traefik le joint par son
+    # nom : la cible de la ressource (website_ntfy.tf).
+    - name: Assert ntfy only joins the pangolin network and runs unprivileged
       vars:
         ntfy_compose: "{{ ntfy_compose_raw.stdout | from_json }}"
       ansible.builtin.assert:
         that:
           - ntfy_compose.services.app.container_name == 'ntfy'
           - ntfy_compose.services.app.user == ansible_facts['user_uid'] ~ ':' ~ ansible_facts['user_gid']
-          - ntfy_compose.services.app.networks.keys() | list == ['newt']
-          - ntfy_compose.networks.keys() | list == ['newt']
+          - ntfy_compose.services.app.networks.keys() | list == ['pangolin']
+          - ntfy_compose.networks.keys() | list == ['pangolin']
+          - ntfy_compose.networks.pangolin.external
           - ntfy_compose.services.app.cap_drop == ['ALL']
           - ntfy_compose.services.app.read_only
           - ntfy_compose.services.app.tmpfs == ['/tmp:noexec,nosuid,size=16m']
@@ -55,7 +83,7 @@
 
     - name: Stat the ntfy server configuration
       ansible.builtin.stat:
-        path: /opt/apps/ntfy/config/server.yml
+        path: /opt/ntfy/config/server.yml
       register: ntfy_server_yml
 
     # Hashes et jetons en clair : jamais lisible par d'autres.
@@ -68,7 +96,7 @@
 
     - name: Read the ntfy server configuration
       ansible.builtin.slurp:
-        src: /opt/apps/ntfy/config/server.yml
+        src: /opt/ntfy/config/server.yml
       register: ntfy_server_raw
 
     # Rien sans compte, pas d'inscription. Les jetons sont éprouvés plus bas
@@ -122,12 +150,12 @@
           - "'/var/lib/borgmatic-sqlite/ntfy' in ntfy_borgmatic.source_directories"
           - >-
             ntfy_borgmatic.commands[0].run
-            | select('search', 'sqlite3 -bail .*/opt/apps/ntfy/data/user\\.db ')
-            | select('search', '\\.backup /var/lib/borgmatic-sqlite/ntfy/opt_apps_ntfy_data_user\\.db')
+            | select('search', 'sqlite3 -bail .*/opt/ntfy/data/user\\.db ')
+            | select('search', '\\.backup /var/lib/borgmatic-sqlite/ntfy/opt_ntfy_data_user\\.db')
             | list | length == 1
           - ntfy_borgmatic.commands[0].run | select('search', 'cache\\.db') | list | length == 0
-          - "'/opt/apps/ntfy/data' not in ntfy_borgmatic.source_directories"
-          - "'/opt/apps/ntfy/config' in ntfy_borgmatic.source_directories"
+          - "'/opt/ntfy/data' not in ntfy_borgmatic.source_directories"
+          - "'/opt/ntfy/config' in ntfy_borgmatic.source_directories"
         fail_msg: "Configuration borgmatic de ntfy inattendue : {{ ntfy_borgmatic }}"
 
     # Le vrai ntfy, à la version de l'image, sur la configuration rendue :
@@ -172,7 +200,7 @@
               - --collect
               - "{{ ntfy_verify_bin }}"
               - serve
-              - --config=/opt/apps/ntfy/config/server.yml
+              - --config=/opt/ntfy/config/server.yml
               - --listen-http=127.0.0.1:18080
               - --auth-file={{ ntfy_verify_dir }}/db/user.db
               - --cache-file={{ ntfy_verify_dir }}/db/cache.db
@@ -270,7 +298,7 @@
             argv:
               - "{{ ntfy_verify_bin }}"
               - access
-              - --config=/opt/apps/ntfy/config/server.yml
+              - --config=/opt/ntfy/config/server.yml
               - --auth-file={{ ntfy_verify_dir }}/db/user.db
           register: ntfy_verify_access
           changed_when: false
@@ -342,7 +370,7 @@
         src: /etc/ntfy-subscribers-check.env
       register: ntfy_check_env
 
-    - name: Assert the push URL file holds the URL given by docker.yml
+    - name: Assert the push URL file holds the URL given by pangolin.yaml
       ansible.builtin.assert:
         that:
           - (ntfy_check_env.content | b64decode) == 'NTFY_SUBSCRIBERS_CHECK_PUSH_URL=http://127.0.0.1:18082/api/push/molecule-ntfy-subscribers\n'

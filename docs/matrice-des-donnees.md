@@ -84,7 +84,6 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | FreshRSS | 2 | Borg : `freshrss_data`, `extensions` + copies SQLite par utilisateur | oui | ~30 min (est.) | CI | cache exclu |
 | Bétisier | 3 | Borg : `config`, `dump.sql` + dump MariaDB | oui | ~30 min (est.) | CI | — |
 | Beszel (hub de supervision) | 3 | Borg : `beszel_data` + copies SQLite | oui | ~30 min (est.) | CI | — |
-| ntfy | 3 | Borg : `config`, `user.db` | oui | ~30 min (est.) | CI | comptes et jetons sont déclarés par le rôle |
 | Speedtest Tracker | 3 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | — |
 | Homepage, Enclosed, PairDrop, BentoPDF, Zensical (`docs_site`), Neonova | 3 | aucune ; sans état ou jetable, redéployés par Ansible | sans objet | < 30 min chacune (est.) | non | notes d'Enclosed éphémères exprès |
 | VictoriaLogs (journaux, 30 jours) | 3 | aucune, « reproductibles » | non | sans objet | non | tous les journaux |
@@ -120,6 +119,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 |---|---|---|---|---|---|---|
 | Pangolin : base SQLite, `config/` (certificats, clés), `compose.yaml` | 2 (porte l'accès public et les identifiants des sites : les Newt se reconnectent seuls si la base revient, [reconstruction-pangolin.md](runbooks/reconstruction-pangolin.md)) | Borg `pangolin` à 01:00 (~10 Go, dont ~7,7 Go de copies de migration) ; en plus 7 images quotidiennes Hetzner de la VM (restent chez Hetzner) | oui | ~45 min de bout en bout (**mesuré** le 28/10 sur une VM jetable) | CI | journaux Traefik exclus ; perte max 1 jour |
 | Pocket ID ([ADR 0030](adr/0030-pocket-id-fournisseur-identite-pilote.md)) : base SQLite (comptes, passkeys, clients OIDC), `data/`, `.env` (clé de chiffrement) | 3 (les passkeys se refont par un code créé sur l'hôte, [pocket-id.md](runbooks/pocket-id.md)) | Borg `pocket_id` de la VM Pangolin | oui | ~15 min (est.) | CI | rien |
+| ntfy ([ADR 0037](adr/0037-ntfy-sur-la-vm-pangolin.md)) : `config`, `user.db` (réglages et abonnements de l'interface web) | 3 (comptes et jetons sont déclarés par le rôle et recréés au démarrage) | Borg `ntfy` de la VM Pangolin | oui | ~15 min (est.) | CI | `cache.db` (messages de 30 jours au plus, déjà reçus) |
 
 ### flip (Hetzner, fsn1, sans IP publique)
 

@@ -24,7 +24,7 @@ services:
       TZ: Europe/Paris
     volumes:
       - ./config/server.yml:/etc/ntfy/server.yml:ro
-      # user.db et cache.db (SQLite), sur le disque local de la VM.
+      # user.db et cache.db (SQLite), sur le disque de la VM Pangolin.
       - ./data:/var/lib/ntfy
     restart: unless-stopped
     # /v1/health répond sans compte, même en deny-all.
@@ -34,11 +34,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # Seul conteneur du projet : pas de réseau privé, newt suffit (il sort
-    # aussi par là vers ntfy.sh, upstream-base-url).
+    # Le réseau de la pile Pangolin : le Traefik de Pangolin (réseau de gerbil)
+    # y joint « ntfy:{{ ntfy_port }} », cible de la ressource sur le site local
+    # (website_ntfy.tf). Aucun port publié sur l'hôte. ntfy sort aussi par là
+    # vers ntfy.sh (upstream-base-url).
     networks:
-      - newt
+      - {{ ntfy_network }}
 
 networks:
-  newt:
+  {{ ntfy_network }}:
     external: true

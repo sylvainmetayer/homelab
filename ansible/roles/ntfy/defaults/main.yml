@@ -1,8 +1,23 @@
 ---
-ntfy_base_path: "{{ docker_base_path }}/ntfy"
+# ntfy tourne sur la VM Pangolin (pangolin.yaml, ADR 0037), hors de la maison :
+# une coupure de courant ou d'Internet chez soi ne coupe plus les
+# notifications. Rôle appliqué APRÈS le rôle pangolin : son conteneur rejoint
+# le réseau « pangolin » créé par la pile, où le Traefik de Pangolin l'atteint
+# par son nom (cible de la ressource, site local, website_ntfy.tf).
+#
+# /opt/ntfy, comme /opt/pangolin et /opt/pocket-id : la VM Pangolin n'a pas
+# docker_base_path (ni docker_service, ni dc@).
+ntfy_base_path: /opt/ntfy
 ntfy_domain: ntfy.sylvain.cloud
 # Port d'écoute dans le conteneur : la cible Pangolin (website_ntfy.tf).
 ntfy_port: 8080
+# Réseau Docker externe que rejoint le conteneur : celui de la pile Pangolin
+# (templates/compose.yaml du rôle pangolin, `name: pangolin`).
+ntfy_network: pangolin
+
+# false : écrit les fichiers sans lancer `docker compose up` (Molecule : pas
+# d'image tirée, pas de réseau « pangolin »).
+ntfy_compose_up: true
 
 # Durée de vie des messages dans cache.db : ce que les applis rattrapent
 # (since=, poll=1) après une coupure ou à la réception d'un poll_request.
@@ -36,7 +51,7 @@ ntfy_admin_user: sylvain
 # (« Retirer un topic »).
 ntfy_publishers:
   # Notification « ntfy » d'Uptime Kuma (website_ntfy.tf). Jeton : clé
-  # ntfy_uptime_kuma_token de secrets/secrets.sops.yaml, que docker.yml lit
+  # ntfy_uptime_kuma_token de secrets/secrets.sops.yaml, que pangolin.yaml lit
   # dans le state de pangolin_config (sortie ntfy_uptime_kuma_token).
   - name: uptime-kuma
     topic: uptime-kuma
@@ -79,7 +94,7 @@ ntfy_publishers:
 # sinon, au moniteur « ntfy : abonnés » (cron_ntfy_subscribers.tf).
 #
 # URL push : sortie uptime_cron_ntfy_subscribers_url de pangolin_config, lue
-# par docker.yml ; vide, la vérification tourne sans rien pousser.
+# par pangolin.yaml ; vide, la vérification tourne sans rien pousser.
 ntfy_subscribers_check_push_url: ""
 # Le test monitors_are_filed_and_alert de tofu/pangolin_config lit ce « *:0/N »
 # : l'intervalle du moniteur vaut trois périodes.
@@ -91,7 +106,9 @@ ntfy_subscribers_check_window_minutes: 480
 ntfy_subscribers_check_user: "{{ ansible_user }}"
 
 # Pas encore mesuré : un binaire Go, deux bases SQLite, quelques connexions
-# ouvertes (téléphone). À recaler sur memory.peak après quelques jours.
+# ouvertes (téléphone). À recaler sur memory.peak après quelques jours. La VM
+# Pangolin (4 Gio) porte Pangolin (2,5 Gio de plafond), Traefik, CrowdSec et
+# Pocket ID : un plafond serré ici protège tout le homelab.
 ntfy_mem_limit: 128m
 
 # Borgmatic backup configuration

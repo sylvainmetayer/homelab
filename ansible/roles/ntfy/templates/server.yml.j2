@@ -49,9 +49,10 @@ require-login: true
 enable-signup: false
 enable-reservations: false
 
-# Derrière Pangolin (Traefik, puis newt) : l'adresse du client vient de
-# X-Forwarded-For, posé par Traefik. Sans cela, tous les visiteurs auraient
-# l'adresse de newt et partageraient les mêmes limites de débit.
+# Derrière le Traefik de Pangolin, sur le même réseau Docker : l'adresse du
+# client vient de X-Forwarded-For, posé par Traefik. Sans cela, tous les
+# visiteurs auraient l'adresse de Traefik (gerbil) et partageraient les mêmes
+# limites de débit.
 behind-proxy: true
 proxy-forwarded-header: X-Forwarded-For
 

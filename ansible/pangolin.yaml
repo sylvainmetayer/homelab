@@ -14,12 +14,24 @@
         pangolin_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pangolin_url.value | default('') }}"
         pangolin_geoip_healthcheck_url: "{{ terraform_outputs.uptime_cron_geoip_url.value | default('') }}"
         pocket_id_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_pocket_id_url.value | default('') }}"
+        ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
+        ntfy_subscribers_check_push_url: "{{ terraform_outputs.uptime_cron_ntfy_subscribers_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_pangolin_updates_url.value | default('') }}"
         # Jeton d'accès Pangolin de l'agent Beszel (en-têtes HUB_HEADERS).
         beszel_agent_hub_headers: "{{ terraform_outputs.beszel_agent_hub_headers.value[inventory_hostname] | default('') }}"
         # Jeton d'accès Pangolin de l'agent de journaux (en-têtes P-Access-Token-*).
         log_agent_pangolin_token_id: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].id | default('') }}"
         log_agent_pangolin_token: "{{ terraform_outputs.log_agent_access_tokens.value[inventory_hostname].token | default('') }}"
+
+    # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token de
+    # secrets/secrets.sops.yaml, que tofu/pangolin_config donne à sa
+    # notification Uptime Kuma et rend en sortie. Vide avant le premier apply :
+    # le rôle ntfy retire alors ce producteur (avertissement).
+    - name: Load the ntfy Uptime Kuma token from Terraform state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        ntfy_uptime_kuma_token: "{{ terraform_outputs.ntfy_uptime_kuma_token.value | default('') }}"
 
   roles:
     - role: geerlingguy.docker
@@ -42,6 +54,13 @@
     # la clé SOPS pocket_id_encryption_key.
     - role: pocket_id
       tags: pocket_id,app
+    # Notifications push du homelab (ntfy.sylvain.cloud), hors de la maison
+    # (ADR 0037) : une coupure de courant ou d'Internet chez soi ne les coupe
+    # plus. Après pangolin : son conteneur rejoint le réseau de la pile, où le
+    # Traefik de Pangolin l'atteint (cible de la ressource sur le site local,
+    # tofu/pangolin_config/website_ntfy.tf). Base SQLite sauvegardée.
+    - role: ntfy
+      tags: ntfy,app
     # Agent de supervision, vers le hub par sa ressource publique (PASS sur
     # /api/beszel/agent-connect, jeton d'accès Pangolin en en-têtes). Mode
     # compose : Pangolin n'a pas docker_service (ni dc@ ni lingering), la

@@ -49,7 +49,9 @@
 #   backup       default false: a push monitor "Backup <name>".
 #   target       the probed target: site_id, ip, port; optionally path and
 #                priority (path routing, see website_flip_planning.tf), hc_path
-#                (default "/") and hc_port (default port).
+#                (default "/") and hc_port (default port). On the `local` site
+#                (pangolin_site.pangolin: a container of the Pangolin server,
+#                ntfy) it is not probed, see hc_enabled below.
 #   sub_targets  more targets on the same resource, keyed by a suffix: the
 #                address is pangolin_target.website["<app>_<suffix>"].
 #   homepage     required: the app's link on Homepage (group, description,
@@ -201,7 +203,15 @@ resource "pangolin_target" "website" {
   # a stopped container every hc_unhealthy_interval for months, thousands of
   # failures for nothing, and a disabled resource has no route anyway. The
   # other fields stay pinned, ready for the day the app comes back.
-  hc_enabled  = pangolin_resource.website[each.value.website].enabled
+  #
+  # Off too on a target of the instance's own `local` site (ntfy, on the
+  # Pangolin server): probes are run by a Newt, and a local site has none.
+  # Pangolin stores hcHealth = "unhealthy" when a target is created with its
+  # probe on (createTarget.ts), nothing ever reports it healthy, and Traefik
+  # drops an unhealthy target: enabled there, the probe would keep the
+  # resource on 503 for good. The inverted-keyword monitor still pages: with
+  # no target answering, Traefik's 502 is DOWN for Uptime Kuma.
+  hc_enabled  = pangolin_resource.website[each.value.website].enabled && each.value.site_id != pangolin_site.pangolin.id
   hc_scheme   = "http"
   hc_mode     = "http"
   hc_port     = lookup(each.value, "hc_port", each.value.port)
