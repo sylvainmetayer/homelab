@@ -319,11 +319,11 @@ run "cname_ovh_court_circuite_le_joker" {
 
   assert {
     condition = (
-      ovh_domain_zone_record.bing_verification.subdomain == "09a445c40a86467fe5577a2c6ce7c67b.www" &&
+      ovh_domain_zone_record.bing_verification.subdomain == "09a445c40a86467fe5577a2c6ce7c67b" &&
       ovh_domain_zone_record.bing_verification.fieldtype == "CNAME" &&
       ovh_domain_zone_record.bing_verification.target == "verify.bing.com."
     )
-    error_message = "La vérification Bing est un CNAME <code>.www vers verify.bing.com., point final compris."
+    error_message = "La vérification Bing est un CNAME <code> à l'apex (pas sous www) vers verify.bing.com., point final compris."
   }
 
   assert {

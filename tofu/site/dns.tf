@@ -10,10 +10,11 @@ resource "ovh_domain_zone_record" "www" {
 }
 
 # Vérification du site dans Bing Webmaster Tools : Bing cherche le CNAME sous
-# l'hôte déclaré (<code>.www.sylvain.dev). Le code est public.
+# l'hôte déclaré, ici l'apex (<code>.sylvain.dev, pas <code>.www : le site y
+# est enregistré comme sylvain.dev). Le code est public.
 resource "ovh_domain_zone_record" "bing_verification" {
   zone      = var.domain_zone
-  subdomain = "09a445c40a86467fe5577a2c6ce7c67b.${var.subdomain}"
+  subdomain = "09a445c40a86467fe5577a2c6ce7c67b"
   fieldtype = "CNAME"
   ttl       = 3600
   target    = "verify.bing.com."
