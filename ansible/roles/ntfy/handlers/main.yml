@@ -1,10 +1,4 @@
 ---
-- name: Restart ntfy
-  ansible.builtin.systemd:
-    name: dc@ntfy
-    scope: user
-    state: restarted
-
 # Un OnCalendar modifié ne s'applique qu'au redémarrage du timer. Pas en
 # --check si l'unité vient d'être posée : elle n'existe pas encore.
 - name: Restart ntfy-subscribers-check timer

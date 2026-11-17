@@ -272,7 +272,6 @@ le test de restauration de la CI). Les applis sans dépôt Borg (`bentopdf`,
 | karakeep | sqlite | `karakeep:3000/api/health` | `db.db` : `user`, `bookmarks` |
 | monica_v4 | mysql | `monica_v4:80/` | `monica` : `users`, `accounts` |
 | nextcloud | mysql | `nextcloud:80/status.php` | `nextcloud` : `oc_appconfig`, `oc_storages`, `oc_filecache` ; à l'œil : un fichier récent s'ouvre |
-| ntfy | sqlite | `ntfy:8080/v1/health` | `user.db` : `user`, `user_token` |
 | openwebui | sqlite | `openwebui:8080/health` | `webui.db` : `user`, `auth` |
 | papra | sqlite | `papra:1221/api/health` | `db.sqlite` : `users`, `documents` ; à l'œil : un document s'ouvre |
 | rss | sqlite | `rss:80/api/` | `db.sqlite` : `category`, `feed` |

@@ -93,15 +93,18 @@ svg .l-bak { fill: var(--bak); font-size: 11.5px; font-weight: 500; }
 <path class="e e-req" d="M310,280 H328" marker-end="url(#a-req)"/>
 <path class="e e-req" d="M445,280 H463" marker-end="url(#a-req)"/>
 
-<rect class="node" x="60" y="345" width="180" height="50" rx="6"/>
-<text class="b" x="150" y="366" text-anchor="middle">Gerbil</text>
-<text class="s" x="150" y="383" text-anchor="middle">WireGuard, UDP 51820</text>
-<rect class="node" x="265" y="345" width="150" height="50" rx="6"/>
-<text class="b" x="340" y="366" text-anchor="middle">Pocket ID</text>
-<text class="s" x="340" y="383" text-anchor="middle">OIDC, passkeys</text>
-<rect class="node" x="440" y="345" width="140" height="50" rx="6"/>
-<text class="b" x="510" y="366" text-anchor="middle">NAT</text>
-<text class="s" x="510" y="383" text-anchor="middle">sortie Internet de flip</text>
+<rect class="node" x="60" y="345" width="150" height="50" rx="6"/>
+<text class="b" x="135" y="366" text-anchor="middle">Gerbil</text>
+<text class="s" x="135" y="383" text-anchor="middle">WireGuard, UDP 51820</text>
+<rect class="node" x="222" y="345" width="98" height="50" rx="6"/>
+<text class="b" x="271" y="366" text-anchor="middle">ntfy</text>
+<text class="s" x="271" y="383" text-anchor="middle">notifications</text>
+<rect class="node" x="332" y="345" width="110" height="50" rx="6"/>
+<text class="b" x="387" y="366" text-anchor="middle">Pocket ID</text>
+<text class="s" x="387" y="383" text-anchor="middle">OIDC, passkeys</text>
+<rect class="node" x="454" y="345" width="126" height="50" rx="6"/>
+<text class="b" x="517" y="366" text-anchor="middle">NAT</text>
+<text class="s" x="517" y="383" text-anchor="middle">sortie Internet de flip</text>
 
 <path class="e e-req" d="M100,305 V343" marker-end="url(#a-req)"/>
 <text class="l-req" x="108" y="329">vers la cible</text>
@@ -170,7 +173,7 @@ svg .l-bak { fill: var(--bak); font-size: 11.5px; font-weight: 500; }
 <text x="67" y="754">Open WebUI · Enclosed · PairDrop · BentoPDF</text>
 <text x="67" y="770">Betisier · Neonova · Docs</text>
 <text class="h" x="67" y="794">SUPERVISION</text>
-<text x="67" y="810">Homepage · Beszel · VictoriaLogs · ntfy</text>
+<text x="67" y="810">Homepage · Beszel · VictoriaLogs</text>
 <text x="67" y="826">Speedtest Tracker</text>
 
 <rect class="node" x="410" y="575" width="135" height="130" rx="6"/>

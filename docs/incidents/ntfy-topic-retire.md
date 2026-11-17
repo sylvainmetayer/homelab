@@ -25,8 +25,8 @@ L'appli iOS interroge chaque topic à part : seul le topic retiré y échoue.
 
 - `sylvain` lit tous les topics (joker en lecture) : un topic retiré reste
   lisible, vide. **Ne pas retirer ce joker.**
-- Alerte « aucun abonné » : une vérification toutes les 10 minutes sur la VM
-  docker lit les relevés `Server stats` de ntfy et passe au rouge après 8
+- Alerte « aucun abonné » : une vérification toutes les 10 minutes sur l'hôte
+  de ntfy (la VM docker alors, la VM Pangolin depuis l'ADR 0037) lit les relevés `Server stats` de ntfy et passe au rouge après 8
   heures sans abonné. Elle ne voit rien si un autre téléphone ou l'interface
   web reste abonné.
 - Procédure de retrait : [ansible/roles/ntfy/README.md](../../ansible/roles/ntfy/README.md),

@@ -1,8 +1,10 @@
 # Resource, target and monitors: local.websites (websites.tf).
 #
-# ntfy: push notifications of the homelab (role ntfy, Docker VM). The web
-# interface stays behind the SSO, then ntfy's own login; the phone apps and
-# the publishers get through the paths below, with ntfy's own credentials.
+# ntfy: push notifications of the homelab (role ntfy, Pangolin VM since ADR
+# 0037: a power or Internet cut at home no longer takes the notifications
+# down with it). The web interface stays behind the SSO, then ntfy's own
+# login; the phone apps and the publishers get through the paths below, with
+# ntfy's own credentials.
 locals {
   ntfy_website = {
     name      = "ntfy"
@@ -25,8 +27,15 @@ locals {
     # probes the health route instead, through the same access token.
     monitor_path = "/v1/health"
 
+    # On the Pangolin server itself: the instance's own `local` site
+    # (nodes.tf), no Newt in between. Pangolin's Traefik reaches the container
+    # by name on the `pangolin` Docker network the role joins
+    # (server/lib/traefik/loadBalancer.ts: a local site's target is served as
+    # http://<ip>:<port>, as written here). No Pangolin probe on a local site
+    # (websites.tf, hc_enabled): hc_path is kept for the day the target goes
+    # back behind a Newt, and for drill-check's alignment test.
     target = {
-      site_id = pangolin_site.proxmox_docker.id
+      site_id = pangolin_site.pangolin.id
       ip      = "ntfy"
       port    = 8080
       # Answers {"healthy":true} without an account, deny-all or not.
@@ -83,8 +92,8 @@ locals {
 # /v1/webpush: only used by the browser, under the SSO session), the
 # server-side SSE and raw streams (/*/sse, /*/raw: no app nor publisher of
 # this homelab uses them), message updates and deletion (/<topic>/<id>...),
-# /file/* (attachments are disabled), /v1/health (the target healthcheck,
-# hc_path, run by Newt from inside, and the Uptime Kuma monitor, monitor_path,
+# /file/* (attachments are disabled), /v1/health (the container's own
+# healthcheck, from inside, and the Uptime Kuma monitor, monitor_path,
 # through the healthcheck access token),
 # /metrics (disabled), /_matrix/* (no Matrix
 # gateway here), and the admin routes (/v1/users*, /v1/version).
@@ -106,7 +115,7 @@ locals {
 # default: a monitor made by hand in the UI gets no channel unless picked.
 #
 # The token is the key ntfy_uptime_kuma_token of the root secrets/secrets.sops.yaml:
-# docker.yml reads it back from this state (output ntfy_uptime_kuma_token)
+# pangolin.yaml reads it back from this state (output ntfy_uptime_kuma_token)
 # and declares it in ntfy, so it is written in one place only.
 #
 # Provider 0.5.0 at least: 0.4.0 sent neither access_token nor any credential
@@ -138,7 +147,7 @@ output "uptime_backup_ntfy_url" {
   sensitive   = true
 }
 
-# Read by docker.yml (role ntfy, producer uptime-kuma).
+# Read by pangolin.yaml (role ntfy, producer uptime-kuma).
 output "ntfy_uptime_kuma_token" {
   description = "NTFY - Jeton d'accès du producteur uptime-kuma (écriture seule sur son topic)"
   value       = local.ntfy_uptime_kuma_token

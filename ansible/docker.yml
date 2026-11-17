@@ -53,22 +53,10 @@
         yamtrack_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_yamtrack_url.value | default('') }}"
         openwebui_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_openwebui_url.value | default('') }}"
         speedtest_tracker_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_speedtest_tracker_url.value | default('') }}"
-        ntfy_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_ntfy_url.value | default('') }}"
         karakeep_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_karakeep_url.value | default('') }}"
         wishlist_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_wishlist_url.value | default('') }}"
         beszel_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_beszel_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_docker_updates_url.value | default('') }}"
-        ntfy_subscribers_check_push_url: "{{ terraform_outputs.uptime_cron_ntfy_subscribers_url.value | default('') }}"
-
-    # Jeton du producteur uptime-kuma de ntfy : clé ntfy_uptime_kuma_token de
-    # secrets/secrets.sops.yaml, que tofu/pangolin_config donne à sa
-    # notification Uptime Kuma et rend en sortie. Vide avant le premier apply :
-    # le rôle ntfy retire alors ce producteur (avertissement).
-    - name: Load the ntfy Uptime Kuma token from Terraform state outputs
-      tags: always
-      no_log: true
-      ansible.builtin.set_fact:
-        ntfy_uptime_kuma_token: "{{ terraform_outputs.ntfy_uptime_kuma_token.value | default('') }}"
 
     # Les liens de Homepage : un par entrée de local.websites
     # (tofu/pangolin_config, website_homepage.tf).
@@ -150,8 +138,6 @@
       tags: grocy,app
     - role: speedtest_tracker
       tags: speedtest_tracker,app
-    - role: ntfy
-      tags: ntfy,app
     # Notes chiffrées à usage unique (pwpush.sylvain.cloud). Pas de
     # sauvegarde, exprès : des secrets éphémères (rôle enclosed, README.md).
     - role: enclosed

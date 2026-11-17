@@ -205,7 +205,7 @@ gérés dans Pangolin. Procédure et secours :
 
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
-| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS), Pocket ID (`id.sylvain.cloud`, fournisseur d'identité, voir plus haut) |
+| `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS), Pocket ID (`id.sylvain.cloud`, fournisseur d'identité, voir plus haut), ntfy (`ntfy.sylvain.cloud`, notifications, [ADR 0037](adr/0037-ntfy-sur-la-vm-pangolin.md)) |
 | `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod ; en pause, conteneurs arrêtés et données gardées : la démo, la démo Keycloak et la vitrine publique `exemple-planning`), Promptoramix, OpenPost |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe, Kiosk, Power Tools et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
@@ -418,13 +418,16 @@ WebSocket vers le hub : aucun n'écoute de port.
 
 Chaque moniteur Uptime Kuma de `tofu/pangolin_config` alerte sur Telegram et
 ntfy (`local.alert_notification_ids`, `notifications.tf`) : Telegram ne passe
-pas par Pangolin, ntfy si. Les moniteurs de connexion SSH n'alertent que sur
+pas par Pangolin, ntfy si : il tourne sur la VM Pangolin même
+([ADR 0037](adr/0037-ntfy-sur-la-vm-pangolin.md)), hors de la maison, pour
+qu'une coupure de courant ou d'Internet chez soi ne coupe pas les alertes.
+Les moniteurs de connexion SSH n'alertent que sur
 Telegram ; ils couvrent tous les hôtes (`local.ssh_login_hosts`) sauf le NAS,
 dont UGOS garde le système (ni `00-setup`, ni hook PAM : une connexion SSH au
 NAS ne sonne pas, elle n'est que dans son journal). Plus de mail
 depuis le 2026-10-29. ntfy qui ne joint plus les
 téléphones (abonnement refusé, le 2026-10-29) ne se voit pas à son
-healthcheck : toutes les 10 minutes, la VM docker relit les relevés « Server
+healthcheck : toutes les 10 minutes, la VM Pangolin relit les relevés « Server
 stats » de ntfy (`ntfy-subscribers-check.timer`, rôle `ntfy`) et pousse au
 moniteur « ntfy : abonnés » (`cron_ntfy_subscribers.tf`), down quand aucun
 abonné n'y figure sur 8 heures (un téléphone hors ligne une nuit

@@ -1244,9 +1244,26 @@ run "probes_are_sparse_and_paused_apps_are_not_probed" {
   assert {
     condition = alltrue([
       for key, t in pangolin_target.website :
-      t.hc_enabled == lookup(local.websites[local.website_targets[key].website], "enabled", true)
+      t.hc_enabled == (
+        lookup(local.websites[local.website_targets[key].website], "enabled", true)
+        && local.website_targets[key].site_id != pangolin_site.pangolin.id
+      )
     ])
-    error_message = "La sonde Pangolin d'une cible est coupée exactement quand son appli est en pause (enabled = false)."
+    error_message = "La sonde Pangolin d'une cible est coupée exactement quand son appli est en pause (enabled = false) ou sur le site local (aucun Newt ne la lancerait : la cible resterait unhealthy et Traefik la retirerait)."
+  }
+
+  # ntfy tourne sur le serveur Pangolin (ADR 0037) : sa cible est sur le site
+  # local, et c'est la seule. Une autre cible posée là par mégarde perdrait sa
+  # sonde sans le dire.
+  assert {
+    condition = (
+      [for key, target in local.website_targets : key if target.site_id == pangolin_site.pangolin.id] == ["ntfy"]
+      && pangolin_target.website["ntfy"].ip == "ntfy"
+      && pangolin_target.website["ntfy"].port == yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_port
+      && yamldecode(file("${path.module}/../../ansible/roles/ntfy/defaults/main.yml")).ntfy_network == "pangolin"
+      && strcontains(file("${path.module}/../../ansible/roles/pangolin/templates/compose.yaml"), "\n    name: pangolin\n")
+    )
+    error_message = "ntfy, et lui seul, a sa cible sur le site local : conteneur « ntfy », port ntfy_port, sur le réseau Docker « pangolin » de la pile (ntfy_network, compose du rôle pangolin)."
   }
 }
 
@@ -2519,7 +2536,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_karakeep_url          = output.uptime_backup_karakeep_url
         uptime_backup_homebox_url           = output.uptime_backup_homebox_url
         uptime_backup_speedtest_tracker_url = output.uptime_backup_speedtest_tracker_url
-        uptime_backup_ntfy_url              = output.uptime_backup_ntfy_url
         uptime_backup_wishlist_url          = output.uptime_backup_wishlist_url
         uptime_backup_beszel_url            = output.uptime_backup_beszel_url
         uptime_backup_papra_url             = output.uptime_backup_papra_url
@@ -2527,7 +2543,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_backup_jellystat_url         = output.uptime_backup_jellystat_url
         uptime_backup_yamtrack_url          = output.uptime_backup_yamtrack_url
         uptime_backup_openwebui_url         = output.uptime_backup_openwebui_url
-        uptime_cron_ntfy_subscribers_url    = output.uptime_cron_ntfy_subscribers_url
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         uptime_cron_log_alerts_url          = output.uptime_cron_log_alerts_url
         uptime_cron_dav_copy_url            = output.uptime_cron_dav_copy_url
@@ -2541,9 +2556,11 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
         uptime_cron_dns_lxc_url  = output.uptime_cron_dns_lxc_url
         # pangolin.yaml
-        uptime_backup_pangolin_url  = output.uptime_backup_pangolin_url
-        uptime_cron_geoip_url       = output.uptime_cron_geoip_url
-        uptime_backup_pocket_id_url = output.uptime_backup_pocket_id_url
+        uptime_backup_pangolin_url       = output.uptime_backup_pangolin_url
+        uptime_cron_geoip_url            = output.uptime_cron_geoip_url
+        uptime_backup_pocket_id_url      = output.uptime_backup_pocket_id_url
+        uptime_backup_ntfy_url           = output.uptime_backup_ntfy_url
+        uptime_cron_ntfy_subscribers_url = output.uptime_cron_ntfy_subscribers_url
         # nas.yml
         uptime_backup_jellyfin_url  = output.uptime_backup_jellyfin_url
         uptime_cron_nas_cert_url    = output.uptime_cron_nas_cert_url
@@ -3335,7 +3352,7 @@ run "monitors_are_filed_and_alert" {
     error_message = "Alertes sur les journaux : rangé avec les healthchecks, Telegram et ntfy, actif, intervalle de trois périodes de log_alerts_schedule (*:0/N), lu par docker.yml."
   }
 
-  # Abonnés ntfy (rôle ntfy) : la VM docker pousse toutes les N minutes
+  # Abonnés ntfy (rôle ntfy) : la VM Pangolin pousse toutes les N minutes
   # (ntfy-subscribers-check.timer) ; l'intervalle laisse passer deux
   # vérifications manquées, pas trois, et la fenêtre relue couvre au moins
   # deux relevés « Server stats » (un par minute) ; elle peut dépasser
@@ -3656,9 +3673,9 @@ run "ntfy_topics_match_the_role" {
   assert {
     condition = (
       nonsensitive(output.ntfy_uptime_kuma_token == uptimekuma_notification_ntfy.ntfy.access_token)
-      && strcontains(file("${path.module}/../../ansible/docker.yml"), "terraform_outputs.ntfy_uptime_kuma_token.value | default('')")
+      && strcontains(file("${path.module}/../../ansible/pangolin.yaml"), "terraform_outputs.ntfy_uptime_kuma_token.value | default('')")
     )
-    error_message = "docker.yml doit lire le jeton uptime-kuma de ntfy dans la sortie ntfy_uptime_kuma_token, celui de la notification."
+    error_message = "pangolin.yaml doit lire le jeton uptime-kuma de ntfy dans la sortie ntfy_uptime_kuma_token, celui de la notification."
   }
 
   # « / » est ouvert sans SSO et répond 404 à un GET (web-root: /app) : le

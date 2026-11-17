@@ -144,7 +144,19 @@ vérifié lors de la répétition du 2026-10-28 (voir « Répétition » plus ba
    répétition du 2026-10-28 (Pocket ID n'existait pas) : à faire à la
    prochaine.
 
-6. **Le reste de la play** (pile, Pocket ID, NAT, sécurité) :
+   **ntfy : rien d'obligatoire.** Il tourne aussi sur cette VM (`/opt/ntfy`,
+   rôle `ntfy`, [ADR 0037](../adr/0037-ntfy-sur-la-vm-pangolin.md)) : l'étape 6
+   le redéploie, comptes, droits et jetons compris (déclarés dans
+   `server.yml`), et les téléphones se reconnectent seuls. Son dépôt Borg
+   (`ntfy`) ne rend que les réglages et abonnements de l'interface web
+   (`user.db`) ; les messages en cache sont perdus (non sauvegardés). Pour
+   les reprendre, avant l'étape 6, même geste que pour Pocket ID avec
+   `/etc/borgmatic.d/ntfy.yaml` : copier
+   `var/lib/borgmatic-sqlite/ntfy/opt_ntfy_data_user.db` de l'archive en
+   `/opt/ntfy/data/user.db`, au nom de l'utilisateur de déploiement
+   (`chown -R sylvain: /opt/ntfy`). Pas encore joué.
+
+6. **Le reste de la play** (pile, Pocket ID, ntfy, NAT, sécurité) :
 
    ```bash
    ansible-playbook pangolin.yaml --check --diff
@@ -170,6 +182,9 @@ curl -sSI https://hall.sylvain.cloud | head -1
   connexion par passkey (pas l'écran de création du premier compte), et une
   appli derrière le mur s'ouvre après cette connexion
   ([pocket-id.md](pocket-id.md)).
+- ntfy répond et les téléphones y sont revenus : le moniteur « Healthcheck
+  ntfy » est UP, `docker logs --since 2m ntfy | grep "Server stats"` montre
+  `subscribers` au-dessus de 0, un message de test arrive.
 - `tofu plan` dans `tofu/pangolin_config` ne montre pas de dérive importante.
 - flip sort de nouveau sur Internet ([flip-injoignable.md](flip-injoignable.md)).
 - Le lendemain, le moniteur de sauvegarde de Pangolin est UP.

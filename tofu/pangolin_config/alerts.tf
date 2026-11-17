@@ -2,10 +2,11 @@
 # ici tout de suite, sans attendre l'échec d'une sonde extérieure. Elles ne
 # remplacent pas Uptime Kuma et son canal Telegram, seuls à couvrir ces cas :
 #
-# - Pangolin tombé : rien ne part, ntfy est derrière lui.
-# - Site proxmox-docker hors ligne, ou coupure Internet de la maison : ntfy tourne
-#   sur la VM docker, Pangolin ne le joint plus. Trois essais en quelques secondes
-#   (sendAlertWebhook.ts), puis l'alerte est perdue, sans reprise.
+# - Pangolin tombé : rien ne part, ntfy est derrière lui (et sur la même VM).
+# - ntfy injoignable au moment de l'alerte : trois essais en quelques secondes
+#   (sendAlertWebhook.ts), puis elle est perdue, sans reprise. Depuis que ntfy
+#   tourne sur la VM Pangolin (ADR 0037), une coupure de courant ou d'Internet à
+#   la maison ne le rend plus injoignable : « Site hors ligne » arrive.
 # - Plusieurs pannes en cinq minutes : le délai est par règle, pas par site ni par
 #   ressource (processAlerts.ts), et compte même si l'envoi a échoué. Seule la
 #   première part, et rien ne rejoue les autres : un événement ne part qu'au

@@ -1,6 +1,14 @@
 # ntfy
 
-Serveur de notifications push du homelab (`ntfy.sylvain.cloud`, VM docker). Les producteurs (Uptime Kuma, scripts des hôtes, workflows GitHub, webhook Canarytokens.org du rôle `canary`, HealthLog, MediaManager) publient chacun dans leur topic avec leur jeton (`ntfy_publishers`, `defaults/main.yml`) ; l'utilisateur `sylvain` lit tous les topics depuis l'appli des téléphones. `auth-default-access` est `deny-all`. Les routes ouvertes sans SSO dans Pangolin (`local.ntfy_publish_topics`, `tofu/pangolin_config/website_ntfy.tf`) suivent la même liste de topics (test `ntfy_topics_match_the_role`).
+Serveur de notifications push du homelab (`ntfy.sylvain.cloud`), sur la **VM Pangolin** ([ADR 0037](../../../docs/adr/0037-ntfy-sur-la-vm-pangolin.md)) : hors de la maison, pour qu'une coupure de courant ou d'Internet chez soi ne coupe pas les alertes. Les producteurs (Uptime Kuma, scripts des hôtes, workflows GitHub, webhook Canarytokens.org du rôle `canary`, HealthLog, MediaManager) publient chacun dans leur topic avec leur jeton (`ntfy_publishers`, `defaults/main.yml`) ; l'utilisateur `sylvain` lit tous les topics depuis l'appli des téléphones. `auth-default-access` est `deny-all`. Les routes ouvertes sans SSO dans Pangolin (`local.ntfy_publish_topics`, `tofu/pangolin_config/website_ntfy.tf`) suivent la même liste de topics (test `ntfy_topics_match_the_role`).
+
+## Sur la VM Pangolin
+
+- **Rôle appliqué par `pangolin.yaml`, après le rôle `pangolin`** : le conteneur `ntfy` rejoint le réseau Docker externe `pangolin` créé par la pile (`ntfy_network`), où le Traefik de Pangolin l'atteint en `http://ntfy:8080`. Aucun port publié.
+- **Une ressource Pangolin comme les autres** (`local.websites`, `tofu/pangolin_config/website_ntfy.tf`), mais sa cible est sur le site `local` de l'instance (`pangolin_site.pangolin`), sans Newt. **Sa sonde Pangolin est coupée** (`hc_enabled`, dérivé du site dans `websites.tf`) : sans Newt, personne ne la lance, et une cible créée avec sa sonde active reste `unhealthy`, donc retirée de Traefik (503). Pas de page de maintenance automatique : ntfy arrêté, Traefik répond 502, que le moniteur « Healthcheck ntfy » lit comme DOWN.
+- **Sans `dc@`** : la VM Pangolin n'a pas `docker_service`. `/opt/ntfy` (`ntfy_base_path`), `docker compose up -d --remove-orphans`, puis la restart policy, comme `pocket_id`. `server.yml` est un montage que ntfy ne relit qu'au démarrage : la tâche ajoute `--force-recreate` quand elle vient de le réécrire. À la main : `cd /opt/ntfy && sudo docker compose up -d --force-recreate`. `ntfy_compose_up: false` écrit les fichiers sans rien lancer (Molecule).
+- Les fichiers et le conteneur sont à l'utilisateur de déploiement (`user:` du compose), `/opt/ntfy` créé par root à son nom.
+- **Sauvegarde** : dépôt `ntfy` du sous-compte Storage Box de Pangolin. Restauration avec la VM : [reconstruction-pangolin.md](../../../docs/runbooks/reconstruction-pangolin.md).
 
 ## Droits
 
@@ -24,11 +32,11 @@ Ordre à suivre :
 
 ## Cache des messages
 
-`cache-duration: 720h` (`ntfy_cache_duration`, 30 jours) : `cache.db` garde les messages que les applis rattrapent après une coupure ou un téléphone éteint. Mesuré le 07/11/2026 : 73 messages en cache pour 12 h, `cache.db` de 135 Kio, soit environ 8 Mio à 30 jours au même rythme (négligeable sur le disque de la VM). Le cache n'est pas sauvegardé. Le changement redémarre ntfy au déploiement : les applis se reconnectent seules (voir « Retirer un topic », étape 4, pour vérifier les abonnés).
+`cache-duration: 720h` (`ntfy_cache_duration`, 30 jours) : `cache.db` garde les messages que les applis rattrapent après une coupure ou un téléphone éteint. Mesuré le 07/11/2026 : 73 messages en cache pour 12 h, `cache.db` de 135 Kio, soit environ 8 Mio à 30 jours au même rythme (négligeable sur le disque de la VM, celle de Pangolin depuis l'ADR 0037). Le cache n'est pas sauvegardé. Le changement redémarre ntfy au déploiement : les applis se reconnectent seules (voir « Retirer un topic », étape 4, pour vérifier les abonnés).
 
 ## Alerte : aucun abonné
 
-Le healthcheck de ntfy reste vert quand les téléphones ne reçoivent plus rien (29/10/2026). ntfy écrit chaque minute une ligne `INFO Server stats (…, subscribers=N, …)` ; toutes les 10 minutes (`ntfy_subscribers_check_schedule`), le timer `ntfy-subscribers-check` de la VM docker lance `files/ntfy-subscribers-check.sh` (installé en `/usr/local/libexec/ntfy-subscribers-check.sh`), qui relit les 8 dernières heures de `docker logs ntfy` (`ntfy_subscribers_check_window_minutes: 480`) et pousse **up** si un relevé compte au moins un abonné, **down** sinon (zéro partout, aucune ligne : ntfy arrêté, `docker logs` en échec). Sur un down, l'unité sort en échec (`systemctl --failed`).
+Le healthcheck de ntfy reste vert quand les téléphones ne reçoivent plus rien (29/10/2026). ntfy écrit chaque minute une ligne `INFO Server stats (…, subscribers=N, …)` ; toutes les 10 minutes (`ntfy_subscribers_check_schedule`), le timer `ntfy-subscribers-check` de la VM Pangolin lance `files/ntfy-subscribers-check.sh` (installé en `/usr/local/libexec/ntfy-subscribers-check.sh`), qui relit les 8 dernières heures de `docker logs ntfy` (`ntfy_subscribers_check_window_minutes: 480`) et pousse **up** si un relevé compte au moins un abonné, **down** sinon (zéro partout, aucune ligne : ntfy arrêté, `docker logs` en échec). Sur un down, l'unité sort en échec (`systemctl --failed`).
 
 Le relevé `Server stats` est au niveau INFO : il faut `log-level: info` (ou plus bavard) dans `templates/server.yml.j2`, sinon plus aucune ligne, et l'alerte tombe en permanence.
 
@@ -37,7 +45,7 @@ Pourquoi 8 h (et pas 30 min) : un téléphone éteint, en mode avion ou sans ré
 Les pièces :
 
 - moniteur push « ntfy : abonnés » (`tofu/pangolin_config/cron_ntfy_subscribers.tf`) : un down passe d'abord en PENDING, l'alerte tombe au second, un peu plus de 8 h après le départ du dernier abonné, aussi sur Telegram (ntfy ne joindrait justement plus personne) ;
-- URL push : sortie `uptime_cron_ntfy_subscribers_url` du state de `pangolin_config`, lue par `docker.yml` dans `ntfy_subscribers_check_push_url` ; vide, le script tourne sans rien pousser ;
+- URL push : sortie `uptime_cron_ntfy_subscribers_url` du state de `pangolin_config`, lue par `pangolin.yaml` dans `ntfy_subscribers_check_push_url` ; vide, le script tourne sans rien pousser ;
 - le script tourne sous `ntfy_subscribers_check_user` (groupe `docker`), jamais root.
 
 Vérifier :

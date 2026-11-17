@@ -52,7 +52,6 @@ HTTP = {
     # Nextcloud répond 400 (« Trusted domain error ») à une IP : « nextcloud »
     # est dans ses trusted_domains (constaté à l'exercice du 09/11/2026).
     "nextcloud": ("nextcloud", 80, "/status.php", "nextcloud"),
-    "ntfy": ("ntfy", 8080, "/v1/health", None),
     "openwebui": ("openwebui", 8080, "/health", None),
     "papra": ("papra", 1221, HEALTH, None),
     "rss": ("rss", 80, "/api/", None),
