@@ -106,7 +106,8 @@ ntfy_subscribers_check_window_minutes: 480
 ntfy_subscribers_check_user: "{{ ansible_user }}"
 
 # Pas encore mesuré : un binaire Go, deux bases SQLite, quelques connexions
-# ouvertes (téléphone). À recaler sur memory.peak après quelques jours. La VM
+# ouvertes (téléphone). À recaler sur memory.peak après quelques jours, lu à la
+# main dans le cgroup du conteneur (mem_report ne tourne pas sur Pangolin). La VM
 # Pangolin (4 Gio) porte Pangolin (2,5 Gio de plafond), Traefik, CrowdSec et
 # Pocket ID : un plafond serré ici protège tout le homelab.
 ntfy_mem_limit: 128m

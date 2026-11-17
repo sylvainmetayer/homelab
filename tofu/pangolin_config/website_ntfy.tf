@@ -33,7 +33,8 @@ locals {
     # (server/lib/traefik/loadBalancer.ts: a local site's target is served as
     # http://<ip>:<port>, as written here). No Pangolin probe on a local site
     # (websites.tf, hc_enabled): hc_path is kept for the day the target goes
-    # back behind a Newt, and for drill-check's alignment test.
+    # back behind a Newt (drill-check.py no longer lists ntfy: the drill copy
+    # of the docker VM does not run it).
     target = {
       site_id = pangolin_site.pangolin.id
       ip      = "ntfy"
