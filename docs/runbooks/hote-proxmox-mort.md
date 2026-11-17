@@ -248,10 +248,10 @@ dépôt ne dit pas.
 - **Shell de l'hôte** : `pvesm status` liste `local` avec le contenu
   `snippets` (ce que l'apply ciblé de B.4 suppose sans A bis) : vrai au
   relevé du 11/11, à relire sur une machine neuve.
-- **BIOS du mini PC** : « Restore on AC Power Loss », attendu « Power On »
-  ou « Last State », pas « Off »
-  ([coupure-de-courant.md](coupure-de-courant.md)) ; à reporter sur une
-  machine neuve.
+- **BIOS du mini PC** : « Restore on AC Power Loss », à mettre sur
+  « Power On ». Mal réglé au 17/11/2026 : l'hôte est resté éteint après une
+  coupure ([coupure-de-courant.md](coupure-de-courant.md), « À faire sur
+  place ») ; à reporter sur une machine neuve.
 - **Interface de la Bbox** : les DNS annoncés par le DHCP, attendus
   `192.168.1.200` puis `192.168.1.96` ; lequel des trois cas du Symptôme
   s'applique ([bbox-remplacee.md](bbox-remplacee.md)).

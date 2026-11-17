@@ -5,8 +5,9 @@ Proxmox, le Pi et la Bbox. Ce fichier sert à prouver à froid que tout revient
 seul, avant que ça n'arrive pour de vrai. Procédure, pas un incident ; une
 vraie coupure : aller directement à « Au retour du secteur ».
 
-Écrit le 05/11/2026. **Jamais joué** : aucun démarrage à froid après coupure
-n'est prouvé sur ces machines. Noter le résultat en bas de ce fichier.
+Écrit le 05/11/2026. L'exercice n'a **jamais été joué**, mais une vraie coupure
+a eu lieu le 17/11/2026 (« Résultats ») : le NAS et le Pi sont revenus seuls,
+**pas l'hôte Proxmox**. Noter le résultat de chaque passage en bas de ce fichier.
 
 ## Ce qui est établi, et ce qui ne l'est pas
 
@@ -17,9 +18,10 @@ n'est prouvé sur ces machines. Noter le résultat en bas de ce fichier.
 | Applis de la VM | reviennent seules : unités `dc@` lancées après Docker |
 | Montages NFS de `nas_storage` | `nofail,_netdev,x-systemd.automount` : rien n'attend le NAS au démarrage |
 | Stockage `nas-backup` de Proxmox | NFS `vers=3`. Si le NAS revient après l'hôte : à observer |
-| Hôte Proxmox : redémarre seul au retour du courant | **à vérifier dans le BIOS** (« Restore on AC Power Loss », voir la mise en garde sous l'exercice) |
-| NAS DXP2800 : redémarre seul au retour du courant | **à vérifier dans le BIOS** ; son dernier redémarrage ne coupait pas le courant, il ne prouve donc rien |
-| Pi | démarre à la mise sous tension (comportement du matériel, à observer) |
+| Hôte Proxmox : redémarre seul au retour du courant | **non** (coupure du 17/11) : resté éteint, rallumé à distance par Wake-on-LAN. **À corriger dans le BIOS**, sur place (« À faire sur place » plus bas) |
+| Hôte Proxmox : Wake-on-LAN | marche (17/11) : le secours tant que le BIOS n'est pas corrigé, et après |
+| NAS DXP2800 : redémarre seul au retour du courant | oui (coupure du 17/11) |
+| Pi | oui (coupure du 17/11) : démarre à la mise sous tension |
 | Bbox | se rallume seule en général, à observer |
 | DNS pendant le retour | le DHCP est censé annoncer Blocky (LXC et Pi ; aucun client constaté au 05/11, [ADR 0012](../adr/0012-filtrage-dns-blocky.md)) : à observer tant qu'ils ne sont pas revenus |
 
@@ -59,12 +61,33 @@ coupure subie allumée la relancerait. Lire donc le réglage dans le BIOS
 (« Power On » ou « Last State »), sans se fier au seul résultat de l'étape 6 ;
 si c'est « Last State », l'exercice ne prouve rien pour cette machine.
 
+## À faire sur place : le BIOS de l'hôte Proxmox
+
+Aucun réglage du dépôt ne rallume une machine éteinte : c'est le BIOS du mini
+PC qui décide, et il ne se change qu'avec un écran et un clavier (pas d'IPMI).
+
+1. Arrêter l'hôte proprement (un soir, hors des créneaux de l'exercice), le
+   rallumer en entrant dans le BIOS.
+2. Chercher « Restore on AC Power Loss » (aussi « AC Power Recovery », « After
+   Power Failure », « State After G3 », souvent sous Power, Chipset ou ACPI) et
+   le passer à **« Power On »**. Pas « Last State » : après un arrêt propre
+   suivi d'une coupure, la machine resterait éteinte.
+3. Laisser le Wake-on-LAN activé au même endroit (« Wake on LAN », « Power On
+   by PCI-E »), et couper « ErP » ou « Deep Sleep » s'il existe : il coupe
+   l'alimentation de veille, donc le réveil par le réseau et parfois le retour
+   automatique.
+4. Prouver : étapes 2, 5 et 6 de l'exercice pour l'hôte seul (arrêt, coupure au
+   mur 2 min, retour du courant sans toucher au bouton).
+5. Noter le résultat ci-dessous et corriger la ligne du tableau.
+
 ## Au retour du secteur
 
 1. Attendre vingt minutes avant de conclure quoi que ce soit : la Bbox, les
    hôtes et les applis reviennent à leur rythme.
-2. Allumer à la main ce qui n'a pas démarré, dans cet ordre : Bbox, NAS, hôte
-   Proxmox, Pi.
+2. Allumer ce qui n'a pas démarré, dans cet ordre : Bbox, NAS, hôte
+   Proxmox, Pi. À distance, l'hôte Proxmox se réveille par Wake-on-LAN depuis
+   une machine du réseau local déjà revenue (le 17/11, c'est ce qui l'a
+   relancé).
 3. Dérouler les étapes 7 à 9 ci-dessus.
 4. Plus de DNS sur le réseau : [dns-blocky.md](dns-blocky.md).
 5. Les sauvegardes manquées repartent à leur prochain créneau : vérifier les
@@ -80,4 +103,6 @@ gardé sans y compter ; il a décroché du bus USB le 05/11/2026 à 16:13
 
 ## Résultats
 
-(vide : exercice jamais joué)
+| Date | Quoi | Résultat |
+|---|---|---|
+| 17/11/2026 | Vraie coupure de courant (pas l'exercice) | NAS et Pi revenus seuls. Hôte Proxmox resté éteint, rallumé à distance par Wake-on-LAN ; VM docker et LXC ont suivi (`onboot`). ntfy, alors sur la VM docker, était muet : déplacé sur la VM Pangolin ([ADR 0037](../adr/0037-ntfy-sur-la-vm-pangolin.md)). Reste à faire : le BIOS de l'hôte (« À faire sur place »). Étapes 7 à 9 non relevées. |
