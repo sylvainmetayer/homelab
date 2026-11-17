@@ -10,6 +10,15 @@ Serveur de notifications push du homelab (`ntfy.sylvain.cloud`), sur la **VM Pan
 - Les fichiers et le conteneur sont à l'utilisateur de déploiement (`user:` du compose), `/opt/ntfy` créé par root à son nom.
 - **Sauvegarde** : dépôt `ntfy` du sous-compte Storage Box de Pangolin. Restauration avec la VM : [reconstruction-pangolin.md](../../../docs/runbooks/reconstruction-pangolin.md).
 
+## Déplacer ntfy d'un hôte à un autre
+
+Fait une fois, de la VM docker vers la VM Pangolin (PR #1510). L'ordre compte :
+
+1. **Ansible d'abord** sur le nouvel hôte (`--tags ntfy`) : il ne lit que des sorties déjà dans le state. Tofu d'abord, la cible pointerait sur un conteneur qui n'existe pas (502 pour tous les producteurs).
+2. `tofu apply` de `pangolin_config` : la cible bascule.
+3. **Nettoyer l'ancien hôte sans attendre** : retirer un rôle d'un playbook n'arrête rien. L'ancien timer `ntfy-subscribers-check` et l'ancienne configuration borgmatic poussent aux **mêmes** moniteurs que les nouveaux : passé 8 h, « ntfy : abonnés » alterne entre up et down, et une sauvegarde en échec sur le nouvel hôte est masquée par le succès de l'ancien. Retirer les unités `ntfy-subscribers-check.*`, `/etc/ntfy-subscribers-check.env` et le script à la main, puis `decommission_app` (sans `destroy_remote_backup`).
+4. Les données ne suivent pas seules : `data/user.db` (réglages et abonnements de l'interface web) et `cache.db` se copient à la main, conteneurs arrêtés, ou se perdent sans autre effet (comptes et jetons sont déclarés).
+
 ## Droits
 
 Déclarés dans `templates/server.yml.j2` (`auth-users`, `auth-access`, `auth-tokens`), recréés par ntfy à chaque démarrage ; un compte ou un jeton qui n'y figure plus est supprimé :
