@@ -152,7 +152,20 @@
       - "{{ jellyfin_base_path }}/config/data/*.db"
 
 # Médias hors films et séries, dépôt à part (defaults). Aucune base : des
-# fichiers lus tels quels, en lecture seule.
+# fichiers lus tels quels, en lecture seule. Sans le montage, repo-create
+# passe et chaque nuit échoue sur une source absente.
+- name: Assert borgmatic can read the media before backing them up
+  when: jellyfin_media_backup_enabled
+  tags: backup
+  ansible.builtin.assert:
+    that:
+      - jellyfin_media_path in borgmatic_container_readonly_source_paths | default([]) + borgmatic_container_source_paths | default([])
+    fail_msg: >-
+      jellyfin_media_backup_enabled : ajouter {{ jellyfin_media_path }} à
+      borgmatic_container_readonly_source_paths (host_vars/nas), puis
+      nas.yml --tags backup.
+    quiet: true
+
 - name: Configure borgmatic backup for the media
   when: jellyfin_media_backup_enabled
   tags: backup

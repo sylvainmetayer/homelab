@@ -49,7 +49,7 @@
         state: directory
         owner: sylvain
         mode: "0700"
-      loop: ["", /films, /series, /musique, /livres, /livres-audio]
+      loop: ["", /films, /series, /musique, /livres, /livres-audio, /games-clips]
 
     # La base SQLite de Jellyfin, comme après son premier démarrage : le rôle
     # borgmatic (tasks/app.yml) doit la trouver, la copier par « .backup » et

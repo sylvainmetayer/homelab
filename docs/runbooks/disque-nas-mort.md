@@ -28,13 +28,13 @@ sur place ».
 |---|---|---|
 | Archives vzdump (VM docker, LXC newt), `/volume1/pve-backup` | le job de 21:00 échoue ; **plus aucune image** des deux invités | aucune ([ADR 0026](../adr/0026-vzdump-sur-le-nas-seul.md)) ; Borg garde les applis |
 | Jellyfin : configuration et base | Jellyfin et `media.sylvain.cloud` tombent | Borg, `backup/nas/jellyfin` |
-| Médias (`/volume1/media`) | perdus avec les deux disques | **aucune dans le dépôt** : Borg ne les prend pas, le miroir kDrive exclut films et séries ; instantanés d'UGOS sur les mêmes disques. Copie éventuelle ailleurs : « À vérifier sur place » |
+| Médias (`/volume1/media`) | perdus avec les deux disques | livres, livres audio, musique et clips de jeux : Borg, `backup/nas/media`. **Films et séries : aucune dans le dépôt**, Borg ne les prend pas, le miroir kDrive les exclut ; instantanés d'UGOS sur les mêmes disques. Copie éventuelle ailleurs : « À vérifier sur place » |
 | Copie de kDrive (`/volume1/kdrive`) | le miroir et `versions/` disparaissent | kDrive lui-même (hors films et séries exclus, `host_vars/nas`) |
 | MediaManager (essai) | tombe | configuration et dump de la base dans Borg ([README du rôle](../../ansible/roles/mediamanager/README.md)) |
 | Machine learning d'Immich (`immich_ml`, [README](../../ansible/roles/immich_ml/README.md)) | Immich retombe sur le ML du Pi, plus lent | rien à sauver : modèles retéléchargés ; l'URL du NAS vit dans les réglages d'Immich |
 | Traefik du NAS (`nas_proxy`), Newt du site `nas` | `media.`, `nas.` et `mediamanager.sylvain.cloud` tombent | rien à sauver : certificats redemandés, identifiants Newt dans le state de `pangolin_config` |
 | Configuration d'UGOS (exports, `smb.conf`, `smbshare.conf`, `crontab`, `sshd_config`) | à relire dans l'archive avant de refaire les partages | Borg, `backup/nas/ugos_config` ; **pas** les comptes, droits et règles d'instantanés d'UGOS (base interne), ni la config de la Bbox : à refaire à la main |
-| Borgmatic du NAS (02:30) | plus de sauvegarde Jellyfin | clé et configs sous `/volume1/docker/borgmatic`, refaites par `nas.yml` |
+| Borgmatic du NAS (02:30) | plus de sauvegarde de Jellyfin ni des médias (`media`) | clé et configs sous `/volume1/docker/borgmatic`, refaites par `nas.yml` |
 
 Ne dépendent pas du NAS : la VM docker, le LXC newt, le Pi (hors le ML
 d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
@@ -121,7 +121,10 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
    `var/lib/borgmatic-sqlite/jellyfin/`, monté au même chemin dans le
    conteneur, [README de borgmatic](../../ansible/roles/borgmatic/README.md) ; procédure SQLite dans
    [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md)), redémarrer.
-   Médias : à remettre depuis la copie que Sylvain aura (« À vérifier sur place »).
+   Médias : livres, livres audio, musique et clips de la même façon avec
+   `media.yaml` (ils sortent sous `restore/volume1/media/`, à recopier dans le
+   dossier partagé) ; films et séries depuis la copie que Sylvain aura
+   (« À vérifier sur place »).
 6. **vzdump** : sur l'hôte Proxmox, `pvesm status` doit montrer `nas-backup`
    actif (un montage resté bloqué se reprend quand le NAS répond : « À vérifier sur place »).
    Tant qu'aucune archive n'existe, **les invités n'ont aucune image** : lancer
