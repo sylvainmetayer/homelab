@@ -4,8 +4,14 @@
 # `ai_provider_ids` (mode inference), `udp_port_range` en mode http (sans effet,
 # Pangolin y force ""). `scheme`, `domain_id`, `subdomain` et `destination_port`
 # valent null hors mode http : un null ne s'épingle pas.
+# Sites du Pi et du NAS ajoutés dans l'UI (vus au plan du 18/11/2026), déclarés
+# ici sur décision de Sylvain.
 resource "pangolin_site_resource" "app_proxy" {
-  site_ids         = [pangolin_site.proxmox_lxc.id]
+  site_ids = [
+    pangolin_site.proxmox_lxc.id,
+    pangolin_site.pi.id,
+    pangolin_site.nas.id,
+  ]
   name             = "BBOX"
   mode             = "http"
   domain_id        = local.domain_ids["sylvain.cloud"]
