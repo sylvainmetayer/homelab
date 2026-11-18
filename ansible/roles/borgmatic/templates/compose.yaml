@@ -52,6 +52,9 @@ services:
 {% for path in borgmatic_container_source_paths %}
       - "{{ path }}:{{ path }}"
 {% endfor %}
+{% for path in borgmatic_container_readonly_source_paths %}
+      - "{{ path }}:{{ path }}:ro"
+{% endfor %}
       # Configurations au chemin où borgmatic les cherche sans --config
       # (borgmatic.service).
       - "{{ borgmatic_config_dir }}:/etc/borgmatic.d:ro"

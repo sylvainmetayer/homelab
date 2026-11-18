@@ -105,7 +105,7 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS ; **pas dans Borg** | non | sans objet : à ré-obtenir ; origine non précisée dans le dépôt | non | panne des deux disques, vol, incendie, suppression au-delà des instantanés (un par jour à 00:00, relevé du 11/11 ; rétention à lire dans UGOS) |
+| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS. Borg `media` à 02:30 pour livres, livres audio, musique et clips de jeux (18 Go au relevé du 17/11, rôle `jellyfin`) ; **films et séries (484 Go) hors Borg** | oui pour livres, musique, clips ; non pour films et séries | films et séries : à ré-obtenir ; le reste : extraction de 18 Go, non mesurée | non (exclu du test, `check_restore_coverage.py`) | panne des deux disques, vol, incendie, suppression au-delà des instantanés (un par jour à 00:00, 15 gardés, relevé du 17/11) |
 | Jellyfin : config et base | 2 | Borg `jellyfin` à 02:30 (conteneur borgmatic), copies SQLite | oui | ~30 min (est.) | CI | médias (ligne précédente) |
 | **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main : un par jour à 00:00, gardés 14 jours (relevé du 07/11, [kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier changé sans que ni la taille ni la date ne bougent (ou revenu à une date plus ancienne) n'est pas recopié |
 | **Archives vzdump** (`pve-backup`) | 3 | voir la VM docker | non | — | voir la VM docker | non chiffrées, sans partage SMB, export réservé à l'IP de l'hôte |
@@ -153,9 +153,9 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 |---|---|---|
 | Panne de la VM docker ou de l'hôte Proxmox | l'état entre 01:00 et la panne | Borg de chaque appli et de la config de l'hôte (`pve_config`) ; image vzdump si le NAS tient |
 | Panne du Pi | Immich en ligne tant que le Pi est absent | Borg `immich` ; le disque USB peut survivre |
-| Panne du NAS | médias si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager avec le dump de sa base) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
+| Panne du NAS | films et séries si les deux disques tombent ; images vzdump ; miroir kDrive | Borg (config de Jellyfin, de MediaManager avec le dump de sa base ; livres, musique, clips) ; kDrive chez Infomaniak ; aucune appli de la VM docker ne garde ses données sur le NAS aujourd'hui (`nas_storage`) |
 | Panne de Pangolin ou flip | accès public ; flip n'a pas d'image Hetzner | Borg ; images Hetzner de Pangolin ; ~45 min pour Pangolin (mesuré) |
-| **Maison sinistrée** | VM docker, Pi, NAS (médias, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule) | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
+| **Maison sinistrée** | VM docker, Pi, NAS (films et séries, miroir kDrive, images vzdump), poste (couches KeePass 0 et 1, clé age `perso` si seule) | tous les dépôts Borg (dont Immich), Pangolin et flip, kDrive, KeePass (OVH), states, secrets (GitHub), dépôt de code |
 | **Compromission** d'un hôte | ce que root de cet hôte efface de ses dépôts | les 9 instantanés (aucun sous-compte ne peut les effacer) ; les dépôts des autres hôtes. Un jeton Hetzner en écriture volé peut lever la protection de la box ([storage_box.tf](../tofu/pangolin/storage_box.tf)) |
 | Compromission du poste ou d'une clé age | rien d'immédiat | l'historique git garde les anciens secrets : il faut les changer ([perte-cle-ou-poste.md](runbooks/perte-cle-ou-poste.md)) |
 
@@ -193,8 +193,9 @@ par `smart_check` (alerte hebdomadaire prévue par `nas.yml`, déploiement à la
 Ce que la matrice montre et qui n'est ni décidé ni couvert. Aucun achat
 proposé ici.
 
-1. **Médias du NAS** : ni Borg ni copie hors de la maison ; RAID 1 et
-   instantanés Btrfs seulement (un par jour à 00:00 au relevé du 11/11, rétention inconnue).
+1. **Films et séries du NAS** (484 Go) : ni Borg ni copie hors de la maison ; RAID 1 et
+   instantanés Btrfs seulement (un par jour à 00:00, 15 gardés au relevé du 17/11). Le reste
+   des médias est dans Borg (`media`), sans test de restauration.
 2. **Immich, seule copie hors site** : une archive Borg par nuit ; taille et
    durée d'extraction complète jamais relevées ; aucun test n'extrait les
    originaux en entier.

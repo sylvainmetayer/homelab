@@ -85,7 +85,7 @@ sauvegardent (`borgmatic_app_name`, une par instance de `flip_planning`) et éch
 sur un dépôt ni dans ce fichier ni dans son `EXCLUDED`, qui porte la raison écrite
 de chaque exclusion, sur une entrée qu'aucun rôle ne sauvegarde et sur une
 exclusion périmée. Exclus aujourd'hui : `mediamanager` (à l'essai), `ugos_config`
-(fichiers texte d'UGOS, rôle `nas`). Une sauvegarde
+(fichiers texte d'UGOS, rôle `nas`), `media` (médias du NAS hors films et séries, rôle `jellyfin`). Une sauvegarde
 dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive`,
 `demo_planning_kc`, `exemple_planning`) ; passée à `true`, elle le redevient.
 
