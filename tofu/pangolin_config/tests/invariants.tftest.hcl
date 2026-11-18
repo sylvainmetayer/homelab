@@ -782,6 +782,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.backup_media
+  values = { push_token = "push-media" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.backup_pve_config
   values = { push_token = "push-pve-config" }
 }
@@ -2563,6 +2568,7 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_ntfy_subscribers_url = output.uptime_cron_ntfy_subscribers_url
         # nas.yml
         uptime_backup_jellyfin_url  = output.uptime_backup_jellyfin_url
+        uptime_backup_media_url     = output.uptime_backup_media_url
         uptime_cron_nas_cert_url    = output.uptime_cron_nas_cert_url
         uptime_cron_kdrive_sync_url = output.uptime_cron_kdrive_sync_url
         uptime_health_nas_url       = output.uptime_health_nas_url
@@ -3010,13 +3016,13 @@ run "monitors_are_filed_and_alert" {
 
   # Les moniteurs de sauvegarde sont les instances de
   # uptimekuma_monitor_push.backup (entrées `backup = true` de local.websites),
-  # plus ceux de Pangolin et de Jellyfin (NAS) ; leur liste est tenue par
+  # plus ceux de Pangolin, de Jellyfin et des médias (NAS) ; leur liste est tenue par
   # .github/restore-test/apps.json, plus bas. « Sauvegarde vzdump » (contrôle
   # quotidien des archives du NAS, backup_vzdump.tf) suit la même règle sans
   # être un dépôt Borg : il n'est pas dans apps.json.
   assert {
     condition = alltrue([
-      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin, uptimekuma_monitor_push.backup_pve_config, uptimekuma_monitor_push.backup_vzdump]) :
+      for m in concat(values(uptimekuma_monitor_push.backup), [uptimekuma_monitor_push.backup_pangolin, uptimekuma_monitor_push.backup_pocket_id, uptimekuma_monitor_push.backup_jellyfin, uptimekuma_monitor_push.backup_media, uptimekuma_monitor_push.backup_pve_config, uptimekuma_monitor_push.backup_vzdump]) :
       m.parent == uptimekuma_monitor_group.backups.id
       && m.interval == 26 * 3600
       && m.max_retries == 0
@@ -3096,8 +3102,8 @@ run "monitors_are_filed_and_alert" {
   # moniteur de sauvegarde, Pangolin et Jellyfin compris. Une app ajoutée avec
   # `backup = true` doit y entrer, une app retirée en sortir.
   assert {
-    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "pocket_id", "jellyfin", "pve_config"]))
-    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin, Jellyfin et la config Proxmox compris."
+    condition     = sort(keys(jsondecode(file("${path.module}/../../.github/restore-test/apps.json")))) == sort(concat(keys(uptimekuma_monitor_push.backup), ["pangolin", "pocket_id", "jellyfin", "media", "pve_config"]))
+    error_message = ".github/restore-test/apps.json doit lister exactement les apps qui ont un moniteur Backup, Pangolin, Jellyfin, les médias du NAS et la config Proxmox compris."
   }
 
   # Une app en pause n'écrit plus d'archive : le test planifié la saute

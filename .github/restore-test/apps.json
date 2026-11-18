@@ -11,6 +11,7 @@
   "jellyfin": {"host": "nas", "repo": "jellyfin", "role": "jellyfin", "databases": ["sqlite"], "expected_tables": {"jellyfin.db": ["Users", "BaseItems"]}, "expected_path": "volume1/docker/jellyfin/config"},
   "jellystat": {"host": "docker", "repo": "jellystat", "role": "jellystat", "databases": ["postgresql"], "expected_tables": {"jellystat": ["app_config"]}},
   "karakeep": {"host": "docker", "repo": "karakeep", "role": "karakeep", "databases": ["sqlite"], "expected_tables": {"db.db": ["user", "bookmarks"]}, "allow_empty_databases": ["queue.db"], "expected_path": "opt/apps/karakeep/data"},
+  "media": {"host": "nas", "repo": "media", "role": "jellyfin", "databases": [], "expected_path": "volume1/media/livres"},
   "monica": {"host": "docker", "repo": "monica_v4", "role": "monica_v4", "databases": ["mysql"], "expected_tables": {"monica": ["users", "accounts"]}, "expected_path": "opt/apps/monica_v4/data"},
   "nextcloud": {"host": "docker", "repo": "nextcloud", "role": "nextcloud", "databases": ["mysql"], "expected_tables": {"nextcloud": ["oc_appconfig", "oc_storages", "oc_filecache"]}, "expected_path": "opt/apps/nextcloud/data"},
   "ntfy": {"host": "pangolin", "repo": "ntfy", "role": "ntfy", "databases": ["sqlite"], "expected_tables": {"user.db": ["user", "user_token"]}, "expected_path": "opt/ntfy/config"},

@@ -41,11 +41,6 @@ EXCLUDED = {
         "à l'essai : ni moniteur Backup ni test de restauration tant que l'essai dure "
         "(ansible/roles/mediamanager/README.md)"
     ),
-    "media": (
-        "fichiers médias du NAS sans base (livres, musique), même borgmatic.service que le "
-        "dépôt jellyfin, lui surveillé ; ni moniteur Backup ni test de restauration, un échec "
-        "sonne par borgmatic-failed de log_alerts (ansible/roles/jellyfin/README.md)"
-    ),
     "ugos_config": (
         "quelques fichiers texte d'UGOS sans base, relus à la main ; ni moniteur Backup "
         "ni test de restauration, un échec sonne par borgmatic-failed de log_alerts "
