@@ -78,6 +78,7 @@
             == ['/volume1/media/livres', '/volume1/media/livres-audio', '/volume1/media/musique', '/volume1/media/games-clips']
           - jellyfin_verify_media_borgmatic.repositories[0].path is search('/\./media$')
           - jellyfin_verify_media_borgmatic.archive_name_format is match('media-')
+          - jellyfin_verify_media_borgmatic.xattrs == false
         fail_msg: "Configuration borgmatic des médias inattendue : {{ jellyfin_verify_media_borgmatic }}"
 
     - name: Read the account and the render group of the host
