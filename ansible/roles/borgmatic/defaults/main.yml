@@ -64,6 +64,9 @@ borgmatic_container_wrapper: "{{ borgmatic_container_path }}/borgmatic"
 # l'hôte y ont chacune leur dossier.
 borgmatic_container_source_paths:
   - "{{ docker_base_path }}"
+# Sources sans base SQLite à copier, montées en lecture seule (médias du NAS,
+# host_vars/nas).
+borgmatic_container_readonly_source_paths: []
 # Provisoire : à recaler à ~2x memory.peak après quelques sauvegardes.
 borgmatic_container_mem_limit: 1g
 

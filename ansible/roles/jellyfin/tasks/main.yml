@@ -150,3 +150,20 @@
       - "{{ jellyfin_base_path }}/compose.yaml"
     borgmatic_app_sqlite_databases:
       - "{{ jellyfin_base_path }}/config/data/*.db"
+
+# Médias hors films et séries, dépôt à part (defaults). Aucune base : des
+# fichiers lus tels quels, en lecture seule.
+- name: Configure borgmatic backup for the media
+  when: jellyfin_media_backup_enabled
+  tags: backup
+  ansible.builtin.include_role:
+    name: borgmatic
+    tasks_from: app.yml
+    apply:
+      tags: backup
+  vars:
+    borgmatic_app_name: media
+    borgmatic_app_title: Médias
+    borgmatic_app_target: "{{ jellyfin_media_backup_borgmatic_target }}"
+    borgmatic_app_passphrase: "{{ jellyfin_media_backup_encryption_passphrase }}"
+    borgmatic_app_source_directories: "{{ jellyfin_media_backup_folders | map('regex_replace', '^', jellyfin_media_path ~ '/') | list }}"

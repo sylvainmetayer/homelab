@@ -308,6 +308,7 @@
           - nas_verify_borgmatic.ports is not defined
           - nas_verify_borgmatic.mem_limit is defined
           - nas_verify_borgmatic_mounts[docker_base_path] == docker_base_path
+          - nas_verify_borgmatic.volumes | selectattr('target', 'equalto', '/volume1/media') | map(attribute='read_only') | list == [true]
           - nas_verify_borgmatic_mounts['/etc/borgmatic.d'] == docker_base_path ~ '/borgmatic/borgmatic.d'
           - nas_verify_borgmatic_mounts['/var/lib/borgmatic-sqlite'] == '/var/lib/borgmatic-sqlite'
           - nas_verify_borgmatic_mounts['/root/.ssh'] == docker_base_path ~ '/borgmatic/ssh'
