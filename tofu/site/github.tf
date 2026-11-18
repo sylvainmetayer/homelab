@@ -130,6 +130,38 @@ resource "github_actions_secret" "sonar_token" {
   value       = local.sonar_token
 }
 
+# Syndication vers Mastodon et Bluesky (workflow syndicate.yml du dépôt site).
+# L'instance et le handle sont publics : en variables, toujours déclarées. Elles
+# ont d'abord été créées à la main (18/11/2026) : import par la CLI, voir
+# README.md.
+resource "github_actions_variable" "mastodon_instance" {
+  repository    = github_repository.site.name
+  variable_name = "MASTODON_INSTANCE"
+  value         = "https://bdx.town"
+}
+
+resource "github_actions_variable" "bluesky_handle" {
+  repository    = github_repository.site.name
+  variable_name = "BLUESKY_HANDLE"
+  value         = "sylvain.dev"
+}
+
+resource "github_actions_secret" "mastodon_token" {
+  count = nonsensitive(local.mastodon_token == null) ? 0 : 1
+
+  repository  = github_repository.site.name
+  secret_name = "MASTODON_TOKEN"
+  value       = local.mastodon_token
+}
+
+resource "github_actions_secret" "bluesky_app_password" {
+  count = nonsensitive(local.bluesky_app_password == null) ? 0 : 1
+
+  repository  = github_repository.site.name
+  secret_name = "BLUESKY_APP_PASSWORD"
+  value       = local.bluesky_app_password
+}
+
 # Sans deploy hook, le workflow Daily Build du dépôt site échoue chaque matin
 # (secret CLOUDFLARE_PAGES_DEPLOY_HOOK absent) : articles programmés jamais
 # publiés, webmentions jamais rafraîchies. Le plan le signale (avertissement,

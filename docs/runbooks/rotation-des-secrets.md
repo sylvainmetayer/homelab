@@ -851,6 +851,13 @@ ensuite.
 SonarCloud (My Account → Security, puis révoquer l'ancien). `sops set`,
 `tofu apply` de `tofu/site`, et le build quotidien suivant doit passer.
 
+`SITE_MASTODON_TOKEN`, `SITE_BLUESKY_APP_PASSWORD` (fichier racine,
+`tofu/site` : secrets GitHub du workflow *Syndicate* du dépôt site) : nouveau
+jeton dans l'application Mastodon de bdx.town (Préférences → Développement,
+« Régénérer le jeton d'accès »), nouveau mot de passe d'application Bluesky
+(puis supprimer l'ancien). `sops set`, `tofu apply` de `tofu/site`, puis le
+workflow *Syndicate* en `dry_run`.
+
 `SITE_FRESHRSS_OPML_URL` (fichier racine, `tofu/site` : secret Pages
 `FRESHRSS_OPML_URL` de production, l'export OPML de FreshRSS lu par la page
 « following ») : l'URL porte le jeton de requête de l'utilisateur FreshRSS

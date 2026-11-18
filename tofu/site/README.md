@@ -8,6 +8,8 @@ Infra du site personnel [sylvain.dev](https://sylvain.dev) (code : dépôt `sylv
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
 | `github_actions_secret.pages_deploy_hook` | Secret `CLOUDFLARE_PAGES_DEPLOY_HOOK` du dépôt site, pour le build quotidien (si `SITE_PAGES_DEPLOY_HOOK` est dans `secrets/secrets.sops.yaml`) |
 | `github_actions_secret.sonar_token` | Secret `SONAR_TOKEN` du dépôt site, pour le workflow SonarCloud (si `SITE_SONAR_TOKEN` est dans `secrets/secrets.sops.yaml`) |
+| `github_actions_variable.mastodon_instance`, `.bluesky_handle` | Variables `MASTODON_INSTANCE` et `BLUESKY_HANDLE` du dépôt site, pour le workflow *Syndicate* (publiques, toujours déclarées) |
+| `github_actions_secret.mastodon_token`, `.bluesky_app_password` | Secrets `MASTODON_TOKEN` et `BLUESKY_APP_PASSWORD` du dépôt site, pour le workflow *Syndicate* (si `SITE_MASTODON_TOKEN`, `SITE_BLUESKY_APP_PASSWORD` sont dans `secrets/secrets.sops.yaml`) |
 | `check.daily_build_deploy_hook` | Avertit au plan si `SITE_PAGES_DEPLOY_HOOK` manque (Daily Build en échec) |
 | `cloudflare_pages_project.site` | Projet `sylvain-dev` : build `npm run production` → `dist`, déploiement à chaque push, previews sur les branches. Le site déduit `ELEVENTY_ENV` de `CF_PAGES_BRANCH`. Variables, en production seulement : `WEBMENTION_IO_TOKEN` (si `SITE_WEBMENTION_IO_TOKEN` est dans `secrets/secrets.sops.yaml`), et `CF_ANALYTICS_TOKEN`, `CF_ACCOUNT_ID`, `CF_ANALYTICS_SITE_TAG` pour la liste « les plus lus » (si `SITE_CF_ANALYTICS_TOKEN`, un jeton Account Analytics: Read, y est) |
 | `cloudflare_pages_domain.site` | Domaine personnalisé `www.sylvain.dev` |
@@ -78,13 +80,15 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
 ## Secrets du dépôt site
 
-Cinq clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
+Huit clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
 
 | Clé sops | Ce que l'apply en fait | Utilisée par |
 |---|---|---|
 | `SITE_PAGES_DEPLOY_HOOK` | secret GitHub `CLOUDFLARE_PAGES_DEPLOY_HOOK` | workflow *Daily Build* (articles programmés, nouvelles webmentions) |
 | `SITE_WEBMENTION_IO_TOKEN` | variable `WEBMENTION_IO_TOKEN` (secret, production) du projet Pages | `src/_data/webmentions.js` au build |
 | `SITE_SONAR_TOKEN` | secret GitHub `SONAR_TOKEN` | workflow *SonarCloud* |
+| `SITE_MASTODON_TOKEN` | secret GitHub `MASTODON_TOKEN` | workflow *Syndicate* (publication sur Mastodon) |
+| `SITE_BLUESKY_APP_PASSWORD` | secret GitHub `BLUESKY_APP_PASSWORD` | workflow *Syndicate* (publication sur Bluesky) |
 | `SITE_FRESHRSS_OPML_URL` | variables `FRESHRSS_OPML_URL`, `FRESHRSS_ACCESS_TOKEN_ID` et `FRESHRSS_ACCESS_TOKEN` (secrets, production) du projet Pages ; les deux dernières viennent de la sortie `rss_site_build_access_token` de `tofu/pangolin_config` (appliquer celle-ci d'abord), sans elle aucune des trois n'est créée | `src/_data/freshrss.js` au build (export OPML des abonnements, page « following ») |
 | `SITE_SETLISTFM_API_KEY` | variables `SETLISTFM_API_KEY` (secret) et `SETLISTFM_USER` (en clair, nom public du profil) du projet Pages, en production | page `/concerts/` du site au build |
 | `SITE_CF_ANALYTICS_TOKEN` | variables `CF_ANALYTICS_TOKEN` (secret), `CF_ACCOUNT_ID` et `CF_ANALYTICS_SITE_TAG` (production) du projet Pages | `src/_data/popularPaths.js` au build (« les plus lus ») |
@@ -94,6 +98,8 @@ Cinq clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le 
 - **Build quotidien** : *Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks → Add deploy hook*, nom `daily-build`, branche `main`. Copier l'URL (`https://api.cloudflare.com/client/v4/pages/webhooks/deploy_hooks/…`). Pas d'API documentée pour le créer, d'où l'étape manuelle.
 - **Webmentions** : se connecter sur <https://webmention.io> avec `www.sylvain.dev`, puis copier l'*API Key* de <https://webmention.io/settings>.
 - **SonarCloud** : sur <https://sonarcloud.io>, *+ → Analyze new project*, organisation `sylvainmetayer-github`, dépôt `site` (clé de projet `sylvainmetayer_site`, celle de `sonar-project.properties`). Dans le projet, *Administration → Analysis Method* : désactiver l'*Automatic Analysis*. Puis *My Account → Security → Generate Tokens*, type *Project Analysis Token* sur `sylvainmetayer_site`, sans expiration ou avec un rappel.
+- **Syndication Mastodon** : sur <https://bdx.town>, *Préférences → Développement → Nouvelle application*, scopes `read:accounts`, `read:statuses`, `write:statuses` seulement ; copier le jeton d'accès.
+- **Syndication Bluesky** : *Settings → Privacy and security → App passwords → Add App Password*, sans accès aux messages privés.
 - **Les plus lus** : *My Profile → API Tokens → Create Token → Custom token*, permission *Account → Account Analytics → Read* sur le seul compte du site, rien d'autre (rotation : `docs/runbooks/rotation-des-secrets.md`, « Cloudflare »).
 
 ### 2. Les ajouter à sops
@@ -105,6 +111,8 @@ sops set secrets/secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cl
 sops set secrets/secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
 sops set secrets/secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
 sops set secrets/secrets.sops.yaml '["SITE_CF_ANALYTICS_TOKEN"]' '"<jeton Account Analytics: Read>"'
+sops set secrets/secrets.sops.yaml '["SITE_MASTODON_TOKEN"]' '"<jeton de l'application Mastodon>"'
+sops set secrets/secrets.sops.yaml '["SITE_BLUESKY_APP_PASSWORD"]' '"<mot de passe d'application Bluesky>"'
 ```
 
 Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets/secrets.sops.yaml` et ajouter les lignes `CLE: valeur` dans l'éditeur.
@@ -118,6 +126,14 @@ sops -d secrets/secrets.sops.yaml | grep -oE '^SITE_[A-Z_]+'
 Puis commiter `secrets/secrets.sops.yaml` (il reste chiffré).
 
 ### 3. Appliquer
+
+Les variables `MASTODON_INSTANCE` et `BLUESKY_HANDLE` ont été créées à la main le 18/11/2026 : les importer une fois avant le premier apply (par la CLI, pas de bloc `import` dans un module testé), sinon l'apply échoue sur « already exists ».
+
+```bash
+export GITHUB_TOKEN="$(gh auth token)"
+mise exec -- tofu -chdir=tofu/site import github_actions_variable.mastodon_instance site:MASTODON_INSTANCE
+mise exec -- tofu -chdir=tofu/site import github_actions_variable.bluesky_handle site:BLUESKY_HANDLE
+```
 
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"

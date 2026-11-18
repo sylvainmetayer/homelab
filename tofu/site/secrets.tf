@@ -26,6 +26,13 @@ locals {
   # GitHub Actions, le workflow sonarcloud du dépôt site saute l'analyse (github.tf).
   sonar_token = try(data.sops_file.secrets.data["SITE_SONAR_TOKEN"], null)
 
+  # Syndication des articles vers Mastodon et Bluesky (workflow syndicate.yml
+  # du dépôt site) : jeton d'application Mastodon (read:accounts,
+  # read:statuses, write:statuses) et mot de passe d'application Bluesky.
+  # Absent = pas de secret GitHub Actions (github.tf).
+  mastodon_token       = try(data.sops_file.secrets.data["SITE_MASTODON_TOKEN"], null)
+  bluesky_app_password = try(data.sops_file.secrets.data["SITE_BLUESKY_APP_PASSWORD"], null)
+
   # Clé d'API setlist.fm (https://www.setlist.fm/settings/api), lue au build de
   # production par la page /concerts/ du site. Le nom d'utilisateur est public
   # (profil setlist.fm), il vit en clair dans cloudflare.tf. Absente = pas de
