@@ -403,6 +403,52 @@ run "jeton_sonarcloud_present" {
   }
 }
 
+run "syndication_variables_sans_secrets" {
+  command = plan
+
+  assert {
+    condition = (
+      github_actions_variable.mastodon_instance.variable_name == "MASTODON_INSTANCE" &&
+      github_actions_variable.mastodon_instance.value == "https://bdx.town" &&
+      github_actions_variable.bluesky_handle.variable_name == "BLUESKY_HANDLE" &&
+      github_actions_variable.bluesky_handle.value == "sylvain.dev"
+    )
+    error_message = "Les variables MASTODON_INSTANCE et BLUESKY_HANDLE doivent être posées sur le dépôt site."
+  }
+
+  assert {
+    condition     = length(github_actions_secret.mastodon_token) == 0 && length(github_actions_secret.bluesky_app_password) == 0
+    error_message = "Sans SITE_MASTODON_TOKEN ni SITE_BLUESKY_APP_PASSWORD, aucun secret de syndication ne doit être créé."
+  }
+}
+
+run "syndication_secrets_presents" {
+  command = plan
+
+  override_data {
+    target = data.sops_file.secrets
+    values = {
+      data = {
+        CLOUDFLARE_API_TOKEN      = "fake-cloudflare-token"
+        CLOUDFLARE_ACCOUNT_ID     = "0123456789abcdef0123456789abcdef"
+        SITE_PAGES_DEPLOY_HOOK    = "https://example.invalid/fake-deploy-hook"
+        SITE_MASTODON_TOKEN       = "fake-mastodon"
+        SITE_BLUESKY_APP_PASSWORD = "fake-bluesky"
+      }
+    }
+  }
+
+  assert {
+    condition = (
+      length(github_actions_secret.mastodon_token) == 1 &&
+      github_actions_secret.mastodon_token[0].secret_name == "MASTODON_TOKEN" &&
+      length(github_actions_secret.bluesky_app_password) == 1 &&
+      github_actions_secret.bluesky_app_password[0].secret_name == "BLUESKY_APP_PASSWORD"
+    )
+    error_message = "Avec leurs clés SOPS, les secrets MASTODON_TOKEN et BLUESKY_APP_PASSWORD doivent être posés sur le dépôt site."
+  }
+}
+
 run "app_cloudflare_absente_par_defaut" {
   command = plan
 
