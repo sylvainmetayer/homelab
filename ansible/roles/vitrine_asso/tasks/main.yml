@@ -22,8 +22,8 @@
   ansible.builtin.assert:
     that:
       - vitrine_asso_image is defined
-      - neonova_ghcr_token is defined
-    fail_msg: "vitrine_asso_image ou neonova_ghcr_token manque dans secrets/ansible.sops.yaml (README du rôle vitrine_asso)"
+      - vitrine_asso_ghcr_token is defined
+    fail_msg: "vitrine_asso_image ou neonova_ghcr_token (vitrine_asso_ghcr_token) manque dans secrets/ansible.sops.yaml (README du rôle vitrine_asso)"
     quiet: true
 
 - name: Write the GHCR credentials of dc@vitrine_asso
