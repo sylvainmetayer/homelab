@@ -192,6 +192,16 @@ planification à lire dans UGOS) ; `btrfs device stats` est à 0 partout. Le RAI
 (un volume logique `…-volume1`), puis Btrfs monté sur `/volume1`. Un scrub détecte donc
 une corruption des données sans la réparer depuis l'autre disque.
 
+Au 18/11 : toujours le seul scrub du 07/11, `btrfs device stats` à 0, `md1` en `[UU]`
+(`mismatch_cnt` à 0, aucune vérification `md` planifiée : ni `/etc/cron.d/mdadm` ni timer).
+UGOS sait planifier une tâche par pool (table `pool_cron_plan` de
+`/etc/nas_storage/storage_db.db`), et elle est **vide** : rien n'est planifié, c'est à
+régler dans le gestionnaire de stockage d'UGOS (libellé « nettoyage des données », menu non relevé). Pour relire sans rien changer :
+
+```bash
+sudo sqlite3 -readonly -header /etc/nas_storage/storage_db.db 'select * from pool_cron_plan;'
+```
+
 **`sdc` a décroché du bus USB le 05/11/2026 à 16:13** (heure du NAS, journal du noyau :
 `tag#0 timing out command, waited 30s`, puis `usb 4-2: USB disconnect`). Au
 relevé suivant, `lsblk` ne le listait plus. Cause non établie.
