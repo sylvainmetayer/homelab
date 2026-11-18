@@ -171,7 +171,7 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 - Stockage, volume `volume1` : l'intitulé exact de l'alerte d'un RAID
   dégradé, le nom de l'assistant de réparation (A.3), et s'il existe un
   scrub planifié ([sante-des-disques.md](sante-des-disques.md), « Scrub
-  Btrfs du NAS » : aucun au relevé du 05/11, un terminé le 07/11, planification inconnue).
+  Btrfs du NAS » : aucun au relevé du 05/11, un terminé le 07/11, aucune planification trouvée au relevé du 18/11).
 - Instantanés : rétention du dossier `media` (un par jour à 00:00 au relevé
   du 11/11 ; `kdrive` : un par jour, 14 jours, [kdrive-nas.md](kdrive-nas.md)).
 - Réseau : la MAC du NAS, que vise le bail réservé `192.168.1.137` de la
@@ -201,8 +201,9 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 - RAID : `md1`, RAID 1 sur `sda2` et `sdb2`, `[2/2] [UU]`, sain.
 - Scrub Btrfs : un scrub de `/volume1` a tourné le 07/11 (3 h 18 pour
   1,93 Tio, terminé). Rien ne dit dans le système qu'il est planifié
-  (`e2scrub_all.timer` ne concerne pas Btrfs) : planification à lire dans
-  UGOS.
+  (`e2scrub_all.timer` ne concerne pas Btrfs) : au 18/11, toujours ce seul
+  scrub et `pool_cron_plan` vide, voir
+  [sante-des-disques.md](sante-des-disques.md), « Relevés ».
 - Instantanés : 35 au total, un par jour à 00:00 pour `media`, `pve-backup`
   et `kdrive` (`@snapshot/share_folder/<dossier>/GMT+01_<date>`). Le dossier
   `media` en a donc bien, sur les mêmes disques.
