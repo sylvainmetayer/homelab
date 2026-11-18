@@ -92,7 +92,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Immich : originaux** (`library`) | 1 | Borg `immich` à 01:00 : `library` entier (originaux, vignettes, vidéos transcodées), `timelapse_output`, `timelapse_config`. **Seule copie** en plus du disque USB du Pi (pas de vzdump) | oui (Borg) | non mesuré ; `library` pèse 484 Go (relevé du 18/11/2026, disque du Pi à 59 %) ; extraction depuis la Storage Box, une journée ou plus (est.) | CI : liste de l'archive, dump de la base et échantillon seulement ; originaux non extraits en entier | un fichier envoyé depuis la dernière nuit ; blocs corrompus hors échantillon (ADR 0017) |
+| **Immich : originaux** (`library`) | 1 | Borg `immich` à 01:00 : `library` entier (originaux, vignettes, vidéos transcodées), `timelapse_output`, `timelapse_config`. **Seule copie** en plus du disque USB du Pi (pas de vzdump) | oui (Borg) | non mesuré ; `library` pèse 484 Go (relevé du 18/11/2026 : 383 Go d'originaux, 74 Go de vidéos transcodées, 26 Go de vignettes ; disque du Pi à 59 %) ; extraction depuis la Storage Box, une journée ou plus (est.) | CI : liste de l'archive, dump de la base et échantillon seulement ; originaux non extraits en entier | un fichier envoyé depuis la dernière nuit ; blocs corrompus hors échantillon (ADR 0017) |
 | Immich : base PostgreSQL | 1 | même dépôt, dump fait dans le conteneur `immich_postgres` | oui | ~1 h (est.) | CI : dump rejoué, table non vide | — |
 | Immich Swipe, Kiosk, Power Tools, Selfie Timelapse | 3 | Swipe, Kiosk et Power Tools sans état ; sorties du timelapse dans le dépôt Borg ci-dessus | oui | < 30 min (est.) | non | clés d'API dans SOPS |
 | Blocky (DNS) | 3 | aucune, config par Ansible ; une 2e instance sur le LXC | oui (via le dépôt) | < 30 min (est.) | non | — |
@@ -135,7 +135,7 @@ par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passag
 
 | Donnée | Étage | Où | Copies | Survit à la maison | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Dépôts Borg** de tous les hôtes | 1 | Storage Box Hetzner `bx11`, `fsn1`, un sous-compte par hôte | 9 instantanés quotidiens de la même box ; `delete_protection` ; **aucune autre copie** | oui, c'est la copie hors site | CI (tous les dépôts de `apps.json`) | Hetzner est le seul hébergeur ; usage contrôlé le lundi (alerte à 80 %) : 51,6 % le 16/11/2026 (529 Gio sur 1024, dont 25 Gio d'instantanés), avant les 18 Go du dépôt `media` |
+| **Dépôts Borg** de tous les hôtes | 1 | Storage Box Hetzner `bx11`, `fsn1`, un sous-compte par hôte | 9 instantanés quotidiens de la même box ; `delete_protection` ; **aucune autre copie** | oui, c'est la copie hors site | CI (tous les dépôts de `apps.json`) | Hetzner est le seul hébergeur ; usage contrôlé le lundi (alerte à 80 %) : 51,6 % le 16/11/2026 (529 Gio sur 1024, dont 25 Gio d'instantanés) ; le dépôt `media`, créé le 18/11, y ajoute 17,9 Go après déduplication |
 | **kDrive** (envois du téléphone, bases KeePass synchronisées) | 1 | Infomaniak ; le NAS en garde un miroir | miroir NAS (voir plus haut) | oui, chez Infomaniak | — | — |
 | **Bases KeePass** | 1 | poste : `kdrive/keepass/*.kdbx` | copie avant enregistrement, historique horodaté sur le poste ; restic **horaire** vers un bucket OVH (Object Lock 30 jours) | oui : OVH et kDrive | `restic check` + restauration comparée, mensuel ; test à froid trimestriel ([sauvegarde-keepass.md](runbooks/sauvegarde-keepass.md)) | les deux premières couches sont sur le poste ; perte max 1 h |
 | **States Tofu** | 1 | bucket OVH `homelab-tf-state-sylvain`, versionné ([opentofu.md](conventions/opentofu.md)) | versions du bucket | oui | non | tous chiffrés, `pangolin_config` avec une passphrase dédiée (migré le 12/11/2026 ; Ansible lit ses sorties par `tofu output`) ; passphrases de chiffrement dans SOPS |
@@ -173,7 +173,7 @@ par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passag
    restauration écrite, jamais jouée. **Scrub Btrfs du NAS : aucun planifié
    par le dépôt, par choix** (UGOS n'est pas géré par Ansible : [sante-des-disques.md](runbooks/sante-des-disques.md),
    « Scrub Btrfs du NAS ») ; au relevé du 05/11, aucun scrub n'avait tourné
-   (`btrfs scrub status` : « no stats available ») ; un a tourné le 07/11 (3 h 18, 1,89 Tio, aucune erreur), aucun depuis au relevé du 18/11 : rien ne
+   (`btrfs scrub status` : « no stats available ») ; un a tourné le 07/11 (3 h 18, aucune erreur), aucun depuis au relevé du 18/11 : rien ne
    montre un scrub planifié dans UGOS. Le S.M.A.R.T. des disques est lu par Beszel
    (verdict global) ; le code prévoit en plus `smart_check` chaque lundi
    (secteurs et usure, alerte sur une hausse, #1207), déployé à la main
@@ -196,13 +196,13 @@ proposé ici.
 1. **Films et séries du NAS** (484 Go) : ni Borg ni copie hors de la maison ; RAID 1 et
    instantanés Btrfs seulement (un par jour à 00:00, 15 gardés au relevé du 17/11). Le reste
    des médias est dans Borg (`media`), sans test de restauration.
-2. **Immich, seule copie hors site** : une archive Borg par nuit ; 484 Go d'originaux
-   (relevé du 18/11), durée d'extraction complète jamais relevée ; aucun test n'extrait les
+2. **Immich, seule copie hors site** : une archive Borg par nuit ; `library` pèse 484 Go, dont 383 Go
+   d'originaux (relevé du 18/11), durée d'extraction complète jamais relevée ; aucun test n'extrait les
    originaux en entier.
 3. **Hôte Proxmox** : l'installation de l'hôte n'est pas décrite ; la
    restauration de `/etc/pve` depuis Borg n'a jamais été jouée ; la VM n'a
    jamais été restaurée en test, seulement lue.
-4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11, un le 07/11 (sans erreur), aucun depuis au 18/11 : pas de scrub planifié visible, à régler dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou : déployé sur les trois (`pve.yml` et `nas.yml` à la main, timers vus le 18/11 ; le Pi le reçoit par la CI).
+4. **Scrub Btrfs du NAS** : aucun planifié par le dépôt (choix écrit), aucun n'avait tourné au 05/11, un le 07/11 (sans erreur), aucun depuis au 18/11 : pas de scrub planifié visible, à régler dans UGOS ([sante-des-disques.md](runbooks/sante-des-disques.md)). **Usure et secteurs en attente** des disques : Beszel n'alerte que sur le verdict global ; le rôle `smart_check` (alerte ntfy hebdomadaire sur une hausse, `pve`, Pi, NAS) comble le trou : déployé sur les trois (`pve.yml` et `nas.yml` à la main, le Pi par la CI ; timer `smart-check` vu sur les trois le 18/11, dernier passage le 16/11).
 5. **Rangement des clés** : clés age `pro` et `secours`, mot de passe papier
    des KeePass, `backup_passphrase` hors SOPS : lieux non écrits dans le
    dépôt. S'ils sont dans la maison, ils partent avec elle.

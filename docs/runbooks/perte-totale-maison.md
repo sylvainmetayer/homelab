@@ -217,7 +217,7 @@ appli par appli de [sauvegarde-et-restauration.md](sauvegarde-et-restauration.md
 en **arrêtant l'appli avant** de rejouer son dump. Proposition d'ordre :
 
 1. **Immich d'abord, en tâche de fond** : l'extraction de `library` est la
-   plus longue (taille et durée jamais relevées). Immich ne dépend ni de
+   plus longue (`library` : 484 Go au 18/11/2026 ; durée jamais relevée). Immich ne dépend ni de
    Proxmox ni de la VM docker, seulement des étages 1 et 2 : il peut démarrer
    dès l'étage 2 passé, en parallèle des étages 3 et 4. Le Pi n'existe plus ;
    [pi-mort.md](pi-mort.md) suppose un Pi réinstallé. Sur un autre support
