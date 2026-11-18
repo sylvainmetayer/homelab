@@ -80,7 +80,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
 ## Secrets du dépôt site
 
-Huit clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée rien (seul le deploy hook manquant y est signalé, par un avertissement).
+Huit clés de `secrets/secrets.sops.yaml`, toutes optionnelles : sans elles, le plan ne crée que les deux variables publiques de la syndication (seul le deploy hook manquant y est signalé, par un avertissement).
 
 | Clé sops | Ce que l'apply en fait | Utilisée par |
 |---|---|---|
@@ -111,8 +111,8 @@ sops set secrets/secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"https://api.cl
 sops set secrets/secrets.sops.yaml '["SITE_WEBMENTION_IO_TOKEN"]' '"<api key webmention.io>"'
 sops set secrets/secrets.sops.yaml '["SITE_SONAR_TOKEN"]' '"<jeton SonarCloud>"'
 sops set secrets/secrets.sops.yaml '["SITE_CF_ANALYTICS_TOKEN"]' '"<jeton Account Analytics: Read>"'
-sops set secrets/secrets.sops.yaml '["SITE_MASTODON_TOKEN"]' '"<jeton de l'application Mastodon>"'
-sops set secrets/secrets.sops.yaml '["SITE_BLUESKY_APP_PASSWORD"]' '"<mot de passe d'application Bluesky>"'
+sops set secrets/secrets.sops.yaml '["SITE_MASTODON_TOKEN"]' '"<jeton Mastodon>"'
+sops set secrets/secrets.sops.yaml '["SITE_BLUESKY_APP_PASSWORD"]' '"<mot de passe app Bluesky>"'
 ```
 
 Pour ne pas laisser les jetons dans l'historique du shell, préfixer chaque ligne d'une espace (si `HISTCONTROL` contient `ignorespace`), ou passer par `sops edit secrets/secrets.sops.yaml` et ajouter les lignes `CLE: valeur` dans l'éditeur.
@@ -135,9 +135,11 @@ mise exec -- tofu -chdir=tofu/site import github_actions_variable.mastodon_insta
 mise exec -- tofu -chdir=tofu/site import github_actions_variable.bluesky_handle site:BLUESKY_HANDLE
 ```
 
+Le plan qui suit ne doit proposer aucun changement sur ces deux variables : s'il en propose un, la valeur posée à la main diffère de celle du code, et l'apply l'écraserait.
+
 ```bash
 export GITHUB_TOKEN="$(gh auth token)"
-mise exec -- tofu -chdir=tofu/site plan    # 2 secrets GitHub à créer, projet Pages modifié, plus d'avertissement
+mise exec -- tofu -chdir=tofu/site plan    # un secret GitHub à créer par clé posée, projet Pages modifié, plus d'avertissement
 mise exec -- tofu -chdir=tofu/site apply
 mise exec -- tofu -chdir=tofu/site plan    # doit être vide
 ```
@@ -147,11 +149,12 @@ Si le second plan propose encore de réécrire `WEBMENTION_IO_TOKEN` ou `CF_ANAL
 ### 4. Vérifier
 
 ```bash
-gh secret list -R sylvainmetayer/site                          # CLOUDFLARE_PAGES_DEPLOY_HOOK et SONAR_TOKEN
+gh secret list -R sylvainmetayer/site                          # CLOUDFLARE_PAGES_DEPLOY_HOOK, SONAR_TOKEN, MASTODON_TOKEN, BLUESKY_APP_PASSWORD
+gh variable list -R sylvainmetayer/site                        # MASTODON_INSTANCE, BLUESKY_HANDLE
 gh workflow run daily_build.yml -R sylvainmetayer/site          # déclenche un build Pages de main
 ```
 
-Le build lancé par le hook prend la nouvelle variable : les réactions apparaissent sous les articles qui en ont. Sur la prochaine PR du site, le job *SonarCloud* analyse au lieu d'afficher « SONAR_TOKEN absent ».
+Le build lancé par le hook prend la nouvelle variable : les réactions apparaissent sous les articles qui en ont. Sur la prochaine PR du site, le job *SonarCloud* analyse au lieu d'afficher « SONAR_TOKEN absent ». Pour la syndication, lancer le workflow *Syndicate* du dépôt site en `dry_run`.
 
 ## Vérifications
 
