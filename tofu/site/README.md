@@ -60,7 +60,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
    Le plan ne doit montrer qu'un changement d'hôte (`sylvain.dev` → `www.sylvain.dev`), pas un remplacement. S'il propose de le recréer, le jeton changerait : le reporter alors dans `src/_data/site.json` (`cfBeaconToken`) du dépôt `site`.
 2. **Pages + www** : si un enregistrement `www` existe chez OVH (CNAME vers Netlify, fait à la main), le supprimer dans le manager OVH juste avant `tofu apply` : OVH refuse un second CNAME sur le même nom. `www.sylvain.dev` ne répond plus jusqu'à ce que Cloudflare valide le domaine (quelques minutes) ; l'apex n'est pas touché.
    - Vérifier `curl -sI https://www.sylvain.dev/` puis une preview de branche (`<branche>.sylvain-dev.pages.dev`).
-3. **Build quotidien** : créer un deploy hook sur la branche `main` (*Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks*). Le workflow du dépôt `site` déclenche Netlify et Pages tant que les deux secrets existent.
+3. **Build quotidien** : créer un deploy hook sur la branche `main` (*Workers & Pages → sylvain-dev → Settings → Builds → Deploy hooks*).
 
    ```bash
    sops set secrets/secrets.sops.yaml '["SITE_PAGES_DEPLOY_HOOK"]' '"<url du hook>"'
@@ -75,7 +75,7 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
 
    Entre 5.1 et 5.3, l'apex arrive sur Pangolin sans routeur (404, certificat par défaut) pour les résolveurs qui ont déjà la nouvelle réponse : quelques minutes. Si l'apex sert encore le certificat par défaut de Traefik après le playbook (défi HTTP raté, par exemple DNS pas encore propagé), Traefik ne réessaie pas seul : `ssh pangolin.sylvain.cloud docker restart traefik`.
 6. **Supervision** : `tofu apply` dans `tofu/pangolin_config` (moniteurs Uptime Kuma `Blog` sur www et `Blog (apex)`).
-7. **Netlify** : supprimer le site Netlify, le secret `netlify_webhook` et le `netlify.toml` de transition du dépôt `site`.
+7. **Netlify** : supprimer le site Netlify. Le `netlify.toml` de transition et le secret `NETLIFY_WEBHOOK` du dépôt `site` sont déjà retirés (secret supprimé le 18/11/2026, plus aucun workflow ne le lisait).
 8. **Sveltia CMS** : plus de fournisseur OAuth Netlify. Créer un fine-grained PAT limité au dépôt `site` (*Contents: Read and write*, *Pull requests: Read and write* pour le workflow éditorial) et utiliser « Sign In Using Access Token ».
 
 ## Secrets du dépôt site
