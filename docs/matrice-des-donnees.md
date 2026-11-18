@@ -105,7 +105,7 @@ par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passag
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
-| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS. Borg `media` à 02:30 pour livres, livres audio, musique et clips de jeux (18 Go au relevé du 17/11, rôle `jellyfin`) ; **films et séries (484 Go) hors Borg** | oui pour livres, musique, clips ; non pour films et séries | films et séries : à ré-obtenir ; le reste : extraction de 18 Go, non mesurée | non (exclu du test, `check_restore_coverage.py`) | panne des deux disques, vol, incendie, suppression au-delà des instantanés (un par jour à 00:00, 15 gardés, relevé du 17/11) |
+| **Médias** (`media` : films, séries, musique, livres) | 2 | RAID 1 et instantanés Btrfs d'UGOS. Borg `media` à 02:30 pour livres, livres audio, musique et clips de jeux (18 Go au relevé du 17/11, rôle `jellyfin`) ; **films et séries (484 Go) hors Borg** | oui pour livres, musique, clips ; non pour films et séries | films et séries : à ré-obtenir ; le reste : extraction de 18 Go, non mesurée | CI pour le dépôt `media` : liste de l'archive et échantillon de fichiers ; films et séries : non | panne des deux disques, vol, incendie, suppression au-delà des instantanés (un par jour à 00:00, 15 gardés, relevé du 17/11) |
 | Jellyfin : config et base | 2 | Borg `jellyfin` à 02:30 (conteneur borgmatic), copies SQLite | oui | ~30 min (est.) | CI | médias (ligne précédente) |
 | **Miroir de kDrive** (`kdrive` : `miroir/` + `versions/`) | 2 | `rclone copy` à 04:00, jamais de suppression ; **pas dans Borg** (décision du 07/11 : ne tient pas sur la Storage Box ; `kdrive_sync_backup_enabled: false`) ; instantanés Btrfs d'UGOS sur `kdrive`, réglés à la main : un par jour à 00:00, gardés 14 jours (relevé du 07/11, [kdrive-nas.md](runbooks/kdrive-nas.md)) | non (l'original est chez Infomaniak) | re-copie depuis kDrive : non mesuré, ~0,95 To (relevé du 16/10) | non | films et `Videos/` exclus de la copie ; miroir et NAS dans la même maison (perte simultanée avec kDrive = rien) ; un fichier changé sans que ni la taille ni la date ne bougent (ou revenu à une date plus ancienne) n'est pas recopié |
 | **Archives vzdump** (`pve-backup`) | 3 | voir la VM docker | non | — | voir la VM docker | non chiffrées, sans partage SMB, export réservé à l'IP de l'hôte |
@@ -195,7 +195,7 @@ proposé ici.
 
 1. **Films et séries du NAS** (484 Go) : ni Borg ni copie hors de la maison ; RAID 1 et
    instantanés Btrfs seulement (un par jour à 00:00, 15 gardés au relevé du 17/11). Le reste
-   des médias est dans Borg (`media`), sans test de restauration.
+   des médias est dans Borg (`media`), testé par échantillon.
 2. **Immich, seule copie hors site** : une archive Borg par nuit ; `library` pèse 484 Go, dont 383 Go
    d'originaux (relevé du 18/11), durée d'extraction complète jamais relevée ; aucun test n'extrait les
    originaux en entier.

@@ -1,0 +1,25 @@
+# Sauvegarde des médias du NAS hors films et séries (dépôt Borg media, rôle
+# jellyfin, nas.yml). Moniteur à part, comme celui de Jellyfin
+# (backup_jellyfin.tf).
+resource "uptimekuma_monitor_push" "backup_media" {
+  name = "Backup Médias"
+
+  # Grouped under the Backup folder. See uptime_globals.tf.
+  parent = uptimekuma_monitor_group.backups.id
+
+  interval = local.backup_push_interval
+
+  # A missed window or a pushed `down` pages at once. See uptime_globals.tf.
+  max_retries    = local.push_down_max_retries
+  retry_interval = 20
+  active         = true
+  tags           = [local.tofu_tag, { tag_id : uptimekuma_tag.backup.id }]
+
+  notification_ids = local.alert_notification_ids
+}
+
+output "uptime_backup_media_url" {
+  description = "MÉDIAS (NAS) - URL pour envoyer les heartbeats push"
+  value       = "${local.uptimekuma_endpoint}/api/push/${uptimekuma_monitor_push.backup_media.push_token}"
+  sensitive   = true
+}
