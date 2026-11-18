@@ -5,7 +5,7 @@
   become: true
   ansible.builtin.stat:
     path: "{{ item }}"
-  loop: "{{ [jellyfin_media_path] + (jellyfin_media_folders + (jellyfin_media_backup_folders if jellyfin_media_backup_enabled else [])) | unique | map('regex_replace', '^', jellyfin_media_path ~ '/') | list }}"
+  loop: "{{ [jellyfin_media_path] + jellyfin_media_checked_folders | map('regex_replace', '^', jellyfin_media_path ~ '/') | list }}"
   register: jellyfin_media_stat
 
 - name: Assert the media share and its library folders exist
@@ -19,7 +19,7 @@
       Absents ou pas des dossiers : {{ jellyfin_media_missing | join(', ') }}.
       Créer dans UGOS (Fichiers, Dossier partagé, Créer) le dossier partagé
       « {{ jellyfin_media_path | basename }} » sur le volume 1, corbeille
-      décochée, puis ses dossiers {{ (jellyfin_media_folders + (jellyfin_media_backup_folders if jellyfin_media_backup_enabled else [])) | unique | join(', ') }} ;
+      décochée, puis ses dossiers {{ jellyfin_media_checked_folders | join(', ') }} ;
       relancer ensuite nas.yml --tags jellyfin.
     quiet: true
 

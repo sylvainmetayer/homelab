@@ -67,6 +67,10 @@ jellyfin_media_backup_folders:
   - livres-audio
   - musique
   - games-clips
+# Dossiers dont le rôle exige la présence avant de démarrer : bibliothèques et
+# sources de la sauvegarde.
+jellyfin_media_checked_folders: >-
+  {{ (jellyfin_media_folders + (jellyfin_media_backup_folders if jellyfin_media_backup_enabled else [])) | unique }}
 jellyfin_media_backup_borgmatic_target: "{{ backup_storage_box_url }}/media"
 jellyfin_media_backup_encryption_passphrase: "{{ backup_passphrase }}"
 # URL push du moniteur « Backup Médias » (nas.yml, sortie
