@@ -49,7 +49,7 @@ mise exec -- tofu -chdir=tofu/site plan
 
 ## Ordre de la bascule
 
-L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `netlify.toml` de transition : fusionner sa PR avant la bascule est sans risque, Netlify construit et sert le nouveau site.
+L'apex reste servi par Netlify jusqu'à l'étape 5 (le site Netlify n'est supprimé qu'à l'étape 7).
 
 1. **Web Analytics existant** : avant le premier apply, importer le site créé à la main (jeton `b127465e…`, celui du `site.json`) pour garder l'historique et le jeton. Son identifiant (*site tag*) est dans le dashboard, *Analytics & Logs → Web Analytics → Manage site*.
 
@@ -67,11 +67,11 @@ L'apex reste servi par Netlify jusqu'à l'étape 5. Le dépôt `site` garde un `
    mise exec -- tofu -chdir=tofu/site apply
    ```
 
-4. **Fusionner la PR du dépôt `site`** si ce n'est pas déjà fait (Pages et Netlify construisent `main`).
+4. **Fusionner la PR du dépôt `site`** si ce n'est pas déjà fait (Pages construit `main`).
 5. **Apex**, à enchaîner sans attendre :
    1. supprimer chez OVH les enregistrements A/AAAA de l'apex qui pointent vers Netlify (ne toucher ni aux MX ni aux TXT) ;
    2. `mise exec -- tofu -chdir=tofu/dns apply -var sylvain_dev_apex_to_pangolin=true`, puis passer la valeur par défaut de la variable à `true` dans `tofu/dns/variables.tf` ;
-   3. vérifier que l'apex résout vers Pangolin (`dig +short sylvain.dev`), puis depuis `ansible/` : `ansible-playbook -i inventory/hosts pangolin.yaml --tags pangolin`. Le fichier dynamique est rechargé à chaud et Traefik demande le certificat de l'apex.
+   3. vérifier que l'apex résout vers Pangolin (`dig +short sylvain.dev`), puis depuis `ansible/` : `ansible-playbook pangolin.yaml --tags pangolin`. Le fichier dynamique est rechargé à chaud et Traefik demande le certificat de l'apex.
 
    Entre 5.1 et 5.3, l'apex arrive sur Pangolin sans routeur (404, certificat par défaut) pour les résolveurs qui ont déjà la nouvelle réponse : quelques minutes. Si l'apex sert encore le certificat par défaut de Traefik après le playbook (défi HTTP raté, par exemple DNS pas encore propagé), Traefik ne réessaie pas seul : `ssh pangolin.sylvain.cloud docker restart traefik`.
 6. **Supervision** : `tofu apply` dans `tofu/pangolin_config` (moniteurs Uptime Kuma `Blog` sur www et `Blog (apex)`).
