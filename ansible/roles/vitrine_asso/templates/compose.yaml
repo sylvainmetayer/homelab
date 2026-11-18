@@ -1,0 +1,35 @@
+---
+services:
+  app:
+    # Image de démo du site d'une association (dépôt et package GHCR privés,
+    # identifiant posé par le rôle). Son nom reste hors de ce dépôt public : clé
+    # SOPS vitrine_asso_image. Elle suit le tag main, sans digest, exprès : le
+    # workflow de son dépôt lance le déploiement à la fin de chaque build, et le
+    # rôle redémarre dc@, qui retélécharge l'image grâce à pull_policy: always.
+    image: "{{ vitrine_asso_image }}"
+    pull_policy: always
+    container_name: vitrine-asso
+    # nginx sur des fichiers statiques, à deux processus environ.
+    mem_limit: 64m
+    # nginx-unprivileged n'écrit que son pid et ses fichiers temporaires dans /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    # Site statique sans base : pas de réseau privé, newt suffit.
+    networks:
+      - newt
+
+networks:
+  newt:
+    external: true

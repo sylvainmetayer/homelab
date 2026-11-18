@@ -831,6 +831,15 @@ du site d'aide et de l'aperçu de production (`tofu/pangolin_config/website_neon
 cela rien n'est envoyé et le plan reste vide), puis `tofu apply` de
 `pangolin_config`.
 
+### Code PIN et image de la vitrine asso
+
+`vitrine_asso_pin` du fichier racine est le PIN de la ressource Pangolin de la
+démo (`tofu/pangolin_config/website_vitrine_asso.tf`), donné aux membres de
+l'association : nouveau PIN par `sops set`, `pincode_wo_version` + 1 dans ce
+fichier, puis `apply` de `tofu/pangolin_config`. `vitrine_asso_image`
+(`secrets/ansible.sops.yaml`) n'est pas un secret à faire tourner : c'est le
+nom de l'image, gardé hors du dépôt public.
+
 ### Jeton GHCR Neonova
 
 `neonova_ghcr_token` (`secrets/ansible.sops.yaml`) tire l'image privée
@@ -839,7 +848,7 @@ PAT classic du compte `neonova_ghcr_user`, portée `read:packages` seule (les je
 fine-grained ne lisent pas les packages) : il lit tous les packages que ce compte
 peut lire, pas seulement celui-là. Nouveau jeton sur GitHub (Settings → Developer
 settings → Personal access tokens → Tokens (classic)), `sops set`, bump du
-sous-module, puis `ansible-playbook docker.yml --tags neonova` (ou la fusion) : le
+sous-module, puis `ansible-playbook docker.yml --tags neonova,vitrine_asso` (ou la fusion) : le
 redémarrage de `dc@neonova` retire l'image avec le nouveau jeton. Révoquer l'ancien
 ensuite.
 

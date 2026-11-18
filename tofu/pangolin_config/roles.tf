@@ -9,6 +9,7 @@ locals {
     "neonova",
     "neonova-aide",
     "neonova-apercu",
+    "vitrine-asso",
     "immich-selfie-timelapse",
     "immich-swipe",
     "immich-kiosk",

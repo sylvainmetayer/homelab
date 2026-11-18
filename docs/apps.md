@@ -8,6 +8,7 @@ Each app is an Ansible role (`ansible/roles/<role>`) deployed by the playbook of
 | [FreshRSS](https://freshrss.org/) | `rss` | Docker VM | RSS reader |
 | Betisier | `betisier` | Docker VM | Small web app with a MariaDB database ([docker-betisier-tp](https://github.com/sylvainmetayer/docker-betisier-tp)), public without SSO |
 | Neonova | `neonova` | Docker VM | Static demo of the future Neonova site (nginx image from a private repo and private GHCR package), its help site `aide-neonova.sylvain.dev` (second container, Zensical), its production preview `apercu-neonova.sylvain.dev` (third container, drafts left out), all behind SSO and PIN |
+| Vitrine asso | `vitrine_asso` | Docker VM | Static demo of an association's site (nginx image from a private repo and private GHCR package, its name kept out of this repo in the SOPS key `vitrine_asso_image`), behind the SSO and a PIN |
 | [Monica](https://www.monicahq.com/) | `monica_v4` | Docker VM | Personal CRM |
 | [BookStack](https://www.bookstackapp.com/) | `wiki` | Docker VM | Wiki |
 | [Nextcloud](https://nextcloud.com/) | `nextcloud` | Docker VM | File sync, behind the SSO; sync clients (app passwords only, `token_auth_enforced`) and public share links pass by path (`tofu/pangolin_config/website_nextcloud.tf`) |
