@@ -31,8 +31,7 @@ Ne pas comparer deux tailles lues dans deux unités : 924 Mo (décimaux) et
 
 Pangolin arrêté, Traefik et Gerbil restent en marche, mais badger ne peut plus
 vérifier les sessions : toutes les applis derrière le mur SSO répondent en
-erreur le temps de l'arrêt, ntfy et Pocket ID compris pour ce qui passe par
-Pangolin. Les tunnels Newt se reconnectent seuls au redémarrage. À faire entre
+erreur le temps de l'arrêt. Les tunnels Newt se reconnectent seuls au redémarrage. À faire entre
 08:00 et 19:00, hors d'un déploiement de la CI sur Pangolin.
 
 Il faut sur le disque la taille de la base en libre, deux fois : la copie
