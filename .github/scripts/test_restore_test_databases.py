@@ -69,7 +69,7 @@ class Manifest(unittest.TestCase):
                 # only the include that names this one, up to the next.
                 blocks = re.split(r"(?m)^\s*borgmatic_app_name:\s*", tasks)[1:]
                 mine = [block for block in blocks if block.split("\n", 1)[0].strip() == entry["repo"]]
-                if len(blocks) > 1 and mine:
+                if mine:
                     tasks = mine[0]
                 self.assertEqual(sorted(set(entry["databases"])), sorted(set(self.KIND_RE.findall(tasks))))
 

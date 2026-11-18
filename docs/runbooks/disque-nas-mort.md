@@ -19,7 +19,7 @@ sur place ».
   `sdb` ([sante-des-disques.md](sante-des-disques.md)) : `smart_check` est
   déployé sur le NAS (`nas.yml`, à la main ; timer présent au relevé du 11/11).
 - Ou le NAS ne répond plus : moniteurs « Healthcheck NAS », « Certificats
-  NAS », « kDrive vers NAS » et « Backup Jellyfin » rouges ensemble, agent
+  NAS », « kDrive vers NAS », « Backup Jellyfin » et « Backup Médias » rouges ensemble, agent
   Beszel `nas` hors ligne.
 
 ## Ce qui dépend du NAS
@@ -51,8 +51,8 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
    manque), `sdc` est un disque USB, hors RAID.
 2. Le disque restant est-il sain ? Son S.M.A.R.T. avant tout (Beszel). S'il
    est douteux, copier d'abord ce qui compte (Réparation, étape 1).
-3. Les sauvegardes sont à jour : moniteurs « Backup Jellyfin » et « kDrive
-   vers NAS » verts avant la panne.
+3. Les sauvegardes sont à jour : moniteurs « Backup Jellyfin », « Backup Médias » et
+   « kDrive vers NAS » verts avant la panne.
 
 ## Réparation
 
@@ -145,7 +145,7 @@ d'Immich, ci-dessus), Pangolin, flip (aucune appli n'utilise le rôle
 - `https://media.sylvain.cloud` et `https://nas.sylvain.cloud` répondent ;
   moniteurs « Healthcheck NAS », « Certificats NAS » (le certificat est
   redemandé par DNS-01 : limites de Let's Encrypt à vérifier si on enchaîne les
-  essais), « Backup Jellyfin » (après 02:30), « kDrive vers NAS » verts.
+  essais), « Backup Jellyfin » et « Backup Médias » (après 02:30), « kDrive vers NAS » verts.
 - Depuis l'hôte Proxmox : `showmount -e 192.168.1.137` liste
   `/volume1/pve-backup 192.168.1.26`, et une archive neuve est dans
   `/mnt/pve/nas-backup/dump/`.
