@@ -179,4 +179,5 @@
     borgmatic_app_title: Médias
     borgmatic_app_target: "{{ jellyfin_media_backup_borgmatic_target }}"
     borgmatic_app_passphrase: "{{ jellyfin_media_backup_encryption_passphrase }}"
+    borgmatic_app_healthcheck_url: "{{ jellyfin_media_backup_healthcheck_url }}"
     borgmatic_app_source_directories: "{{ jellyfin_media_backup_folders | map('regex_replace', '^', jellyfin_media_path ~ '/') | list }}"

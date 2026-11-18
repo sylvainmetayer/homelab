@@ -60,7 +60,7 @@ jellyfin_backup_healthcheck_url: ""
 # jellyfin_media_path, 18 Go au même relevé ; un dossier absent fait échouer
 # la sauvegarde (source_directories_must_exist). Demande jellyfin_media_path
 # monté dans le conteneur borgmatic (borgmatic_container_readonly_source_paths,
-# host_vars/nas). Ni moniteur ni test de restauration : README.
+# host_vars/nas).
 jellyfin_media_backup_enabled: true
 jellyfin_media_backup_folders:
   - livres
@@ -69,6 +69,9 @@ jellyfin_media_backup_folders:
   - games-clips
 jellyfin_media_backup_borgmatic_target: "{{ backup_storage_box_url }}/media"
 jellyfin_media_backup_encryption_passphrase: "{{ backup_passphrase }}"
+# URL push du moniteur « Backup Médias » (nas.yml, sortie
+# uptime_backup_media_url de tofu/pangolin_config).
+jellyfin_media_backup_healthcheck_url: ""
 
 # --- Connexion par Pocket ID (greffon « SSO Authentication » de K0lin, fork
 # maintenu de jellyfin-plugin-sso ; README du rôle). Posé seulement si les trois

@@ -65,6 +65,12 @@ class Manifest(unittest.TestCase):
                 self.assertLessEqual(set(entry["databases"]), rt.DATABASE_KINDS)
                 tasks = "\n".join(path.read_text() for path in
                                   (ROOT / "ansible" / "roles" / entry["role"] / "tasks").glob("*.y*ml"))
+                # A role with several repositories (jellyfin: jellyfin, media):
+                # only the include that names this one, up to the next.
+                blocks = re.split(r"(?m)^\s*borgmatic_app_name:\s*", tasks)[1:]
+                mine = [block for block in blocks if block.split("\n", 1)[0].strip() == entry["repo"]]
+                if len(blocks) > 1 and mine:
+                    tasks = mine[0]
                 self.assertEqual(sorted(set(entry["databases"])), sorted(set(self.KIND_RE.findall(tasks))))
 
 

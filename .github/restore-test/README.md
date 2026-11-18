@@ -78,21 +78,22 @@ ce workflow ne puisse lire ni la clé age ni la clé de déploiement :
 ## `apps.json`
 
 Clé : celle du moniteur de sauvegarde (entrée de `local.websites`, ou
-`pangolin`, ou `jellyfin` sur le NAS) ; `tofu test` de `pangolin_config` échoue si une app sauvegardée
+`pangolin`, ou `jellyfin` et `media` sur le NAS) ; `tofu test` de `pangolin_config` échoue si une app sauvegardée
 manque ou si une app retirée y reste. Ce test ne voit que les sauvegardes qui
 ont un moniteur : `check_restore_coverage.py` (job Lint) part de ce que les rôles
 sauvegardent (`borgmatic_app_name`, une par instance de `flip_planning`) et échoue
 sur un dépôt ni dans ce fichier ni dans son `EXCLUDED`, qui porte la raison écrite
 de chaque exclusion, sur une entrée qu'aucun rôle ne sauvegarde et sur une
 exclusion périmée. Exclus aujourd'hui : `mediamanager` (à l'essai), `ugos_config`
-(fichiers texte d'UGOS, rôle `nas`), `media` (médias du NAS hors films et séries, rôle `jellyfin`). Une sauvegarde
+(fichiers texte d'UGOS, rôle `nas`). Une sauvegarde
 dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive`,
 `demo_planning_kc`, `exemple_planning`) ; passée à `true`, elle le redevient.
 
 - `host` : hôte de `backup_storage_box_hosts`, dossier `backup/<host>` ;
 - `repo` : dossier du dépôt sous celui de l'hôte, et `borgmatic_app_name`
   (dossier de staging SQLite) ;
-- `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base ;
+- `role` : rôle Ansible dont le `compose.yaml` donne l'image de la base ; un rôle
+  qui tient plusieurs dépôts (`jellyfin` : `jellyfin` et `media`) a une entrée par dépôt ;
 - `databases` (obligatoire, liste parmi `postgresql`, `mysql`, `sqlite`) :
   ce que l'archive doit contenir, ni plus ni moins, d'après la configuration
   borgmatic du rôle (`borgmatic_app_postgresql_databases`,
