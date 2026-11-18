@@ -8,7 +8,8 @@ le fichier sans elles.
 
 Jouée le 18/11/2026, six jours après le passage de la rétention du journal des
 requêtes de 30 à 7 jours : 924 569 600 → 631 439 360 octets (−293 Mo),
-Pangolin arrêté **1 min 15**.
+Pangolin arrêté **1 min 15**, de nouveau `healthy` 22 s plus tard : compter près de
+deux minutes de coupure.
 
 ## Faut-il le faire
 
@@ -32,21 +33,29 @@ Ne pas comparer deux tailles lues dans deux unités : 924 Mo (décimaux) et
 Pangolin arrêté, Traefik et Gerbil restent en marche, mais badger ne peut plus
 vérifier les sessions : toutes les applis derrière le mur SSO répondent en
 erreur le temps de l'arrêt. Les tunnels Newt se reconnectent seuls au redémarrage. À faire entre
-08:00 et 19:00, hors d'un déploiement de la CI sur Pangolin.
+08:00 et 19:00, sans déploiement de la CI en cours (un déploiement du rôle
+`pangolin` relance le même compose) : `gh run list --workflow "Deploy changed
+docker app" --status in_progress` doit être vide. Les moniteurs Uptime Kuma des
+applis publiques peuvent alerter pendant la coupure.
 
-Il faut sur le disque la taille de la base en libre, deux fois : la copie
-d'avant, et le fichier temporaire du `VACUUM`.
+Compter en libre sur le disque trois fois la taille de la base : la copie
+d'avant, le fichier temporaire du `VACUUM` et le `-wal` qu'il remplit
+(`df -h /opt/pangolin` ; 22 Go libres pour 0,9 Go de base le 18/11).
 
 ## Procédure
 
-Sur la VM Pangolin, en root. Le `trap` redémarre Pangolin quoi qu'il arrive.
+Enregistrer le script dans un fichier et le lancer en root sur la VM Pangolin
+(`bash vacuum-pangolin.sh`) ; ne pas le coller dans un shell ouvert, que
+`set -e` et `exit` fermeraient. Le `trap` redémarre Pangolin quoi qu'il arrive.
 
 ```bash
+#!/usr/bin/env bash
 set -euo pipefail
 cd /opt/pangolin
 DB=config/db/db.sqlite
 COPIE=config/db/backups/db_$(date +%F_%H-%M-%S)_avant-vacuum.sqlite
 
+mkdir -p config/db/backups
 trap 'docker compose start pangolin' EXIT
 docker compose stop pangolin
 
@@ -67,7 +76,8 @@ ls -l "$DB" "$COPIE"
 ```
 
 Depuis le poste, le même script passe par Ansible :
-`ansible pangolin -m script --become -a <fichier>` depuis `ansible/`.
+`ansible pangolin -m script --become -a vacuum-pangolin.sh` depuis `ansible/`
+(c'est ainsi qu'il a tourné le 18/11).
 
 ## Vérifier
 
@@ -84,5 +94,6 @@ La copie d'avant reste dans `config/db/backups/`, purgée au bout de 30 jours
 par `tmpfiles` comme les copies de migration
 ([README du rôle](../../ansible/roles/pangolin/README.md)). Pour la remettre :
 `docker compose stop pangolin`, effacer `db.sqlite-wal` et `db.sqlite-shm`,
-recopier la copie sur `db.sqlite`, `docker compose start pangolin`. Tout ce que
+recopier la copie sur `db.sqlite`, vérifier `PRAGMA integrity_check;` (`ok`) et
+`PRAGMA journal_mode;` (`wal`), `docker compose start pangolin`. Tout ce que
 Pangolin a écrit depuis le `VACUUM` est perdu.
