@@ -2720,6 +2720,21 @@ run "host_resources_open_no_udp_but_dns" {
   }
 }
 
+# L'interface de la Bbox est servie par les trois sites du LAN qui la joignent
+# (vérifié depuis le Pi et le Newt du NAS le 18/11/2026).
+run "bbox_is_served_by_the_lan_sites" {
+  command = plan
+
+  assert {
+    condition = pangolin_site_resource.app_proxy.site_ids == toset([
+      pangolin_site.proxmox_lxc.id,
+      pangolin_site.pi.id,
+      pangolin_site.nas.id,
+    ])
+    error_message = "La ressource BBOX doit rester sur les sites du LXC, du Pi et du NAS."
+  }
+}
+
 # Les sorties VPN routent tout le trafic d'un client : leurs sites sont un choix.
 run "vpn_gateways_exit_through_their_sites" {
   command = plan
