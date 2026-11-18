@@ -3,7 +3,19 @@
 **État au 2026-11-04 : rien n'est en place.** Aucune appli ne s'en sert,
 l'export de l'essai est retiré de `host_vars/nas` et son montage de la VM
 (`ansible/roles/nas_storage/README.md`, « Removing the mount »). Le dossier
-partagé `/volume1/nas-test` et ses archives restent sur le NAS, non exportés.
+partagé `/volume1/nas-test` et ses archives (26 Mo) restent sur le NAS.
+
+**Export `nas-test`, relevé du 2026-11-18** : le dossier était encore exporté
+vers le Pi (`192.168.1.96`, `rw`, `no_root_squash`) par une règle de
+l'interface d'UGOS, que le dépôt ne gère pas (`/etc/exports` est à UGOS,
+`/etc/exports.d/homelab.exports` au rôle `nas`). Aucun client, rien ne le
+montait. La ligne a été retirée de `/etc/exports` à la main le 18/11 (copie
+dans `/etc/exports.avant-retrait-nas-test-1118`, puis `exportfs -ra`), comme
+une première fois le 05/11 : UGOS avait alors réécrit le fichier au
+redémarrage du 17/11. Tant que la règle n'est pas supprimée dans l'interface
+(dossier partagé `nas-test`, permissions NFS, règle du Pi), elle revient au
+redémarrage suivant. Pour vérifier : `sudo exportfs -v` sur le NAS ne doit
+montrer que `/volume1/pve-backup`.
 Ce document décrit le modèle à suivre pour la première appli sur le NAS.
 
 ## Besoin
