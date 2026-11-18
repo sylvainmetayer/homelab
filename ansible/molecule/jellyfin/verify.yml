@@ -63,6 +63,11 @@
           - jellyfin_verify_borgmatic.compression == 'zstd,10'
         fail_msg: "Configuration borgmatic de Jellyfin inattendue : {{ jellyfin_verify_borgmatic }}"
 
+    # Le vrai borgmatic refuse une option qu'il ne connaît pas.
+    - name: Validate the media borgmatic configuration
+      ansible.builtin.command: "{{ molecule_borgmatic_bin }} config validate --config {{ docker_base_path }}/borgmatic/borgmatic.d/media.yaml"
+      changed_when: false
+
     - name: Read the media borgmatic configuration
       ansible.builtin.slurp:
         src: "{{ docker_base_path }}/borgmatic/borgmatic.d/media.yaml"
@@ -78,7 +83,7 @@
             == ['/volume1/media/livres', '/volume1/media/livres-audio', '/volume1/media/musique', '/volume1/media/games-clips']
           - jellyfin_verify_media_borgmatic.repositories[0].path is search('/\./media$')
           - jellyfin_verify_media_borgmatic.archive_name_format is match('media-')
-          - jellyfin_verify_media_borgmatic.xattrs == false
+          - jellyfin_verify_media_borgmatic.extra_borg_options.create == '--noxattrs'
         fail_msg: "Configuration borgmatic des médias inattendue : {{ jellyfin_verify_media_borgmatic }}"
 
     - name: Read the account and the render group of the host

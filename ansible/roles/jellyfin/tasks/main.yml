@@ -185,4 +185,5 @@
     # du partage, qu'aucun autre système n'accepte. borg extract finissait en
     # avertissement (code 1) hors du NAS, test de restauration compris.
     borgmatic_app_extra_options:
-      xattrs: false
+      extra_borg_options:
+        create: --noxattrs
