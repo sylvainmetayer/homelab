@@ -113,6 +113,8 @@
       tags: betisier,app
     - role: neonova
       tags: neonova,app
+    - role: vitrine_asso
+      tags: vitrine_asso,app
     - role: monica_v4
       tags: monica,app
     - role: wiki

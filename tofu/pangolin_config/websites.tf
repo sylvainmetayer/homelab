@@ -94,6 +94,7 @@ locals {
     openpost                = local.openpost_website
     promptoramix            = local.promptoramix_website
     rss                     = local.rss_website
+    vitrine_asso            = local.vitrine_asso_website
     speedtest_tracker       = local.speedtest_tracker_website
     trek                    = local.trek_website
     victoria_logs           = local.victoria_logs_website

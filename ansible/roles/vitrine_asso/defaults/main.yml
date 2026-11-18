@@ -1,0 +1,7 @@
+---
+vitrine_asso_base_path: "{{ docker_base_path }}/vitrine_asso"
+# Même jeton que la démo Neonova (clé SOPS neonova_ghcr_token, PAT classic
+# read:packages du compte ci-dessous) : pas de second jeton pour un second
+# paquet privé du même compte.
+vitrine_asso_ghcr_user: sylvainmetayer
+vitrine_asso_ghcr_token: "{{ neonova_ghcr_token }}"

@@ -85,7 +85,7 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 | Bétisier | 3 | Borg : `config`, `dump.sql` + dump MariaDB | oui | ~30 min (est.) | CI | — |
 | Beszel (hub de supervision) | 3 | Borg : `beszel_data` + copies SQLite | oui | ~30 min (est.) | CI | — |
 | Speedtest Tracker | 3 | Borg : `config` + copie SQLite | oui | ~30 min (est.) | CI | — |
-| Homepage, Enclosed, PairDrop, BentoPDF, Zensical (`docs_site`), Neonova | 3 | aucune ; sans état ou jetable, redéployés par Ansible | sans objet | < 30 min chacune (est.) | non | notes d'Enclosed éphémères exprès |
+| Homepage, Enclosed, PairDrop, BentoPDF, Zensical (`docs_site`), Neonova, Vitrine asso | 3 | aucune ; sans état ou jetable, redéployés par Ansible | sans objet | < 30 min chacune (est.) | non | notes d'Enclosed éphémères exprès |
 | VictoriaLogs (journaux, 30 jours) | 3 | aucune, « reproductibles » | non | sans objet | non | tous les journaux |
 
 ### Raspberry Pi (`pi`)

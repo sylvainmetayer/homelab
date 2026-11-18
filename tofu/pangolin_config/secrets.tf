@@ -163,6 +163,16 @@ variable "neonova_pin" {
   }
 }
 
+variable "vitrine_asso_pin" {
+  description = "Code PIN de la ressource Vitrine asso (clé SOPS vitrine_asso_pin)."
+  type        = string
+  sensitive   = true
+  validation {
+    condition     = nonsensitive(var.vitrine_asso_pin) != ""
+    error_message = "TF_VAR_vitrine_asso_pin est vide : lancer tofu par `mise exec --` (mise.toml, section TF_VAR)."
+  }
+}
+
 # Jeton en écriture seule du producteur uptime-kuma de ntfy (website_ntfy.tf). State.
 variable "ntfy_uptime_kuma_token" {
   description = "Jeton ntfy du producteur Uptime Kuma (clé SOPS ntfy_uptime_kuma_token)."
@@ -224,6 +234,7 @@ locals {
   home_ip             = var.home_ip
   immich_pin          = var.immich_pin
   neonova_pin         = var.neonova_pin
+  vitrine_asso_pin    = var.vitrine_asso_pin
   flip_planning_pin   = var.flip_planning_pin
 
   ntfy_uptime_kuma_token = var.ntfy_uptime_kuma_token

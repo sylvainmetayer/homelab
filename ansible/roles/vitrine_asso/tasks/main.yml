@@ -1,0 +1,68 @@
+---
+# Site statique sans donnée : aucune sauvegarde, tout est dans l'image.
+# Paquet GHCR privé (compte sylvainmetayer) : identifiant rangé dans un
+# DOCKER_CONFIG propre à dc@vitrine_asso, pas dans ~/.docker. Là, un jeton expiré ou
+# révoqué ferait refuser par ghcr.io tous les pulls de la VM, images publiques
+# comprises. Avant le compose : sans la clé SOPS, le rôle échoue ici et la démo
+# garde l'image qu'elle a.
+- name: Ensure the registry config and drop-in folders exist
+  ansible.builtin.file:
+    mode: "0700"
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+  loop:
+    - "{{ vitrine_asso_base_path }}"
+    - "{{ vitrine_asso_base_path }}/.docker"
+    - "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@vitrine_asso.service.d"
+
+# no_log masquerait une variable indéfinie : le message dit ce qui manque.
+- name: Check the image name and the GHCR token are set
+  ansible.builtin.assert:
+    that:
+      - vitrine_asso_image is defined
+      - neonova_ghcr_token is defined
+    fail_msg: "vitrine_asso_image ou neonova_ghcr_token manque dans secrets/ansible.sops.yaml (README du rôle vitrine_asso)"
+    quiet: true
+
+- name: Write the GHCR credentials of dc@vitrine_asso
+  diff: false
+  no_log: true
+  ansible.builtin.copy:
+    content: "{{ {'auths': {'ghcr.io': {'auth': (vitrine_asso_ghcr_user ~ ':' ~ vitrine_asso_ghcr_token) | b64encode}}} | to_json }}\n"
+    dest: "{{ vitrine_asso_base_path }}/.docker/config.json"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Pris par le daemon_reload du redémarrage, plus bas.
+- name: Point dc@vitrine_asso at its registry config
+  ansible.builtin.copy:
+    content: |
+      [Service]
+      Environment=DOCKER_CONFIG={{ vitrine_asso_base_path }}/.docker
+    dest: "{{ ansible_facts['env']['HOME'] }}/.config/systemd/user/dc@vitrine_asso.service.d/registry.conf"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+- name: Template compose configuration
+  diff: false
+  ansible.builtin.template:
+    src: "templates/compose.yaml"
+    dest: "{{ vitrine_asso_base_path }}/compose.yaml"
+    owner: "{{ ansible_facts['user_id'] }}"
+    group: "{{ ansible_facts['user_gid'] }}"
+    mode: "0600"
+
+# Redémarré à chaque passage : c'est ce qui prend la nouvelle image du tag main
+# (pull_policy: always). changed_when false : ce n'est pas une dérive à signaler.
+- name: Restart vitrine_asso to follow the main tag
+  changed_when: false
+  ansible.builtin.systemd:
+    state: restarted
+    daemon_reload: true
+    name: dc@vitrine_asso
+    scope: user
+    enabled: true
