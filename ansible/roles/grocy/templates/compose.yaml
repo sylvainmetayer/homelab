@@ -9,7 +9,7 @@ services:
     # L'image linuxserver : son init démarre en root, rend config/ à
     # PUID/PGID et lie /app/www/data à config/data (grocy.db, config.php,
     # images), puis tourne en abc.
-    image: lscr.io/linuxserver/grocy:4.7.1@sha256:e4e34a0a84f407b1bcd2c3b6cd1999bf99bcad1defa8847adea7dc82a9cd6b8c
+    image: lscr.io/linuxserver/grocy:4.7.1@sha256:94a5a4c3daa3ebe8d4e304a3b6412136cb9501fcf3f228f9c319eae7c27c6328
     container_name: grocy
     security_opt:
       - no-new-privileges:true
