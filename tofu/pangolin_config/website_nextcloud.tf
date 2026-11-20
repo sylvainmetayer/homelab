@@ -43,7 +43,7 @@ locals {
 # token_auth_enforced so that what reaches DAV/OCS without SSO is an app
 # password, never the account password (ansible/roles/nextcloud).
 #
-# Read off Nextcloud 35.0.1 as the linuxserver image serves it (nginx front
+# Read off Nextcloud 35.0.1 (routes re-read unchanged up to 35.0.3) as the linuxserver image serves it (nginx front
 # controller with front_controller_active, so a route answers both as `/x` and
 # as `/index.php/x`, and the server generates the first form) and off the
 # clients that talk to it: desktop (src/libsync, src/gui/wizard), Android (app
