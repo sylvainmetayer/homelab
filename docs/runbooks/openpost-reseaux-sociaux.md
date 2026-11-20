@@ -1,4 +1,4 @@
-# OpenPost (posts.sylvain.cloud) : brancher Facebook, Instagram, TikTok, YouTube et LinkedIn, les rebrancher, publication en échec
+# OpenPost (posts.sylvain.cloud) : brancher Facebook, Instagram, TikTok, YouTube, LinkedIn, X et Mastodon, les rebrancher, publication en échec
 
 Procédure, pas un incident. OpenPost tourne sur flip (rôle `openpost`,
 `dc@openpost`, [README du rôle](../../ansible/roles/openpost/README.md)). Les
@@ -6,8 +6,13 @@ identifiants des réseaux ne sont ni dans SOPS ni dans le dépôt : ils se
 saisissent dans l'interface et sont chiffrés dans la base avec
 `OPENPOST_ENCRYPTION_KEY`. Ce qui suit est donc à refaire à la main après une
 perte de la base sans sauvegarde, ou pour une nouvelle app chez un réseau.
-[LinkedIn](#linkedin) fait exception : son secret est dans SOPS, posé par le
-rôle.
+[LinkedIn](#linkedin) et [X](#x) font exception : leurs identifiants sont dans
+SOPS, posés par le rôle. [Mastodon](#mastodon) n'a pas d'app à créer.
+
+Deux espaces de travail dans OpenPost : **Test** (la page Facebook et le
+compte Instagram de test) et **Personnel** (LinkedIn, Bluesky, dev/null,
+Mastodon, X). Vérifier lequel est ouvert, en haut à gauche, avant de
+connecter un compte.
 
 Réseaux branchés à ce jour, depuis le 2026-11-12 : **Facebook (une page)** et
 **Instagram** (un compte professionnel lié à cette page), par la même app
@@ -22,7 +27,9 @@ Guides amont, à relire si un écran ne correspond plus :
 <https://openpo.st/docs/self-hosting/integrations/instagram>,
 <https://openpo.st/docs/self-hosting/integrations/tiktok>,
 <https://openpo.st/docs/self-hosting/integrations/youtube>,
-<https://openpo.st/docs/self-hosting/integrations/linkedin>.
+<https://openpo.st/docs/self-hosting/integrations/linkedin>,
+<https://openpo.st/docs/self-hosting/integrations/x>,
+<https://openpo.st/docs/self-hosting/integrations/mastodon>.
 
 ## Ce qu'il faut avoir (Facebook, Instagram)
 
@@ -166,7 +173,7 @@ type personnel), et laissé tel quel :
 
 Si la décision change : passer le compte en Créateur (instagram.com,
 Paramètres → Type de compte et outils), créer une page Facebook pour lui, les
-lier ([Le compte Instagram](#le-compte-instagram), étape 3), puis **Social
+lier ([Le compte Instagram](#le-compte-instagram), étapes 2 et 3), puis **Social
 accounts → Instagram → Continue with Facebook** en cochant cette page et ce
 compte. Rien à changer dans l'app Meta ni dans OpenPost.
 
@@ -409,6 +416,87 @@ Palier « Development » : 500 appels par app et 100 par membre sur 24 h.
 | Scope refusé à la connexion | `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` dans `/opt/apps/openpost/.env` sur flip ; les deux produits toujours dans l'onglet Products |
 | LinkedIn grisé dans l'espace de travail | la clé SOPS est-elle arrivée : `grep -c '^LINKEDIN_CLIENT_' /opt/apps/openpost/.env` sur flip répond 2 ; sinon relancer le playbook |
 | Pas de page proposée | app « OpenPost Pages » approuvée et en service, `OPENPOST_LINKEDIN_ORGANIZATIONS_ENABLED=true`, compte administrateur de la page |
+
+## X
+
+Mis en place le 2026-11-20. L'API de X est **payante à l'usage** (« Pay Per
+Use ») : sans crédits achetés dans la console, rien ne se publie. OpenPost
+compte 0,015 $ par post et 0,20 $ par post contenant un lien (ses valeurs par
+défaut, à recouper avec la console) et s'arrête au plafond mensuel posé par le
+rôle : **1 $** (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD=1000000` dans `env.j2`).
+
+### Le compte développeur et l'app
+
+Console : <https://console.x.com>, compte développeur « homelab », ouvert avec
+le compte X de Sylvain (accord « Developer PPU Pilot Agreement » accepté).
+
+1. **Applications → Créer une app** : `openpost-sylvain-cloud`, projet
+   « Default Project », environnement **Production** (« Development » est
+   plein : trois vieilles apps, laissées telles quelles). La console affiche
+   alors **une seule fois** la « Clé Consommateur », la « Secret Key » et un
+   Bearer Token (inutile ici).
+2. Sur l'app, **Paramètres d'authentification de l'utilisateur →
+   Configurer** : permissions **Lire et écrire** (pas les messages directs),
+   type « Application Web », URL de rappel :
+
+   ```text
+   https://posts.sylvain.cloud/api/v1/accounts/x/callback
+   ```
+
+   et `https://posts.sylvain.cloud` en site web. Vérifier après
+   enregistrement que la ligne « Jeton d'accès » de l'onglet *Keys & Tokens*
+   dit bien « Lire et écrire ». L'ID client et le secret OAuth 2.0 affichés à
+   ce moment ne servent pas : OpenPost parle OAuth 1.0a.
+3. **Facturation → Crédits** : acheter des crédits (à la main, jamais par un
+   agent).
+
+### OpenPost
+
+Comme LinkedIn, rien à saisir dans l'interface. Les deux clés SOPS
+`openpost_x_api_key` (la Clé Consommateur) et `openpost_x_api_key_secret` (la
+Secret Key) sont rendues en `X_CLIENT_ID` et `X_CLIENT_SECRET` :
+
+```bash
+sops set secrets/ansible.sops.yaml '["openpost_x_api_key"]' '"…"'
+sops set secrets/ansible.sops.yaml '["openpost_x_api_key_secret"]' '"…"'
+```
+
+puis `ansible-playbook flip.yml --tags openpost` (le merge le fait), et dans
+l'espace **Personnel** : **Comptes → X → Connecter**, autoriser chez X. Un
+texte court, sans lien, pour vérifier ; le supprimer.
+
+Clés perdues ou à changer : « Régénérer » sur la ligne « Clé Consommateur »
+(la paire change), les deux `sops set`, le playbook, `last_rotated` dans
+`secrets/secrets-rotation.yaml`, puis reconnecter le compte.
+
+### Si ça ne marche pas (X)
+
+| Symptôme | Vérifier |
+|---|---|
+| X grisé, « Configuration requise » | `grep -c '^X_CLIENT_' /opt/apps/openpost/.env` sur flip répond 2 ; sinon les clés SOPS ou le playbook |
+| Échec à l'autorisation | URL de rappel identique ; ce sont bien les clés OAuth 1.0, pas l'ID client OAuth 2.0 |
+| Connecté mais publication refusée | solde de crédits dans la console ; plafond mensuel d'OpenPost atteint ; permission repassée à « Lire » : la corriger puis reconnecter |
+
+## Mastodon
+
+Pas d'app développeur ni de secret : OpenPost s'enregistre lui-même auprès du
+serveur. Compte visé : `@sylvain@bdx.town`, espace **Personnel**.
+
+1. **Comptes → Mastodon → Connecter → Continuer vers Mastodon**, adresse du
+   serveur `bdx.town`, **Connecter**.
+2. bdx.town demande d'approuver l'app « OpenPost » (lecture et écriture), puis
+   le **code à deux facteurs** du compte, et affiche un code d'autorisation
+   (bdx.town n'est pas un Mastodon d'origine : pas de retour automatique vers
+   OpenPost).
+3. De retour dans OpenPost, même dialogue, bouton **Code** : coller le code,
+   **Connecter le compte**.
+4. Vérification : un pouet court, le voir sur bdx.town, le supprimer.
+
+Le 2026-11-20 la connexion s'est arrêtée à l'étape 2, sur le code à deux
+facteurs : à finir à la main, et cette phrase s'en va.
+
+L'accès se retire côté serveur dans les préférences du compte, applications
+autorisées.
 
 ## Si ça ne marche pas (Facebook, Instagram)
 
