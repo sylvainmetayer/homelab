@@ -125,7 +125,8 @@ Depuis la v7.40.2, OpenPost appelle une passerelle compatible OpenAI
 IA de Pangolin, `https://ia.sylvain.cloud/v1`, clé virtuelle `openpost`
 (`tofu/pangolin_config/ai_gateway.tf`, lue dans `terraform_outputs`), modèle
 `claude-haiku-5-5` pour tout. Clé absente du state : le bloc n'est pas rendu,
-l'IA reste éteinte. Les prompts passent par le journal de la passerelle
+l'IA reste éteinte : après l'`apply` de `tofu/pangolin_config` qui crée la clé,
+relancer `flip.yml --tags openpost` (le merge déploie avant, sans clé). Les prompts passent par le journal de la passerelle
 (90 jours).
 
 Essayé le 2026-11-20 sur la passerelle, avec des requêtes au format de la
