@@ -144,6 +144,32 @@ identifiants, non utilisé ici).
 3. Vérification : publier une **image JPEG** avec une courte légende
    (Instagram refuse un post sans média), la voir sur le compte, la supprimer.
 
+## Instagram, compte personnel : non
+
+Regardé le 2026-11-20 pour le compte Instagram personnel de Sylvain (privé, de
+type personnel), et laissé tel quel :
+
+- L'API d'Instagram ne connaît que les comptes **professionnels** (Entreprise
+  ou Créateur), par l'une ou l'autre méthode d'OpenPost. Il n'existe plus
+  d'API pour un compte personnel.
+- Un compte professionnel est forcément **public** : le passer en Créateur
+  rend toutes les publications visibles et accepte les demandes d'abonnement
+  en attente. C'est ce qui a fait renoncer.
+- Sans page Facebook, il faudrait le login Instagram direct (« API setup with
+  Instagram login »). L'app Meta `openpost-f` est trop récente pour l'avoir :
+  elle ne propose que « API setup with Unified login », qui exige de rattacher
+  l'app à un portefeuille business et passe par un `config_id` (guide amont,
+  non vérifié de bout en bout, issue #495 d'OpenPost), et « avec la connexion
+  Facebook », celle en service.
+- Par la connexion Facebook, une page ne porte qu'**un** compte Instagram et
+  la page actuelle porte déjà le sien : il faudrait une seconde page.
+
+Si la décision change : passer le compte en Créateur (instagram.com,
+Paramètres → Type de compte et outils), créer une page Facebook pour lui, les
+lier ([Le compte Instagram](#le-compte-instagram), étape 3), puis **Social
+accounts → Instagram → Continue with Facebook** en cochant cette page et ce
+compte. Rien à changer dans l'app Meta ni dans OpenPost.
+
 ## TikTok
 
 Sans audit de TikTok, la **publication directe reste privée** : visibilité
@@ -298,7 +324,7 @@ une app sans autre produit : d'où deux apps.
 | Sert à | publier sur le profil | publier sur les pages, une fois approuvée |
 | Réglages | <https://www.linkedin.com/developers/apps/266754818/auth> | <https://www.linkedin.com/developers/apps/266759747/products> |
 | Produits | « Sign In with LinkedIn using OpenID Connect », « Share on LinkedIn » | aucun avant l'approbation |
-| État | posée par le rôle, compte à connecter | demande à déposer (mail professionnel à valider) |
+| État | profil connecté le 2026-11-20 | demande à déposer (mail professionnel à valider) |
 
 Les deux sont rattachées à la page LinkedIn « Sylvain homelab »
 (<https://www.linkedin.com/company/146999613>), créée pour ça : LinkedIn exige
