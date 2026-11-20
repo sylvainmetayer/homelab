@@ -24,6 +24,9 @@
     # Clés SOPS de l'app LinkedIn : rendent LINKEDIN_CLIENT_ID et _SECRET.
     openpost_linkedin_client_id: molecule-linkedin-id
     openpost_linkedin_client_secret: molecule-linkedin
+    # Clés SOPS de l'app X : rendent X_CLIENT_ID, X_CLIENT_SECRET et le plafond.
+    openpost_x_api_key: molecule-x-key
+    openpost_x_api_key_secret: molecule-x
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml

@@ -76,7 +76,7 @@ l'image (`path_bypass_images.json`).
 
 Les identifiants se saisissent dans l'interface (Settings → Instance →
 Configuration → Provider apps), chiffrés dans la base avec
-`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS, sauf LinkedIn (plus bas). L'app développeur se crée à la main
+`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS, sauf LinkedIn (plus bas) et X. L'app développeur se crée à la main
 chez chaque fournisseur ; l'URL de redirection est toujours
 
     https://posts.sylvain.cloud/api/v1/accounts/<réseau>/callback
@@ -93,7 +93,7 @@ quelle des deux côtés).
 | Threads | app « Threads API » | s'inviter comme testeur |
 | YouTube | console.cloud.google.com, client OAuth, API YouTube Data v3 | écran de consentement en « test » : jeton de 7 jours ; projet non audité : vidéos privées |
 | LinkedIn | linkedin.com/developers | profil seul ; identifiants dans SOPS, voir « LinkedIn » plus bas |
-| X | developer.x.com, OAuth 1.0a en écriture | offre gratuite très limitée ; OpenPost plafonne la dépense (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD`) |
+| X | console.x.com, OAuth 1.0a en lecture et écriture | payant à l'usage, crédits à acheter ; clés dans SOPS (`openpost_x_api_key`, `openpost_x_api_key_secret`) et plafond de 1 $ par mois posés par le rôle (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD`) ; runbook, « X » |
 | TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) ; app non auditée : publication directe privée |
 | Pinterest, Telegram, bot Discord | — | pas dans le formulaire : JSON `OPENPOST_PROVIDER_APPS`, non câblé dans le rôle |
 

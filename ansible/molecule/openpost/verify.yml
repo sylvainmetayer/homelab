@@ -79,6 +79,9 @@
           - openpost_env.OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES == 'true'
           - openpost_env.LINKEDIN_CLIENT_ID == 'molecule-linkedin-id'
           - openpost_env.LINKEDIN_CLIENT_SECRET == 'molecule-linkedin'
+          - openpost_env.X_CLIENT_ID == 'molecule-x-key'
+          - openpost_env.X_CLIENT_SECRET == 'molecule-x'
+          - openpost_env.OPENPOST_X_MONTHLY_BUDGET_MICROUSD == '1000000'
           # Pocket ID (sorties fictives du converge), bouton sur la page de login.
           - openpost_env.OPENPOST_OIDC_ISSUER == 'https://idp.example.invalid'
           - openpost_env.OPENPOST_OIDC_CLIENT_ID == 'molecule-pocket-id-openpost-client-id'
