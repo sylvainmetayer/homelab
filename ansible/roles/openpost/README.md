@@ -1,6 +1,6 @@
 # openpost
 
-[OpenPost](https://github.com/getopenpost/openpost) (v7.38.6) sur
+[OpenPost](https://github.com/getopenpost/openpost) (v7.42.2) sur
 **https://posts.sylvain.cloud** : planification de publications sur les réseaux
 sociaux, pour le foyer. Hôte **flip**, `dc@openpost`, un seul conteneur
 `openpost` (binaire Go, SQLite et médias sous `./data`, réseau `newt`).
@@ -66,7 +66,7 @@ si Pocket ID est en panne, avec « mot de passe oublié » par mail.
 Instagram, Threads, Facebook et TikTok téléchargent le média depuis leurs
 serveurs : Pangolin ouvre `/media/*` sans SSO et depuis tout pays
 (`tofu/pangolin_config/website_openpost.tf`), comme le demande la doc amont.
-OpenPost garde la porte derrière (`handlers/media.go`, v7.38.6) : un média
+OpenPost garde la porte derrière (`handlers/media.go`, v7.42.2) : un média
 (`/media/<uuid>`) ne sort qu'avec une session qui a accès à l'espace de
 travail, ou par un lien signé à durée limitée (`sig`, `exp`), celui qu'il
 remet aux réseaux. Sans l'un ni l'autre : 401. Relu à chaque montée de
@@ -117,6 +117,33 @@ clés SOPS existe (`OPENPOST_STOCK_MEDIA_ENABLED`, `templates/env.j2`) :
 Pexels (`OPENPOST_PEXELS_API_KEY`) n'est pas câblé. Chaque clé posée dans SOPS
 a son entrée dans `secrets/secrets-rotation.yaml` (`docs/conventions/secrets.md`).
 Le conteneur tourne en `TZ: Europe/Paris` (compose), comme les autres rôles.
+
+## IA
+
+Depuis la v7.40.2, OpenPost appelle une passerelle compatible OpenAI
+(`OPENPOST_AI_BASE_URL`, il y ajoute `/chat/completions`) : ici la passerelle
+IA de Pangolin, `https://ia.sylvain.cloud/v1`, clé virtuelle `openpost`
+(`tofu/pangolin_config/ai_gateway.tf`, lue dans `terraform_outputs`), modèle
+`claude-haiku-5-5` pour tout. Clé absente du state : le bloc n'est pas rendu,
+l'IA reste éteinte. Les prompts passent par le journal de la passerelle
+(90 jours).
+
+Essayé le 2026-11-20 sur la passerelle, avec des requêtes au format de la
+v7.42.2 (`response_format: json_schema` strict, `reasoning_effort`, image en
+`data:`) :
+
+| Fonction | État | Pourquoi |
+|---|---|---|
+| Texte alternatif d'une image | marche | image et sortie libre acceptées |
+| « Raccourcir avec l'IA » | marche | schéma avec `minLength`/`maxLength` seulement, accepté |
+| Génération de posts, angles, séries, mèmes, découverte, recyclage | **400** | leurs schémas portent `maxItems`, qu'Anthropic refuse |
+| Décisions de workflow | **400**, éteintes (`OPENPOST_WORKFLOWS_AI_ENABLED=false`) | schéma avec `minimum`/`maximum` sur un nombre |
+
+Les deux premières lignes sont déduites du schéma envoyé, pas encore essayées
+dans l'appli. Le refus vient du point compatible OpenAI d'Anthropic, pas de
+Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
+version, reprendre le tableau et rallumer les décisions si les schémas ont
+changé. Génération d'images (fal, `FAL_KEY`) : non branchée.
 
 ## Mails
 

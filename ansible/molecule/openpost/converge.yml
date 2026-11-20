@@ -14,6 +14,10 @@
         value: molecule-pocket-id-openpost-client-id
       pocket_id_openpost_client_secret:
         value: molecule-pocket-id-openpost-client-secret
+      # Clé virtuelle de la passerelle IA (ai_gateway.tf).
+      ai_gateway_keys:
+        value:
+          openpost: molecule-openpost-ia
     # Clés SOPS facultatives des banques d'images : une seule posée, l'autre
     # reste vide dans le .env.
     openpost_unsplash_access_key: molecule-unsplash
