@@ -92,7 +92,7 @@ quelle des deux côtés).
 | Instagram | la même app Meta | compte professionnel, par login Instagram direct ou page Facebook liée |
 | Threads | app « Threads API » | s'inviter comme testeur |
 | YouTube | console.cloud.google.com, client OAuth, API YouTube Data v3 | écran de consentement en « test » : jeton de 7 jours ; projet non audité : vidéos privées |
-| LinkedIn | linkedin.com/developers | accès page à faire approuver à part |
+| LinkedIn | linkedin.com/developers | profil personnel : produits « Sign In with LinkedIn using OpenID Connect » et « Share on LinkedIn » (libre-service), et `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` posé par le rôle (sinon la connexion échoue) ; pas de fil en commentaires ; accès page à faire approuver à part |
 | X | developer.x.com, OAuth 1.0a en écriture | offre gratuite très limitée ; OpenPost plafonne la dépense (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD`) |
 | TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) ; app non auditée : publication directe privée |
 | Pinterest, Telegram, bot Discord | — | pas dans le formulaire : JSON `OPENPOST_PROVIDER_APPS`, non câblé dans le rôle |
