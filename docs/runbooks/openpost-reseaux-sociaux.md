@@ -16,8 +16,9 @@ connecter un compte.
 
 Réseaux branchés à ce jour : depuis le 2026-11-12, **Facebook (une page)** et
 **Instagram** (un compte professionnel lié à cette page), par la même app
-Meta ; depuis le 2026-11-20, le profil **LinkedIn**. X et Mastodon sont
-préparés, pas encore connectés.
+Meta ; depuis le 2026-11-20, le profil **LinkedIn** et **Mastodon**
+(`@sylvain@bdx.town`). X est prêt côté OpenPost, pas encore connecté (crédits
+à acheter).
 
 [TikTok](#tiktok) et [YouTube](#youtube) sont écrits le 2026-11-16 d'après les
 guides amont, **pas encore essayés** : ce qui y est marqué « à confirmer » se
@@ -506,9 +507,15 @@ localStorage.setItem('oauth_fediverse_instance_url', 'https://bdx.town')
 ```
 
 Le code d'autorisation ne sert qu'une fois : après un échec, reprendre à
-l'étape 1. À retirer d'ici quand une version d'OpenPost corrige (pas encore
-signalé en amont), et à confirmer : le contournement a été vérifié par un
-appel à l'API avec un faux code, pas encore par une connexion aboutie.
+l'étape 1. Relancer l'étape 1 dans un autre onglet efface la clé : la reposer
+juste avant de coller le code. Signalé en amont
+(<https://github.com/getopenpost/openpost/issues/514>) : à retirer d'ici quand
+une version corrige.
+
+Le compte a été connecté le 2026-11-20, code collé à la main. Le
+contournement avait été vérifié par un appel à l'API avec un faux code ; il
+n'est pas établi qu'il était encore en place au moment de la connexion
+aboutie (clé effacée entre-temps par une relance de l'étape 1).
 
 L'accès se retire côté serveur dans les préférences du compte, applications
 autorisées.
