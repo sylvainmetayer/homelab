@@ -14,9 +14,10 @@ compte Instagram de test) et **Personnel** (LinkedIn, Bluesky, dev/null,
 Mastodon, X). Vérifier lequel est ouvert, en haut à gauche, avant de
 connecter un compte.
 
-Réseaux branchés à ce jour, depuis le 2026-11-12 : **Facebook (une page)** et
+Réseaux branchés à ce jour : depuis le 2026-11-12, **Facebook (une page)** et
 **Instagram** (un compte professionnel lié à cette page), par la même app
-Meta.
+Meta ; depuis le 2026-11-20, le profil **LinkedIn**. X et Mastodon sont
+préparés, pas encore connectés.
 
 [TikTok](#tiktok) et [YouTube](#youtube) sont écrits le 2026-11-16 d'après les
 guides amont, **pas encore essayés** : ce qui y est marqué « à confirmer » se
@@ -492,8 +493,22 @@ serveur. Compte visé : `@sylvain@bdx.town`, espace **Personnel**.
    **Connecter le compte**.
 4. Vérification : un pouet court, le voir sur bdx.town, le supprimer.
 
-Le 2026-11-20 la connexion s'est arrêtée à l'étape 2, sur le code à deux
-facteurs : à finir à la main, et cette phrase s'en va.
+**Défaut d'OpenPost v7.42.2, vu le 2026-11-20** : l'étape 3 répond « provider
+operation is not ready: needs_configuration » (409 sur
+`/api/v1/accounts/mastodon/exchange` dans les logs du conteneur). La page
+envoie le serveur sans `https://` (`bdx.town`), alors qu'OpenPost l'a
+enregistré sous `https://bdx.town` ; le saisir avec `https://` n'y change
+rien, l'interface l'enlève. Contournement, sur la page où l'on colle le code,
+dans la console du navigateur, puis recharger la page :
+
+```js
+localStorage.setItem('oauth_fediverse_instance_url', 'https://bdx.town')
+```
+
+Le code d'autorisation ne sert qu'une fois : après un échec, reprendre à
+l'étape 1. À retirer d'ici quand une version d'OpenPost corrige (pas encore
+signalé en amont), et à confirmer : le contournement a été vérifié par un
+appel à l'API avec un faux code, pas encore par une connexion aboutie.
 
 L'accès se retire côté serveur dans les préférences du compte, applications
 autorisées.

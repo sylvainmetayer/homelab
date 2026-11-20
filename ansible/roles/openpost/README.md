@@ -76,7 +76,7 @@ l'image (`path_bypass_images.json`).
 
 Les identifiants se saisissent dans l'interface (Settings → Instance →
 Configuration → Provider apps), chiffrés dans la base avec
-`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS, sauf LinkedIn (plus bas) et X. L'app développeur se crée à la main
+`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS, sauf LinkedIn (plus bas) et X (runbook). L'app développeur se crée à la main
 chez chaque fournisseur ; l'URL de redirection est toujours
 
     https://posts.sylvain.cloud/api/v1/accounts/<réseau>/callback
