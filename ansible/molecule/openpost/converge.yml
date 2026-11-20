@@ -21,6 +21,9 @@
     # Clés SOPS facultatives des banques d'images : une seule posée, l'autre
     # reste vide dans le .env.
     openpost_unsplash_access_key: molecule-unsplash
+    # Clés SOPS de l'app LinkedIn : rendent LINKEDIN_CLIENT_ID et _SECRET.
+    openpost_linkedin_client_id: molecule-linkedin-id
+    openpost_linkedin_client_secret: molecule-linkedin
   pre_tasks:
     - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
       ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
