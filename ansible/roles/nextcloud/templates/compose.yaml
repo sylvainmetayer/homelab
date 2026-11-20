@@ -3,7 +3,7 @@ services:
   nextcloud:
     mem_limit: 1536m
     restart: unless-stopped
-    image: ghcr.io/linuxserver/nextcloud:35.0.2@sha256:2f607ed0099185662f8af145f420633d3b3612dcfbbf38721874b63fc488f4d1
+    image: ghcr.io/linuxserver/nextcloud:35.0.3@sha256:c95efa1a926b652b737d9ea68197419bc9f432f93d31bb126fc2fc32e0c6f1b4
     container_name: nextcloud
     # `occ` passe par `sudo -u abc` : possible depuis root seulement avec cette
     # option (`docker exec`, sans `-u`).
