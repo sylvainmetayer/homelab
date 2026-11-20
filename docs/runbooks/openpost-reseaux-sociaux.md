@@ -1,4 +1,4 @@
-# OpenPost (posts.sylvain.cloud) : brancher Facebook, Instagram, TikTok et YouTube, les rebrancher, publication en échec
+# OpenPost (posts.sylvain.cloud) : brancher Facebook, Instagram, TikTok, YouTube et LinkedIn, les rebrancher, publication en échec
 
 Procédure, pas un incident. OpenPost tourne sur flip (rôle `openpost`,
 `dc@openpost`, [README du rôle](../../ansible/roles/openpost/README.md)). Les
@@ -6,6 +6,8 @@ identifiants des réseaux ne sont ni dans SOPS ni dans le dépôt : ils se
 saisissent dans l'interface et sont chiffrés dans la base avec
 `OPENPOST_ENCRYPTION_KEY`. Ce qui suit est donc à refaire à la main après une
 perte de la base sans sauvegarde, ou pour une nouvelle app chez un réseau.
+[LinkedIn](#linkedin) fait exception : son secret est dans SOPS, posé par le
+rôle.
 
 Réseaux branchés à ce jour, depuis le 2026-11-12 : **Facebook (une page)** et
 **Instagram** (un compte professionnel lié à cette page), par la même app
@@ -19,7 +21,8 @@ Guides amont, à relire si un écran ne correspond plus :
 <https://openpo.st/docs/self-hosting/integrations/facebook>,
 <https://openpo.st/docs/self-hosting/integrations/instagram>,
 <https://openpo.st/docs/self-hosting/integrations/tiktok>,
-<https://openpo.st/docs/self-hosting/integrations/youtube>.
+<https://openpo.st/docs/self-hosting/integrations/youtube>,
+<https://openpo.st/docs/self-hosting/integrations/linkedin>.
 
 ## Ce qu'il faut avoir (Facebook, Instagram)
 
@@ -282,6 +285,104 @@ une date RFC 3339 ; OpenPost l'annonce publiée dès l'envoi terminé.
 | Envoi en échec, ou vidéo restée privée | YouTube Data API v3 activée ; projet non audité : privé seulement |
 | « redirect_uri_mismatch » | URL identique chez Google et dans OpenPost |
 | « Reconnecter le compte » chaque semaine | app en « Testing » : jeton de 7 jours |
+
+## LinkedIn
+
+Mis en place le 2026-11-20. Le **profil personnel** se branche tout de suite
+(produits en libre-service) ; les **pages d'entreprise** demandent l'accès
+« Community Management API », que LinkedIn approuve à la main et seulement sur
+une app sans autre produit : d'où deux apps.
+
+| | App « OpenPost » | App « OpenPost Pages » |
+|---|---|---|
+| Sert à | publier sur le profil | publier sur les pages, une fois approuvée |
+| Réglages | <https://www.linkedin.com/developers/apps/266754818/auth> | <https://www.linkedin.com/developers/apps/266759747/products> |
+| Produits | « Sign In with LinkedIn using OpenID Connect », « Share on LinkedIn » | aucun avant l'approbation |
+| État | en service | demande à déposer (mail professionnel à valider) |
+
+Les deux sont rattachées à la page LinkedIn « Sylvain homelab »
+(<https://www.linkedin.com/company/146999613>), créée pour ça : LinkedIn exige
+une page par app, et qu'elle « vérifie » l'app avant toute demande d'accès
+(irréversible ; fait pour « OpenPost Pages »). La page ne sert à rien d'autre.
+
+### L'app LinkedIn (profil)
+
+À refaire seulement si l'app est perdue.
+
+1. <https://www.linkedin.com/developers/apps/new> : nom, la page LinkedIn, un
+   logo carré (obligatoire), accepter les conditions de l'API.
+2. Onglet **Products** : « Request access » sur « Share on LinkedIn » et sur
+   « Sign In with LinkedIn using OpenID Connect » (accordés aussitôt).
+3. Onglet **Auth** → *Authorized redirect URLs* :
+
+   ```text
+   https://posts.sylvain.cloud/api/v1/accounts/linkedin/callback
+   ```
+
+   Les scopes affichés dessous : `openid`, `profile`, `email`,
+   `w_member_social`.
+
+### OpenPost
+
+Rien à saisir dans l'interface : le rôle pose les identifiants dans le `.env`
+(`LINKEDIN_CLIENT_ID`, `LINKEDIN_CLIENT_SECRET`) et
+`OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true`, sans lequel OpenPost demande
+`w_member_social_feed`, que l'app n'a pas : la connexion échoue.
+
+1. **Client ID** (onglet Auth de l'app) : clé SOPS
+   `openpost_linkedin_client_id`. Public, mais gitleaks le refuse dans ce
+   dépôt.
+2. **Client Secret** (même onglet) : clé SOPS
+   `openpost_linkedin_client_secret`. Les deux se posent depuis la racine du
+   dépôt (`docs/conventions/secrets.md` pour les deux commits) :
+
+   ```bash
+   sops set secrets/ansible.sops.yaml '["openpost_linkedin_client_id"]' '"…"'
+   sops set secrets/ansible.sops.yaml '["openpost_linkedin_client_secret"]' '"…"'
+   ```
+
+3. `ansible-playbook flip.yml --tags openpost` (le merge le fait).
+4. **Settings → Workspace → Social accounts → LinkedIn**, accepter chez
+   LinkedIn, choisir le profil.
+5. Vérification : un texte court, publié tout de suite, vu sur le profil ; le
+   supprimer.
+
+Le jeton d'accès dure 2 mois (réglage de l'app) : reconnecter le compte quand
+OpenPost le signale.
+
+Changer le secret (« Generate a new Client Secret » dans l'onglet Auth) :
+étapes 2 et 3, puis `last_rotated` dans `secrets/secrets-rotation.yaml`. Les
+comptes connectés le restent.
+
+### Les pages d'entreprise
+
+1. App « OpenPost Pages », onglet **Products** → « Community Management API »
+   → « Request access » : LinkedIn demande une adresse e-mail professionnelle,
+   y envoie un code, puis un formulaire (non vu à ce jour : à compléter ici).
+2. Une fois l'accès accordé, ajouter à l'app la même URL de redirection, puis
+   basculer OpenPost sur elle : son Client ID et son secret dans les deux clés SOPS, et dans
+   `env.j2` :
+
+   ```text
+   OPENPOST_LINKEDIN_AUTH_MODE=community_management
+   OPENPOST_LINKEDIN_ORGANIZATIONS_ENABLED=true
+   OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=false
+   ```
+
+3. **Reconnecter le compte** : changer d'app change l'identité du membre, les
+   jetons de l'ancienne ne se reprennent pas. Le profil et les pages dont le
+   compte est administrateur sont alors proposés, un compte OpenPost chacun.
+
+Palier « Development » : 500 appels par app et 100 par membre sur 24 h.
+
+### Si ça ne marche pas (LinkedIn)
+
+| Symptôme | Vérifier |
+|---|---|
+| Erreur de redirection | URL identique, au caractère près, dans l'onglet Auth et `https://posts.sylvain.cloud` |
+| Scope refusé à la connexion | `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` dans `/opt/apps/openpost/.env` sur flip ; les deux produits toujours dans l'onglet Products |
+| LinkedIn grisé dans l'espace de travail | la clé SOPS est-elle arrivée : `grep -c LINKEDIN_CLIENT /opt/apps/openpost/.env` sur flip répond 2 ; sinon relancer le playbook |
+| Pas de page proposée | app « OpenPost Pages » approuvée et en service, `OPENPOST_LINKEDIN_ORGANIZATIONS_ENABLED=true`, compte administrateur de la page |
 
 ## Si ça ne marche pas (Facebook, Instagram)
 

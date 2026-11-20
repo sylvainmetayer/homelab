@@ -77,6 +77,8 @@
           - openpost_env.OPENPOST_UPDATE_CHECK_ENABLED == 'false'
           # LinkedIn en libre-service : pas de w_member_social_feed demandé.
           - openpost_env.OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES == 'true'
+          - openpost_env.LINKEDIN_CLIENT_ID == 'molecule-linkedin-id'
+          - openpost_env.LINKEDIN_CLIENT_SECRET == 'molecule-linkedin'
           # Pocket ID (sorties fictives du converge), bouton sur la page de login.
           - openpost_env.OPENPOST_OIDC_ISSUER == 'https://idp.example.invalid'
           - openpost_env.OPENPOST_OIDC_CLIENT_ID == 'molecule-pocket-id-openpost-client-id'

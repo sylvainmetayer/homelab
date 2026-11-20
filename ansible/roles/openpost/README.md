@@ -76,7 +76,7 @@ l'image (`path_bypass_images.json`).
 
 Les identifiants se saisissent dans l'interface (Settings → Instance →
 Configuration → Provider apps), chiffrés dans la base avec
-`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS. L'app développeur se crée à la main
+`OPENPOST_ENCRYPTION_KEY` : rien dans SOPS, sauf LinkedIn (plus bas). L'app développeur se crée à la main
 chez chaque fournisseur ; l'URL de redirection est toujours
 
     https://posts.sylvain.cloud/api/v1/accounts/<réseau>/callback
@@ -92,7 +92,7 @@ quelle des deux côtés).
 | Instagram | la même app Meta | compte professionnel, par login Instagram direct ou page Facebook liée |
 | Threads | app « Threads API » | s'inviter comme testeur |
 | YouTube | console.cloud.google.com, client OAuth, API YouTube Data v3 | écran de consentement en « test » : jeton de 7 jours ; projet non audité : vidéos privées |
-| LinkedIn | linkedin.com/developers | profil personnel : produits « Sign In with LinkedIn using OpenID Connect » et « Share on LinkedIn » (libre-service), et `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` posé par le rôle (sinon la connexion échoue) ; pas de fil en commentaires ; accès page à faire approuver à part, voir « LinkedIn » plus bas |
+| LinkedIn | linkedin.com/developers | profil seul ; identifiants dans SOPS, voir « LinkedIn » plus bas |
 | X | developer.x.com, OAuth 1.0a en écriture | offre gratuite très limitée ; OpenPost plafonne la dépense (`OPENPOST_X_MONTHLY_BUDGET_MICROUSD`) |
 | TikTok | developers.tiktok.com, Login Kit et Content Posting API | preuve de propriété du domaine pour l'envoi par URL (`/media/`) ; app non auditée : publication directe privée |
 | Pinterest, Telegram, bot Discord | — | pas dans le formulaire : JSON `OPENPOST_PROVIDER_APPS`, non câblé dans le rôle |
@@ -103,27 +103,17 @@ de TikTok et de YouTube (écrits le 2026-11-16, pas encore essayés) :
 
 ### LinkedIn
 
-Deux apps développeur, créées le 2026-11-20, rattachées à la page LinkedIn
-« Sylvain homelab » (`linkedin.com/company/146999613`, créée pour ça : LinkedIn
-exige une page par app), URL de redirection
-`https://posts.sylvain.cloud/api/v1/accounts/linkedin/callback` :
-
-- **OpenPost** (profil seul, en service) : produits en libre-service « Sign In
-  with LinkedIn using OpenID Connect » et « Share on LinkedIn » (`openid`,
-  `profile`, `email`, `w_member_social`). Va avec
-  `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` (`env.j2`) : sinon OpenPost
-  demande `w_member_social_feed` et la connexion échoue. Pas de fil de
-  discussion (les segments suivants sont des commentaires).
-- **OpenPost Pages** (pages d'entreprise, en attente) : sans autre produit,
-  vérifiée par la page, pour la demande « Community Management API » que
-  LinkedIn approuve à la main. Une fois approuvée : remplacer l'identifiant et
-  le secret dans Provider apps, poser dans `env.j2`
-  `OPENPOST_LINKEDIN_AUTH_MODE=community_management`,
-  `OPENPOST_LINKEDIN_ORGANIZATIONS_ENABLED=true` et
-  `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=false`, puis **reconnecter** le
-  compte (changer d'app change l'identité du membre, les jetons ne se
-  reprennent pas). Palier « Development » : 500 appels par app et 100 par
-  membre sur 24 h.
+Seul réseau dont l'app passe par SOPS et non par l'interface : clés SOPS
+`openpost_linkedin_client_id` et `openpost_linkedin_client_secret` (jamais de
+défaut dans le rôle : une clé SOPS ne porte pas le nom d'une variable du
+rôle), rendues en `LINKEDIN_CLIENT_ID` et
+`LINKEDIN_CLIENT_SECRET` (`config.go`, v7.38.6). Dans Provider apps l'entrée
+est en lecture seule ; les autres réseaux restent dans la base. Avec
+`OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` : l'app n'a que les produits
+en libre-service, sans quoi la connexion du compte échoue ; pas de fil de
+discussion. Les deux apps, la page LinkedIn créée pour elles, la demande
+d'accès aux pages et la bascule :
+`docs/runbooks/openpost-reseaux-sociaux.md`, « LinkedIn ».
 
 Bluesky (mot de passe d'application), Mastodon et les autres réseaux fédérés se
 branchent depuis l'espace de travail, sans app développeur.
