@@ -298,7 +298,7 @@ une app sans autre produit : d'où deux apps.
 | Sert à | publier sur le profil | publier sur les pages, une fois approuvée |
 | Réglages | <https://www.linkedin.com/developers/apps/266754818/auth> | <https://www.linkedin.com/developers/apps/266759747/products> |
 | Produits | « Sign In with LinkedIn using OpenID Connect », « Share on LinkedIn » | aucun avant l'approbation |
-| État | en service | demande à déposer (mail professionnel à valider) |
+| État | posée par le rôle, compte à connecter | demande à déposer (mail professionnel à valider) |
 
 Les deux sont rattachées à la page LinkedIn « Sylvain homelab »
 (<https://www.linkedin.com/company/146999613>), créée pour ça : LinkedIn exige
@@ -381,7 +381,7 @@ Palier « Development » : 500 appels par app et 100 par membre sur 24 h.
 |---|---|
 | Erreur de redirection | URL identique, au caractère près, dans l'onglet Auth et `https://posts.sylvain.cloud` |
 | Scope refusé à la connexion | `OPENPOST_DISABLE_LINKEDIN_THREAD_REPLIES=true` dans `/opt/apps/openpost/.env` sur flip ; les deux produits toujours dans l'onglet Products |
-| LinkedIn grisé dans l'espace de travail | la clé SOPS est-elle arrivée : `grep -c LINKEDIN_CLIENT /opt/apps/openpost/.env` sur flip répond 2 ; sinon relancer le playbook |
+| LinkedIn grisé dans l'espace de travail | la clé SOPS est-elle arrivée : `grep -c '^LINKEDIN_CLIENT_' /opt/apps/openpost/.env` sur flip répond 2 ; sinon relancer le playbook |
 | Pas de page proposée | app « OpenPost Pages » approuvée et en service, `OPENPOST_LINKEDIN_ORGANIZATIONS_ENABLED=true`, compte administrateur de la page |
 
 ## Si ça ne marche pas (Facebook, Instagram)
