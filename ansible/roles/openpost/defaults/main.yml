@@ -31,6 +31,13 @@ openpost_stock_media_enabled: >-
   {{ (openpost_unsplash_access_key | default('') | length > 0)
      or (openpost_pixabay_api_key | default('') | length > 0) }}
 
+# IA par la passerelle IA de Pangolin, format OpenAI (clé virtuelle `openpost`,
+# tofu/pangolin_config/ai_gateway.tf). Clé vide : IA éteinte, rien n'est rendu.
+# Un seul modèle pour tout : la passerelle n'autorise que les modèles Claude.
+openpost_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).openpost | default('') }}"
+openpost_ai_base_url: https://ia.sylvain.cloud/v1
+openpost_ai_model: claude-haiku-5-5
+
 # Le premier compte créé est administrateur de l'instance. Laissée ouverte :
 # true ferme aussi la création de compte par un premier login Pocket ID
 # (insertJITUser), et derrière le mur Pangolin seul le groupe `openpost`

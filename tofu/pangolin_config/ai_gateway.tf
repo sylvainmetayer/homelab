@@ -78,6 +78,13 @@ locals {
     openwebui = {
       description = "Open WebUI : chat du foyer"
     }
+    # Assistant d'écriture (texte alternatif des images, raccourcir un post),
+    # format OpenAI, Haiku (rôle openpost, flip.yml). La génération de posts,
+    # les mèmes et les décisions de workflow échouent tant qu'OpenPost envoie
+    # des schémas JSON qu'Anthropic refuse (README du rôle openpost).
+    openpost = {
+      description = "OpenPost : assistant d'écriture"
+    }
   }
 }
 
