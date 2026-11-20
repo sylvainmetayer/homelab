@@ -12,7 +12,7 @@ services:
     # recommande (nginx, php-fpm, cron du planificateur et CLI Ookla dans un
     # seul conteneur s6) ; son init démarre en root, puis rend config/ à
     # PUID/PGID et tourne en abc.
-    image: lscr.io/linuxserver/speedtest-tracker:1.15.1@sha256:2bab9283fb51ac866048028516e542da3bdb7d1858fa2a6b2009972143716433
+    image: lscr.io/linuxserver/speedtest-tracker:1.15.1@sha256:132d35a355474be17822e2ff3df4866407187ca978a768935fea06f52ae24493
     container_name: speedtest-tracker
     # /bin/ping est setuid et l'option neutralise ce bit : le contrôle de
     # connexion d'avant chaque test (CheckForInternetConnectionJob, en abc)
