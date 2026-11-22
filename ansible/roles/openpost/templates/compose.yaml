@@ -8,7 +8,7 @@ services:
     mem_limit: 768m
     # Digest : l'image amont n'est ni signée ni attestée, un tag republié ne
     # doit pas passer.
-    image: ghcr.io/getopenpost/openpost:v7.42.2@sha256:73e5f0314cd38727987b28c6b31ec65e5f3c5783c689723552f452c15ac6e75d
+    image: ghcr.io/getopenpost/openpost:v7.42.5@sha256:f6c92cbe6a1795049ad81c7b9a646b4e163145bbc46e35e55e539b1ede16c0d6
     container_name: openpost
     # Déjà l'utilisateur de l'image (uid 1000), répété ici : cap_drop en dépend.
     user: "1000:1000"

@@ -36,7 +36,7 @@ locals {
 # sign-in or an expiring link »).
 #
 # OpenPost's own authorisation still applies behind it (handlers/media.go,
-# v7.42.2: serveMedia, authorizeMediaAccess): /media/<uuid v4>, its /thumb/*
+# v7.42.5: serveMedia, authorizeMediaAccess): /media/<uuid v4>, its /thumb/*
 # and /poster answer only a session or token with access to the workspace, or
 # a link signed by the server (`sig` and `exp`, HMAC, mediasigner) - the one
 # it hands to the networks. Without either: 401. A Renovate bump of the image

@@ -1,6 +1,6 @@
 # openpost
 
-[OpenPost](https://github.com/getopenpost/openpost) (v7.42.2) sur
+[OpenPost](https://github.com/getopenpost/openpost) (v7.42.5) sur
 **https://posts.sylvain.cloud** : planification de publications sur les réseaux
 sociaux, pour le foyer. Hôte **flip**, `dc@openpost`, un seul conteneur
 `openpost` (binaire Go, SQLite et médias sous `./data`, réseau `newt`).
@@ -66,7 +66,7 @@ si Pocket ID est en panne, avec « mot de passe oublié » par mail.
 Instagram, Threads, Facebook et TikTok téléchargent le média depuis leurs
 serveurs : Pangolin ouvre `/media/*` sans SSO et depuis tout pays
 (`tofu/pangolin_config/website_openpost.tf`), comme le demande la doc amont.
-OpenPost garde la porte derrière (`handlers/media.go`, v7.42.2) : un média
+OpenPost garde la porte derrière (`handlers/media.go`, v7.42.5) : un média
 (`/media/<uuid>`) ne sort qu'avec une session qui a accès à l'espace de
 travail, ou par un lien signé à durée limitée (`sig`, `exp`), celui qu'il
 remet aux réseaux. Sans l'un ni l'autre : 401. Relu à chaque montée de
