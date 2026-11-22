@@ -26,6 +26,7 @@ choix dans [../adr/](../adr/README.md).
 | Connexion SSH refusée après durcissement (« no matching key exchange ») | [ssh-refuse-apres-durcissement.md](ssh-refuse-apres-durcissement.md) |
 | Proxmox injoignable après durcissement (SSH par clé seulement, pare-feu PVE, SDN supprimé) : console physique, `pve-firewall stop`, retour de la config sshd | [proxmox-injoignable-apres-durcissement.md](proxmox-injoignable-apres-durcissement.md) |
 | Changer le mot de passe d'une base Postgres ou MariaDB (procédure, pas un incident) | [mot-de-passe-base.md](mot-de-passe-base.md) |
+| Monter une base PostgreSQL d'une majeure (18 vers 19…) : export, réimport, vérification, retour arrière (procédure, pas un incident) | [postgres-majeure.md](postgres-majeure.md) |
 | Quelqu'un reçoit un 403 vide : CrowdSec (débannir, tester un bannissement, retour arrière) | [crowdsec.md](crowdsec.md) |
 | DMARC : lire les rapports, monter d'un cran (none → quarantine → reject), ajouter un service qui envoie en notre nom ; CAA : autoriser une autorité de certification (procédure, pas un incident) | [dmarc.md](dmarc.md) |
 | Copie de kDrive vers le NAS : mise en place, premier passage, moniteur « kDrive vers NAS » rouge, retrouver un fichier supprimé ou chiffré dans kDrive | [kdrive-nas.md](kdrive-nas.md) |
