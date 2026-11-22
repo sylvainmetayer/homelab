@@ -314,6 +314,11 @@ services:
   immich-selfie-timelapse:
     security_opt:
       - no-new-privileges:true
+    # Root sans changer d'utilisateur (binaire Rust lancé directement) : ses
+    # dossiers montés appartiennent à root, qui y écrit sans capacité. Essayé en
+    # local sur 2.3 (config.toml écrit, `/` répond 200, CapEff vide).
+    cap_drop:
+      - ALL
     image: arnaudcayrol/immich-selfie-timelapse:2.3@sha256:c73a7343bbe5c865affb2cbc23aef34449b773a75987f40598c75b0c5e6677a3
     container_name: immich-selfie-timelapse
     mem_limit: 768m
