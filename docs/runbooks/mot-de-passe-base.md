@@ -276,7 +276,7 @@ mot de passe, par le même chemin.
 Le 2026-10-28, sur des conteneurs **jetables** du poste (podman), jamais sur
 les bases des hôtes, avec les images épinglées par les rôles (majeures
 comprises) : `postgres:18.6-alpine` et `postgres:14-alpine` (Immich est en
-14), `mariadb:12.3.3` (officielle) et `lscr.io/linuxserver/mariadb:11.8.10`.
+14), `mariadb:12.3.3` (officielle) et `lscr.io/linuxserver/mariadb:11.8.9`.
 Pour chacune : base et utilisateur créés comme le font les composes, rotation
 avec les commandes ci-dessus (`ssh_hote` remplacé par un shell local),
 ancien mot de passe refusé et nouveau accepté depuis un autre conteneur du
