@@ -77,7 +77,7 @@ services:
     # Redis au `compose stop` de dc@.
     mem_limit: 2g
     stop_grace_period: 60s
-    image: freikin/dawarich:1.22.0@sha256:b8ee8d9fdff92a9d6ca570f98e0e875624f4bfb24b61363f8246bba124d5849d
+    image: freikin/dawarich:1.23.0@sha256:c9c6a9c04fa2ad11c438fc0b0ea3b7d95fc7e6d8c7a3cfa98bf1fc5aef2dbfd4
     container_name: dawarich-app
     # L'entrypoint démarre en root, donne tmp et db à PUID:PGID puis passe à ce
     # compte (gosu) : le processus de l'appli n'a plus aucune capacité. CHOWN :
