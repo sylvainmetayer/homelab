@@ -10,12 +10,12 @@
 # (groupe blocky de renovate.json).
 blocky_mode: dc
 
-blocky_image: "ghcr.io/0xerr0r/blocky:v0.36.0@sha256:191c0f1e688aa37698297ef4059e11a2b080299a878f5b31d6d32ace9d0c54b2"
+blocky_image: "ghcr.io/0xerr0r/blocky:v0.37.0@sha256:d9b6344d7c8f3fe577a47bc97b523faa116f7ea8a8901bfaf800a4dbdce64c96"
 blocky_service: blocky
 blocky_base_path: "{{ docker_base_path }}/{{ blocky_service }}"
 
 # renovate: datasource=github-releases depName=0xERR0R/blocky
-blocky_binary_version: "v0.36.0"
+blocky_binary_version: "v0.37.0"
 # Sommes des archives de la release (blocky_checksums.txt) : get_url refuse
 # tout autre fichier. Une montée de version doit aussi les changer.
 blocky_binary_sha256:
