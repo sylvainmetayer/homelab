@@ -386,6 +386,14 @@ flip_planning_solver_seconds_limit_max: ""
 flip_planning_solver_max_solves_per_hour: ""
 flip_planning_solver_max_queued_jobs: ""
 
+# Which search looks for the plan (SOLVER_ENGINE, from 2.4.0): `hand` is the
+# direct engine, which reaches a feasible plan several times sooner; every plan
+# it returns is scored again by the application's constraints before it is
+# saved, and a different score fails the job without touching the stored plan.
+# Empty: not written, the application's default (`timefold`). Rollback is
+# emptying it again and redeploying; no data depends on it.
+flip_planning_solver_engine: ""
+
 # Outgoing webhooks (WEBHOOKS_ENABLED, from 1.5.0). false cuts every outgoing
 # call: nothing can be registered, nothing is sent. For an instance whose admin
 # password is public, where a webhook form would make the host send requests
