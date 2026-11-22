@@ -31,9 +31,9 @@ recherche de version).
   forcément. Modèle par défaut Sonnet ; titres des conversations par Haiku
   (`TASK_MODEL_EXTERNAL`) ; étiquettes, suites proposées et requêtes de
   recherche automatiques coupées : chaque génération compte dans les plafonds
-  **en tokens** de la clé (5 M au total sur `lifetime`, bloquants : une fois
-  atteints, le chat s'arrête jusqu'à ce qu'on relève le plafond à la main,
-  `ai_gateway.tf`).
+  **en tokens** de la clé (2 M sur 30 jours glissants, bloquants : une fois
+  atteints, le chat s'arrête jusqu'à ce que la fenêtre se vide ou qu'on
+  relève le plafond par PR, `ai_gateway.tf`).
   Un dépassement se voit côté appli comme une erreur 429 de la passerelle.
 - `ENABLE_PERSISTENT_CONFIG=false` : le `.env` est la source de vérité. Sans lui,
   Open WebUI garde en base ce qu'il a lu au premier démarrage (clé, modèles,

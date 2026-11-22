@@ -96,8 +96,10 @@ dernier filet.
 Lire la consommation (clé d'API Pangolin, lecture) :
 
 ```bash
+# <api> : hôte de l'API d'intégration (pangolin_api_url, derrière int-api-allowlist),
+# pas celui du tableau de bord. Période : les 30 derniers jours, comme la fenêtre.
 curl -s -H "Authorization: Bearer $PANGOLIN_API_KEY" \
-  "https://hall.sylvain.cloud/v1/org/<org>/logs/ai/usage/virtual-api-keys?timeStart=2026-11-01T00:00:00Z&timeEnd=2026-11-30T00:00:00Z"
+  "https://<api>/v1/org/<org>/logs/ai/usage/virtual-api-keys?timeStart=$(date -u -d '30 days ago' +%FT%TZ)&timeEnd=$(date -u +%FT%TZ)"
 ```
 
 ## Journal des appels

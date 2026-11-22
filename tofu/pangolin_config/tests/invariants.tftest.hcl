@@ -231,7 +231,6 @@ override_data {
     status_code   = 200
     response_body = <<-EOT
       {"data": {"accessTokens": [
-        {"accessTokenId": "qv4gvbqx", "title": "WIP - openpost Android", "resourceName": "OpenPost", "expiresAt": null},
         {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
         {"accessTokenId": "tok-beszel-agent", "title": "Beszel agent", "resourceName": "Beszel", "expiresAt": null},
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},

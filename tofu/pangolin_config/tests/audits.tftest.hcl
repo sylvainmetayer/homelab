@@ -302,7 +302,6 @@ override_data {
         {"accessTokenId": "tok-karakeep", "title": "Karakeep", "resourceName": "Karakeep", "expiresAt": null},
         {"accessTokenId": "tok-papra", "title": "Papra mobile", "resourceName": "Papra", "expiresAt": null},
         {"accessTokenId": "tok-openpost", "title": "OpenPost android", "resourceName": "OpenPost", "expiresAt": null},
-        {"accessTokenId": "qv4gvbqx", "title": "WIP - openpost Android", "resourceName": "OpenPost", "expiresAt": null},
         {"accessTokenId": "tok-trek-mcp", "title": "TREK MCP", "resourceName": "TREK", "expiresAt": null},
         {"accessTokenId": "tok-log-agent", "title": "Log agent", "resourceName": "VictoriaLogs", "expiresAt": null}
       ], "pagination": {"total": 2, "limit": 1000, "offset": 0}},
@@ -664,13 +663,13 @@ run "audits_pass_on_realistic_api_responses" {
     error_message = "target_inventory doit comparer les cibles de toutes les ressources gérées (2 cibles chacune dans la réponse simulée)."
   }
 
-  # 8 jetons et 4 rôles (l'entrée ne compte pas les liaisons, sans quoi chaque
+  # 7 jetons et 4 rôles (l'entrée ne compte pas les liaisons, sans quoi chaque
   # liaison appliquée laisserait un plan non vide), 15 ressources privées,
   # 17 + 16 + 1 liaisons (Admin sur chacune, plus Immich, Jellyfin et le client
   # de la CI), aucune exception périmée.
   assert {
     condition = (
-      terraform_data.access_inventory.output == 12
+      terraform_data.access_inventory.output == 11
       && length(local.live_site_resource_names) == 15
       && length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings) + length(local.live_site_resource_client_bindings) == 34
       && length(local.stale_inventory_exceptions) == 0
@@ -916,7 +915,6 @@ run "hand_made_access_token_fails_plan" {
       status_code   = 200
       response_body = <<-EOT
         {"data": {"accessTokens": [
-          {"accessTokenId": "qv4gvbqx", "title": "WIP - openpost Android", "resourceName": "OpenPost", "expiresAt": null},
           {"accessTokenId": "tok-healthcheck", "title": "Healthcheck", "resourceName": "Flip Planning", "expiresAt": null},
           {"accessTokenId": "zz99main", "title": null, "resourceName": "Immich", "expiresAt": null}
         ], "pagination": {"total": 4, "limit": 1000, "offset": 0}},
