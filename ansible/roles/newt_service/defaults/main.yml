@@ -8,8 +8,8 @@ newt_service_version: "1.20.1"
 # Sommes des binaires de la release GitHub : get_url refuse tout autre fichier.
 # Une montée de version (Renovate) doit aussi changer ces sommes.
 newt_service_sha256:
-  amd64: f380273f7f92917d743ab1b0b92da3ca9e8ac72d0a9909c253633de29b4a70cb
-  arm64: 499bfc4eb16c6021e702800118ec89645264b521ae42cf843ba87ed0ecd5a427
+  amd64: ac5556844efa38308b54c474c2bb9c512ea13a1c584d0ee1fc9d7b6fee01ddbb
+  arm64: 6a0e7c5775e4cfa1668e554ef2137722533fd7046c2be5495e7d01055c61f6b5
 
 newt_service_endpoint: "{{ newt_endpoint }}"
 # Identifiants du site Pangolin : lxc.yml les lit dans le state de
