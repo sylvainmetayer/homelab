@@ -4,7 +4,7 @@
 le 2026-09-08) sur **https://jellystat.sylvain.cloud** : statistiques de
 Jellyfin (historique de lecture, plus regardés, par utilisateur et appareil).
 VM docker, `dc@jellystat`, deux conteneurs : `jellystat` (sur `newt` et sur le
-réseau interne `jellystat`) et `jellystat-db` (PostgreSQL 18, réseau interne
+réseau interne `jellystat`) et `jellystat-db` (PostgreSQL 19, réseau interne
 seulement), derrière le SSO de Pangolin (rôle `jellystat`, sans membre direct :
 l'accès vient du groupe Pocket ID `jellystat`), puis le compte propre à Jellystat.
 
@@ -118,7 +118,7 @@ des deux conteneurs, de l'ordre de la minute.
 ## Durcissement
 
 Image Docker Hub `cyfershepard/jellystat`, tag et digest épinglés ; base
-`postgres:18.6-alpine` du même digest que HealthLog. L'appli tourne sous l'uid de
+`postgres:19.0-alpine` du même digest que HealthLog. L'appli tourne sous l'uid de
 déploiement (l'image est en root par défaut), en lecture seule, `cap_drop:
 ALL`, `no-new-privileges`, `tmpfs` sur `/tmp`, le seul dossier écrit est
 `backup-data/` (lié depuis le dossier du rôle). Essayé en local (podman, mêmes

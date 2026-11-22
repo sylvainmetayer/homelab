@@ -119,6 +119,8 @@ NO_TEST = [
     # Relais VNC de pc-support.yml (poste de Sylvain, jamais la CI) : aucun
     # scénario, testé à la main (docs/runbooks/support-a-distance.md).
     "ansible/files/grd-vnc-relay.py",
+    # Montée majeure de Postgres, lancée à la main (docs/runbooks/postgres-majeure.md).
+    "ansible/files/pg-major.sh",
     # Sous-module du dépôt privé homelab-secrets (ADR 0018) : la CI de Tests
     # ne le clone pas, Molecule tourne sur les faux secrets.
     "secrets",

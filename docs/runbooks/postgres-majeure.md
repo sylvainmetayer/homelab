@@ -34,8 +34,12 @@ moitiés ; il ne supprime rien.
 
    Il écrit `dumpall.sql` (0600) et `before.txt` : une ligne par table, avec
    son nombre exact de lignes.
-3. Arrêter l'appli (`systemctl --user stop dc@<appli>` sur l'hôte), refaire
-   l'étape 2 pour un export à jour, puis réimporter dans la nouvelle majeure :
+3. Arrêter **le seul conteneur de l'appli**, base en marche (`cd <dossier_appli>
+   && docker compose stop app` sur l'hôte : `dc@<appli>` couperait aussi la
+   base et l'export de l'étape 2, pris pendant que l'appli écrivait, serait
+   le dernier : tout ce qui a été écrit depuis serait perdu). Refaire l'étape 2
+   pour un export à jour, puis arrêter la base (`systemctl --user stop
+   dc@<appli>`) et réimporter dans la nouvelle majeure :
 
    ```bash
    ansible <hôte> -m script -a "files/pg-major.sh restore <conteneur_db> <dossier_appli>/pg-migration <image>@<digest>"
@@ -48,6 +52,11 @@ moitiés ; il ne supprime rien.
    et de la base créés par l'image sont attendus).
 4. Merger la PR et déployer l'appli (`deploy-docker-app` en
    `workflow_dispatch`, `tags=<rôle>`).
+
+Après un `KO restore` : l'ancienne grappe est déjà en `docker.avant-migration`
+et `<nouvelle majeure>/docker` est à moitié remplie. Corriger la cause, supprimer
+`<nouvelle majeure>/docker`, relancer `restore` (l'export est réutilisé) ; pour
+renoncer, remettre l'ancienne en `docker` (voir « Retour arrière »).
 
 ## Vérification
 
