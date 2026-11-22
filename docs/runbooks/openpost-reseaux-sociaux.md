@@ -494,7 +494,7 @@ serveur. Compte visé : `@sylvain@bdx.town`, espace **Personnel**.
    **Connecter le compte**.
 4. Vérification : un pouet court, le voir sur bdx.town, le supprimer.
 
-**Défaut d'OpenPost v7.42.2, vu le 2026-11-20** : l'étape 3 répond « provider
+**Défaut d'OpenPost v7.42.2, vu le 2026-11-20 (corrigé en amont dans la v7.42.5, « resolve instance URL before exchange readiness » : à vérifier au prochain compte Mastodon, le contournement ci-dessous ne devrait plus servir)** : l'étape 3 répond « provider
 operation is not ready: needs_configuration » (409 sur
 `/api/v1/accounts/mastodon/exchange` dans les logs du conteneur). La page
 envoie le serveur sans `https://` (`bdx.town`), alors qu'OpenPost l'a

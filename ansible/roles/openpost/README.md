@@ -158,7 +158,13 @@ Les deux premières lignes sont déduites du schéma envoyé, pas encore essayé
 dans l'appli. Le refus vient du point compatible OpenAI d'Anthropic, pas de
 Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
 version, reprendre le tableau et rallumer les décisions si les schémas ont
-changé. Génération d'images (fal, `FAL_KEY`) : non branchée.
+changé. **À reprendre avec la v7.42.5** : elle contient « adapt strict response
+bounds for custom gateways » (`internal/ai/compatible_schema.go`), qui déplace
+`minimum`/`maximum`/`minItems`/`maxItems` dans la `description` du schéma pour
+un point d'accès personnalisé : les lignes en **400** ci-dessus ne sont plus
+vraies de la même façon, à réessayer avant de rallumer
+`OPENPOST_WORKFLOWS_AI_ENABLED`. Génération d'images (fal, `FAL_KEY`) : non
+branchée.
 
 ## Mails
 
