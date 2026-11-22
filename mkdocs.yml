@@ -98,6 +98,7 @@ nav:
       - runbooks/renommage-pangolin-hall.md
       - runbooks/vacuum-base-pangolin.md
       - runbooks/mot-de-passe-base.md
+      - runbooks/postgres-majeure.md
       - runbooks/dmarc.md
       - runbooks/kdrive-nas.md
       - runbooks/sauvegarde-keepass.md
