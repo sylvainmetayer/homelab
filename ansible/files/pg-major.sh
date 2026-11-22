@@ -41,6 +41,8 @@ restore)
   [ "$($D inspect -f '{{.State.Running}}' "$db")" = false ] || { echo "KO: $db tourne encore, l'arrêter d'abord"; exit 1; }
   tmp="pgmajor-$db"
   envof > "$work/env"
+  # Quoi qu'il arrive : ni mot de passe laissé dans $work, ni conteneur resté sur les données.
+  trap 'rc=$?; rm -f "$work/env"; $D stop -t 60 "$tmp" >/dev/null 2>&1 || true; $D rm -f "$tmp" >/dev/null 2>&1 || true; exit $rc' EXIT
   # Mêmes montages que le conteneur d'origine (bind ou volume nommé), sans réseau.
   mounts=$($D inspect -f '{{range .Mounts}}{{if eq .Type "volume"}}-v {{.Name}}:{{.Destination}} {{else}}-v {{.Source}}:{{.Destination}} {{end}}{{end}}' "$db")
   $D rm -f "$tmp" >/dev/null 2>&1 || true
@@ -49,7 +51,7 @@ restore)
   # <majeure>/docker.avant-migration (retour arrière : la renommer en docker).
   # shellcheck disable=SC2086,SC2016
   $D run --rm --network none $mounts --entrypoint sh "$image" -c '
-    [ ! -e "$PGDATA" ] || { echo "KO: $PGDATA existe déjà"; exit 1; }
+    [ ! -e "$PGDATA" ] || { echo "KO: $PGDATA existe déjà (reprise après un échec : le supprimer ; l ancienne grappe est déjà en docker.avant-migration)"; exit 1; }
     for d in /var/lib/postgresql/*/docker; do
       [ -s "$d/PG_VERSION" ] && mv "$d" "$d.avant-migration"
     done; ls -d /var/lib/postgresql/*/docker.avant-migration'
@@ -57,9 +59,9 @@ restore)
   $D run -d --name "$tmp" --network none --env-file "$work/env" $mounts "$image" >/dev/null
   rm -f "$work/env"
   u=$(val POSTGRES_USER)
-  i=0; until $D exec "$tmp" psql -U "$u" -d postgres -Atc 'select 1' >/dev/null 2>&1; do i=$((i+1)); [ $i -lt 90 ] || { echo "KO: la nouvelle grappe ne démarre pas"; $D logs --tail 20 "$tmp"; exit 1; }; sleep 2; done
-  sleep 3 # l'image redémarre postgres une fois après l'initialisation
-  until $D exec "$tmp" psql -U "$u" -d postgres -Atc 'select 1' >/dev/null 2>&1; do sleep 2; done
+  # Pendant l'initialisation l'image fait tourner un serveur temporaire sans TCP
+  # (socket seule) : attendre sur 127.0.0.1 garantit que c'est le vrai serveur.
+  i=0; until $D exec "$tmp" pg_isready -q -h 127.0.0.1 >/dev/null 2>&1; do i=$((i+1)); [ $i -lt 90 ] || { echo "KO: la nouvelle grappe ne démarre pas"; $D logs --tail 20 "$tmp"; exit 1; }; sleep 2; done
   $D exec -i "$tmp" psql -U "$u" -d postgres -v ON_ERROR_STOP=0 < "$work/dumpall.sql" > "$work/restore.log" 2>&1 || true
   # Erreurs attendues : le rôle et la base de POSTGRES_USER/POSTGRES_DB existent déjà.
   grep -E '^(psql:.*)?(ERROR|FATAL)' "$work/restore.log" | grep -v -E 'already exists|current user cannot be dropped' > "$work/restore-errors.txt" || true

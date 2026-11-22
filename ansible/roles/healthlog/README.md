@@ -3,7 +3,7 @@
 [HealthLog](https://github.com/MBombeck/HealthLog) sur la VM docker,
 `https://sante.sylvain.cloud` : poids, composition corporelle, tension,
 sommeil, activité, bilans de labo, avec l'intégration Withings (OAuth2) et
-l'import de l'export Health Connect d'Android. PWA Next.js + PostgreSQL 18.
+l'import de l'export Health Connect d'Android. PWA Next.js + PostgreSQL 19.
 
 **Licence** : PolyForm Noncommercial 1.0.0 depuis la v1.15.18 (AGPL avant).
 Usage personnel autorisé ; ni usage commercial, ni redistribution d'une
@@ -14,7 +14,7 @@ partagée au-delà du foyer.
 
 - `compose.yaml` : `healthlog` (l'appli, web et worker dans un processus,
   `HEALTHLOG_PROCESS_TYPE=all`) sur `newt` et le réseau interne `healthlog`,
-  `healthlog-db` (`postgres:18.6-alpine`) sur le réseau interne seul. Repris
+  `healthlog-db` (`postgres:19.0-alpine`) sur le réseau interne seul. Repris
   du `docker-compose.yml` amont de la v1.46.5, sans `db-upgrade` (passage
   Postgres 16 → 18 d'une ancienne installation) ni `db-restore` (profil
   `restore`, voir plus bas). Base dans le dossier `postgresql/` (bind mount, voir plus bas) ; volumes
@@ -288,7 +288,7 @@ des deux conteneurs, de l'ordre de la minute.
 ## Restauration
 
 Le test de restauration (`.github/restore-test/apps.json`, `postgresql`)
-rejoue le dump dans un `postgres:18.6-alpine` jetable. Restauration réelle :
+rejoue le dump dans un `postgres:19.0-alpine` jetable. Restauration réelle :
 `pg_restore` du dump borgmatic dans `healthlog-db`, appli arrêtée, avec le
 `.env` de la même archive (commandes : `docs/runbooks/healthlog.md`,
 « Restauration depuis Borg »). Le test de la CI ne démarre pas l'appli :
@@ -305,7 +305,8 @@ ouvre les PR (correctifs dans la PR hebdomadaire groupée, mineures une par
 une), **jamais en fusion automatique** (appli à état, hors de la liste des
 images sans état de `renovate.json`). Lire les notes de version, merger,
 le déploiement suit (`deploy-docker-app`). Les montées majeures de
-Postgres attendent le Dependency Dashboard.
+Postgres attendent le Dependency Dashboard et suivent
+`docs/runbooks/postgres-majeure.md` (export/réimport ; 18 vers 19 le 22/11/2026).
 
 ## Import des pas (Health Connect)
 
