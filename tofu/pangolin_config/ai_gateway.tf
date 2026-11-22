@@ -28,7 +28,8 @@
 # réponses en entier, sans masquage (README) ; 0 l'éteint.
 #
 # Tous les attributs optionnels+calculés sont déclarés (AGENTS.md), budgets
-# compris (enabled, enforcement, period) : non déclarés, un changement fait dans l'interface passerait inaperçu au plan.
+# compris (enabled, enforcement, period) : non déclarés, un changement fait dans
+# l'interface passerait inaperçu au plan.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -227,6 +228,19 @@ resource "pangolin_ai_budget" "key" {
   # une fuite) laissait le provider tenter une mise à jour d'un budget disparu.
   lifecycle {
     replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
+  }
+}
+
+# Rappel daté du plafond provisoire de Karakeep (local.ai_keys) : après le
+# 2026-12-11, son rattrapage du 9-10/11 est sorti de la fenêtre de 30 jours ;
+# ce check avertit au plan tant que le plafond n'est pas redescendu à 5 M.
+check "karakeep_ai_budget_stale" {
+  assert {
+    condition = (
+      timecmp(plantimestamp(), "2026-12-11T00:00:00Z") < 0
+      || local.ai_keys.karakeep.budget_tokens <= 5000000
+    )
+    error_message = "Le plafond de tokens de la clé karakeep (local.ai_keys, ai_gateway.tf) est encore à ${local.ai_keys.karakeep.budget_tokens} : son rattrapage est sorti de la fenêtre, le ramener à 5000000."
   }
 }
 
