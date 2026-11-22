@@ -269,7 +269,7 @@ les clés ne partent pas vers la cible.
 
 Journal (`journalctl -u papra-enrich`) : une ligne par document, son
 identifiant, les champs remplis, le nombre de tags ajoutés et les tokens ;
-jamais le nom ni le contenu. Pas de budget de passerelle (clé `papra`,
+jamais le nom ni le contenu. Budgets de passerelle : voir le runbook (clé `papra`,
 `tofu/pangolin_config/ai_gateway.tf`), ~3 650 tokens par document (mesure du
 2026-11-10). Les textes envoyés partent chez Anthropic ; le journal des appels
 de la passerelle les garde 90 jours, en clair, dans la base de Pangolin
