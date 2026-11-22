@@ -104,8 +104,9 @@ services:
   # seuls les conteneurs de ces réseaux peuvent l'appeler.
   mcp:
     # Binaire Go sans état (documentation embarquée en mémoire), requêtes
-    # LogsQL relayées. Pas mesuré : prudent, à recaler sur memory.peak.
-    mem_limit: 128m
+    # LogsQL relayées. memory.peak mesuré à 105 Mio sur 128 (22/11/2026, 5 jours),
+    # soit 2 x arrondis à 256m.
+    mem_limit: 256m
     image: ghcr.io/victoriametrics/mcp-victorialogs:v1.10.0@sha256:e4b1f38f708a5c99606395ba2de514eab6730ec67440f929c6e3b6f261945d4b
     container_name: mcp-victorialogs
     user: "{{ ansible_facts['user_uid'] }}:{{ ansible_facts['user_gid'] }}"

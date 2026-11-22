@@ -19,6 +19,9 @@ services:
       - CHOWN
       - SETUID
       - SETGID
+    # Essayé en local (v2.7.0, config en lecture seule) : `diff` ne montre
+    # aucune écriture, pas même dans /tmp ni /app/.next.
+    read_only: true
     environment:
       PUID: "{{ ansible_facts['user_uid'] }}"
       PGID: "{{ ansible_facts['user_gid'] }}"
