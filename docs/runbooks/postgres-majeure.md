@@ -34,12 +34,20 @@ moitiés ; il ne supprime rien.
 
    Il écrit `dumpall.sql` (0600) et `before.txt` : une ligne par table, avec
    son nombre exact de lignes.
-3. Arrêter **le seul conteneur de l'appli**, base en marche (`cd <dossier_appli>
-   && docker compose stop app` sur l'hôte : `dc@<appli>` couperait aussi la
-   base et l'export de l'étape 2, pris pendant que l'appli écrivait, serait
-   le dernier : tout ce qui a été écrit depuis serait perdu). Refaire l'étape 2
-   pour un export à jour, puis arrêter la base (`systemctl --user stop
-   dc@<appli>`) et réimporter dans la nouvelle majeure :
+3. **Couper toute la pile par son unité**, puis ne relancer que la base :
+
+   ```bash
+   systemctl --user stop dc@<appli>     # sur l'hôte ; plus rien ne redémarre
+   docker start <conteneur_db>          # la base seule, sans l'appli
+   ```
+
+   Ne jamais arrêter un conteneur à la main pendant que `dc@<appli>` est
+   actif : l'unité voit son `docker compose` s'arrêter et relance toute la
+   pile avec l'ancienne image (vécu le 2026-11-22 sur HealthLog : la 18,
+   relancée juste après que le script avait mis sa grappe de côté, en a
+   initialisé une vide, et l'appli a tourné cinq minutes dessus). Refaire
+   l'étape 2 pour un export à jour, l'appli étant coupée, puis
+   `docker stop -t 60 <conteneur_db>` et réimporter dans la nouvelle majeure :
 
    ```bash
    ansible <hôte> -m script -a "files/pg-major.sh restore <conteneur_db> <dossier_appli>/pg-migration <image>@<digest>"
@@ -51,7 +59,8 @@ moitiés ; il ne supprime rien.
    nombres de lignes, aucune erreur inattendue (les « already exists » du rôle
    et de la base créés par l'image sont attendus).
 4. Merger la PR et déployer l'appli (`deploy-docker-app` en
-   `workflow_dispatch`, `tags=<rôle>`).
+   `workflow_dispatch`, `tags=<rôle>`) : le déploiement relance `dc@<appli>`
+   avec la nouvelle image.
 
 Après un `KO restore` : l'ancienne grappe est déjà en `docker.avant-migration`
 et `<nouvelle majeure>/docker` est à moitié remplie. Corriger la cause, supprimer

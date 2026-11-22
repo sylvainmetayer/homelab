@@ -53,7 +53,10 @@ restore)
   $D run --rm --network none $mounts --entrypoint sh "$image" -c '
     [ ! -e "$PGDATA" ] || { echo "KO: $PGDATA existe déjà (reprise après un échec : le supprimer ; l ancienne grappe est déjà en docker.avant-migration)"; exit 1; }
     for d in /var/lib/postgresql/*/docker; do
-      [ -s "$d/PG_VERSION" ] && mv "$d" "$d.avant-migration"
+      [ -s "$d/PG_VERSION" ] || continue
+      # mv dans un dossier existant y rangerait la grappe au lieu de la renommer.
+      [ ! -e "$d.avant-migration" ] || { echo "KO: $d.avant-migration existe déjà, et $d aussi : à trier à la main"; exit 1; }
+      mv "$d" "$d.avant-migration"
     done; ls -d /var/lib/postgresql/*/docker.avant-migration'
   # shellcheck disable=SC2086
   $D run -d --name "$tmp" --network none --env-file "$work/env" $mounts "$image" >/dev/null
