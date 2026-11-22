@@ -127,11 +127,12 @@ services:
       - no-new-privileges:true
     # Le maître nginx reste root : CHOWN (ses dossiers de cache), SETUID et
     # SETGID (workers en 101), chacune retirée à son tour fait échouer le
-    # démarrage (essayé en local).
+    # démarrage (essayé en local) ; KILL pour tuer un worker bloqué à l'arrêt.
     cap_drop:
       - ALL
     cap_add:
       - CHOWN
+      - KILL
       - SETGID
       - SETUID
     image: nginx:1.31.9-alpine@sha256:90b6bd2aec278b16b98221d64deb1d6d35d164567f507ab0716e6053878315aa

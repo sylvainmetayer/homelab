@@ -17,12 +17,6 @@ services:
     # Sans privilège dès le démarrage, écoute sur 8080 : aucune capacité.
     cap_drop:
       - ALL
-    # Essayé en local (démarrage, santé, tâches récurrentes) : `diff` ne montre
-    # aucune écriture hors de ./data. /tmp en tmpfs pour ffmpeg et les
-    # téléversements ; ses 256m comptent dans mem_limit.
-    read_only: true
-    tmpfs:
-      - /tmp:noexec,nosuid,size=256m
     restart: unless-stopped
     # Celui du compose amont.
     stop_grace_period: 15s
