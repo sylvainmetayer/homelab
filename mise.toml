@@ -227,7 +227,7 @@ dir = "tofu"
 [tasks.lint-ci]
 description = "Lint the GitHub workflows and the Molecule Dockerfile, as the CI lint job does"
 run = '''
-uvx --no-build zizmor==1.32.0 --offline .github
+uvx --no-build zizmor==1.33.1 --offline .github
 actionlint
 hadolint ansible/molecule/_shared/Dockerfile
 '''
