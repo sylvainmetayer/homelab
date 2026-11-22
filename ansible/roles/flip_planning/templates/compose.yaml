@@ -12,6 +12,10 @@ services:
     container_name: {{ flip_planning_container_prefix }}
     security_opt:
       - no-new-privileges:true
+    # Utilisateur de l'image (1000) dès la première instruction : aucune
+    # capacité à perdre (inspecté sur flip, CapEff vide).
+    cap_drop:
+      - ALL
     # Quoted, as is the Keycloak image: Renovate strips the Jinja before
     # parsing this file, and an unquoted expression after `image:` becomes
     # `image: null`, which its docker-compose schema rejects for the WHOLE
@@ -97,6 +101,10 @@ services:
     container_name: {{ flip_planning_container_prefix }}-mailpit
     security_opt:
       - no-new-privileges:true
+    # Root mais sans rien à écrire hors de ses ports (1025, 8025) : essayé en
+    # local sans aucune capacité, SMTP et interface répondent.
+    cap_drop:
+      - ALL
     restart: unless-stopped
     environment:
       MP_WEBROOT: /mail/
@@ -117,6 +125,15 @@ services:
     container_name: {{ flip_planning_container_prefix }}-assets
     security_opt:
       - no-new-privileges:true
+    # Le maître nginx reste root : CHOWN (ses dossiers de cache), SETUID et
+    # SETGID (workers en 101), chacune retirée à son tour fait échouer le
+    # démarrage (essayé en local).
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
     image: nginx:1.31.9-alpine@sha256:90b6bd2aec278b16b98221d64deb1d6d35d164567f507ab0716e6053878315aa
     restart: unless-stopped
     volumes:
@@ -218,6 +235,10 @@ services:
     container_name: {{ flip_planning_container_prefix }}-pgadmin
     security_opt:
       - no-new-privileges:true
+    # Uid 5050 dès le démarrage de l'image : aucune capacité à perdre (essayé
+    # en local, /misc/ping répond sur le port 80).
+    cap_drop:
+      - ALL
     image: dpage/pgadmin4:9@sha256:3591b3d02910dcd817dec6fcaa681c278ba6966945283dd0ea0042731c330c83
     restart: unless-stopped
     environment:
