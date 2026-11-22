@@ -14,20 +14,21 @@
 # de l'API Anthropic dans un workspace dédié, avec sa propre limite de dépense
 # chez Anthropic (lue ici, pas dans secrets.tf, avec cette passerelle).
 #
-# Pas de budget de passerelle pour l'instant : le seul plafond est la limite de
-# dépense du workspace Anthropic. Les budgets (pangolin_ai_budget, mensuels) sont
-# à remettre quand une version de Pangolin contiendra fosrl/pangolin#4077 (les
-# fenêtres de période comparent des secondes à des millisecondes : un budget
-# périodique ne bloque jamais). Blocs retirés : voir l'historique git (PR « retirer
-# les budgets de la passerelle IA »).
+# Budgets (pangolin_ai_budget), deux par clé et deux pour l'organisation, tous
+# `monthly` : en tokens, bloquants (hard) ; en dollars, en suivi seul (soft).
+# `monthly` est une fenêtre GLISSANTE de 30 jours (Pangolin 1.27,
+# server/lib/aiBudgetEnforcement.ts), pas le mois civil. Depuis 1.27.0 Pangolin
+# compte aussi le coût des claude-*-5-5 ; les dollars restent en suivi par choix
+# (Sylvain, 2026-11-22). Historique : retirés le 2026-11-13, un budget
+# périodique ne bloquait jamais en 1.26 (fosrl/pangolin#4077).
 #
 # Journal des appels (« AI Gateway Session Log Retention », réglage de
 # l'organisation : log_retention_days_ai_sessions dans org.tf) : 90 jours
 # depuis le 12/11/2026 (décision de Sylvain). Il garde les prompts et les
 # réponses en entier, sans masquage (README) ; 0 l'éteint.
 #
-# Tous les attributs optionnels+calculés sont déclarés (AGENTS.md) : non
-# déclarés, un changement fait dans l'interface passerait inaperçu au plan.
+# Tous les attributs optionnels+calculés sont déclarés (AGENTS.md), budgets
+# compris (enabled, enforcement, period) : non déclarés, un changement fait dans l'interface passerait inaperçu au plan.
 # ---------------------------------------------------------------------------
 
 locals {
@@ -41,51 +42,76 @@ locals {
     opus   = { key = "claude-opus-5-5", name = "Claude Opus 5.5" }
   }
 
-  # Une clé virtuelle par appli.
+  # Une clé virtuelle par appli : budget_tokens (bloquant) et budget_usd (suivi
+  # seul), sur 30 jours glissants ; valeurs de Sylvain, 2026-11-22. `essai` a
+  # déjà 154 k tokens dans la fenêtre : bloquée dès l'apply, exprès, elle sert à
+  # vérifier le refus.
   ai_keys = {
     essai = {
-      description = "Essai de la passerelle (appel, puis refus au-delà du budget)"
+      description   = "Essai de la passerelle (appel, puis refus au-delà du budget)"
+      budget_tokens = 20000
+      budget_usd    = 1
     }
     # Recherche « Find » (analyse de la requête), format OpenAI, Haiku. Clé
     # lue par ansible/pi.yml (terraform_outputs.ai_gateway_keys) pour le rôle
     # immich ; une clé remplacée (-replace) se redéploie par pi.yml.
     immich_power_tools = {
-      description = "Immich Power Tools : recherche Find"
+      description   = "Immich Power Tools : recherche Find"
+      budget_tokens = 500000
+      budget_usd    = 1
     }
     # Tags et résumés des favoris, format OpenAI, Haiku (rôle karakeep,
-    # docker.yml).
+    # docker.yml). 40 M seulement parce que le rattrapage du 9-10/11 (29,7 M
+    # tokens) reste dans la fenêtre jusque vers le 10/12 : la ramener à
+    # 5 000 000 après le 2026-12-11 (usage courant : ~40 k tokens en 12 jours).
     karakeep = {
-      description = "Karakeep : tags et résumés"
+      description   = "Karakeep : tags et résumés"
+      budget_tokens = 40000000
+      budget_usd    = 5
     }
     # Assistant de Nextcloud (appli integration_openai), format OpenAI, Haiku
     # (rôle nextcloud, docker.yml).
     nextcloud = {
-      description = "Nextcloud Assistant"
+      description   = "Nextcloud Assistant"
+      budget_tokens = 500000
+      budget_usd    = 1
     }
     # Coach et analyses, format OpenAI ; URL de base et clé saisies à la main
     # dans /settings/ai (README du rôle healthlog). Données de santé : journal
     # des appels éteint.
     healthlog = {
-      description = "HealthLog : coach et analyses"
+      description   = "HealthLog : coach et analyses"
+      budget_tokens = 1000000
+      budget_usd    = 2
     }
     # papra-enrich.timer (rôle papra, docker.yml), format OpenAI, Haiku :
     # Montant, Fin de validité et tags. ~3 650 tokens par document, ~400 en
-    # arriéré (mesure du 2026-11-10) : 5 M.
+    # arriéré (mesure du 2026-11-10).
     papra = {
-      description = "Papra : classement des documents"
+      description   = "Papra : classement des documents"
+      budget_tokens = 2000000
+      budget_usd    = 2
     }
     # Chat du foyer (openwebui.sylvain.cloud), Haiku, Sonnet et Opus.
     openwebui = {
-      description = "Open WebUI : chat du foyer"
+      description   = "Open WebUI : chat du foyer"
+      budget_tokens = 2000000
+      budget_usd    = 10
     }
     # Assistant d'écriture (texte alternatif des images, raccourcir un post),
     # format OpenAI, Haiku (rôle openpost, flip.yml). La génération de posts,
     # les mèmes et les décisions de workflow échouent tant qu'OpenPost envoie
     # des schémas JSON qu'Anthropic refuse (README du rôle openpost).
     openpost = {
-      description = "OpenPost : assistant d'écriture"
+      description   = "OpenPost : assistant d'écriture"
+      budget_tokens = 1000000
+      budget_usd    = 2
     }
   }
+
+  # Plafonds de toute l'organisation, toutes clés confondues (30 jours glissants).
+  ai_budget_total_tokens = 50000000
+  ai_budget_total_usd    = 30
 }
 
 resource "terraform_data" "ai_gateway_key" {
@@ -164,6 +190,59 @@ resource "pangolin_virtual_api_key" "ai" {
   description   = each.value.description
   all_resources = false
   resource_ids  = [pangolin_resource.ai_gateway["ia"].id]
+}
+
+# Les budgets en dollars suivent seulement (soft), voir local.ai_keys.
+resource "pangolin_ai_budget" "total" {
+  for_each = local.ai_gateway
+
+  amount      = local.ai_budget_total_usd
+  unit        = "usd"
+  period      = "monthly"
+  enforcement = "soft"
+  enabled     = true
+}
+
+resource "pangolin_ai_budget" "total_tokens" {
+  for_each = local.ai_gateway
+
+  amount      = local.ai_budget_total_tokens
+  unit        = "tokens"
+  period      = "monthly"
+  enforcement = "hard"
+  enabled     = true
+}
+
+resource "pangolin_ai_budget" "key" {
+  for_each = length(local.ai_gateway) > 0 ? local.ai_keys : {}
+
+  virtual_api_key_id = pangolin_virtual_api_key.ai[each.key].id
+  amount             = each.value.budget_usd
+  unit               = "usd"
+  period             = "monthly"
+  enforcement        = "soft"
+  enabled            = true
+
+  # Pangolin supprime le budget avec sa clé : une clé remplacée (-replace après
+  # une fuite) laissait le provider tenter une mise à jour d'un budget disparu.
+  lifecycle {
+    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
+  }
+}
+
+resource "pangolin_ai_budget" "key_tokens" {
+  for_each = length(local.ai_gateway) > 0 ? local.ai_keys : {}
+
+  virtual_api_key_id = pangolin_virtual_api_key.ai[each.key].id
+  amount             = each.value.budget_tokens
+  unit               = "tokens"
+  period             = "monthly"
+  enforcement        = "hard"
+  enabled            = true
+
+  lifecycle {
+    replace_triggered_by = [pangolin_virtual_api_key.ai[each.key].id]
+  }
 }
 
 output "ai_gateway_url" {

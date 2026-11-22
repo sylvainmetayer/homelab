@@ -1,7 +1,7 @@
 # Passerelle IA (ia.sylvain.cloud)
 
 Procédure, pas un incident. La passerelle IA de Pangolin relaie les appels des
-applis vers Anthropic, une clé virtuelle par appli (sans budget pour l'instant). Tout est en
+applis vers Anthropic, une clé virtuelle par appli, chacune avec deux budgets (voir « Budgets »). Tout est en
 Tofu : `tofu/pangolin_config/ai_gateway.tf` (détail dans le README du module).
 
 ## Tester une clé
@@ -32,7 +32,7 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 |---|---|
 | 200 | La clé, le modèle et le fournisseur marchent |
 | 401 `Invalid API key` | Clé incomplète (secret seul, sans `pangolin-key-<id>.`), ou clé remplacée |
-| 429 | Limite de débit ou de dépense côté Anthropic (pas de budget de passerelle) |
+| 429 | Budget en tokens de la clé ou de l'organisation atteint (`essai` l'est exprès), ou limite de débit ou de dépense côté Anthropic |
 | 4xx sur le modèle | Modèle absent de `local.ai_models` (liste d'autorisation) |
 
 Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
@@ -58,7 +58,7 @@ Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
 4. Merge (déploiement CI, sauf `nas.yml`, `pve.yml`, `lxc.yml` : à la main),
    puis un essai dans l'appli elle-même.
 
-La conso par clé se lit dans l'interface de Pangolin (AI Gateway).
+La conso par clé se lit dans l'interface de Pangolin (AI Gateway) ou par l'API (voir « Budgets »).
 
 ## Remplacer une clé (fuite)
 
@@ -74,6 +74,32 @@ mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_a
 - La clé Anthropic elle-même (`pangolin_ai_anthropic_api_key`) :
   [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-anthropic-passerelle-ia).
 
+## Budgets
+
+Deux budgets par clé et deux pour l'organisation (`pangolin_ai_budget`,
+`ai_gateway.tf`, remis le 2026-11-22 avec Pangolin 1.27.0 qui corrige
+fosrl/pangolin#4077), tous `monthly`, soit une fenêtre **glissante de 30 jours**
+et non le mois civil :
+
+- en **tokens**, `hard` : au-delà, 429 ;
+- en **dollars**, `soft` : suivi seul, par choix (1.27 compte pourtant le coût
+  des `claude-*-5-5`).
+
+Les montants sont dans `local.ai_keys` (`budget_tokens`, `budget_usd`) et
+`local.ai_budget_total_*`. La clé `essai` est bloquée dès l'apply, exprès :
+elle sert à vérifier le refus. `karakeep` est à 40 M tokens parce que son
+rattrapage du 9-10/11 reste dans la fenêtre jusque vers le 10/12 ; la ramener à
+5 000 000 après le 2026-12-11 (pas d'automatisme). Un budget qui bloque à tort :
+relever le montant par PR. Le plafond de dépense du workspace Anthropic reste le
+dernier filet.
+
+Lire la consommation (clé d'API Pangolin, lecture) :
+
+```bash
+curl -s -H "Authorization: Bearer $PANGOLIN_API_KEY" \
+  "https://hall.sylvain.cloud/v1/org/<org>/logs/ai/usage/virtual-api-keys?timeStart=2026-11-01T00:00:00Z&timeEnd=2026-11-30T00:00:00Z"
+```
+
 ## Journal des appels
 
 Gardé 90 jours (« AI Gateway Session Log Retention », réglage de
@@ -84,13 +110,5 @@ sauvegardes. Pour l'éteindre : `0`, par PR.
 
 ## Points ouverts
 
-- **Aucun budget de passerelle** (retirés le 2026-11-13) : les budgets en
-  dollars ne comptent que les modèles du catalogue de prix de Pangolin, où les
-  `claude-*-5-5` manquaient (essai du 2026-11-09 : 12 appels Opus à 1 $ `hard`
-  sans 429), et les budgets périodiques en tokens ne bloquent jamais en
-  1.26.0 (fosrl/pangolin#4077, corrigé en amont mais pas publié). Seul filet :
-  la limite de dépense du workspace Anthropic. À remettre (mensuels) quand une
-  version de Pangolin contient #4077 : blocs `pangolin_ai_budget` dans
-  l'historique git de `ai_gateway.tf`.
 - **Pas de filtre France/Allemagne** : Pangolin refuse les règles sur une
   ressource `inference` (`local.unruled_resources`, `rules.tf`).

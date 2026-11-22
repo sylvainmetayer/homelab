@@ -4063,8 +4063,9 @@ run "domain_redirects_keep_their_behaviour" {
 }
 
 # Passerelle IA (ai_gateway.tf) : fournisseur Anthropic seul, modèles en liste
-# d'autorisation, chaque clé limitée à la passerelle, journal hors de Tofu.
-run "ai_gateway_keys_are_scoped" {
+# d'autorisation, chaque clé limitée à la passerelle et plafonnée (tokens
+# bloquants, dollars en suivi, 30 jours glissants), journal hors de Tofu.
+run "ai_gateway_keys_are_scoped_and_capped" {
   command = apply
 
   assert {
@@ -4087,9 +4088,27 @@ run "ai_gateway_keys_are_scoped" {
       alltrue([
         for k, key in pangolin_virtual_api_key.ai :
         !key.all_resources && length(key.resource_ids) == 1 && contains(key.resource_ids, pangolin_resource.ai_gateway["ia"].id)
+        && pangolin_ai_budget.key[k].virtual_api_key_id == key.id
+        && pangolin_ai_budget.key_tokens[k].virtual_api_key_id == key.id
+        && pangolin_ai_budget.key[k].amount <= pangolin_ai_budget.total["ia"].amount
+        && pangolin_ai_budget.key_tokens[k].amount <= pangolin_ai_budget.total_tokens["ia"].amount
       ])
+      # Dollars en suivi (soft), tokens bloquants (hard), tous mensuels.
+      && alltrue([
+        for b in concat(values(pangolin_ai_budget.key), values(pangolin_ai_budget.total)) :
+        b.unit == "usd" && b.period == "monthly" && b.enforcement == "soft" && b.enabled
+      ])
+      && alltrue([
+        for b in concat(values(pangolin_ai_budget.key_tokens), values(pangolin_ai_budget.total_tokens)) :
+        b.unit == "tokens" && b.period == "monthly" && b.enforcement == "hard" && b.enabled
+      ])
+      && pangolin_ai_budget.total["ia"].amount == 30
+      && pangolin_ai_budget.total_tokens["ia"].amount == local.ai_budget_total_tokens
+      && alltrue([for b in values(pangolin_ai_budget.key_tokens) : b.amount > 0])
+      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key)
+      && keys(pangolin_virtual_api_key.ai) == keys(pangolin_ai_budget.key_tokens)
     )
-    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA (pas de budget de passerelle pour l'instant, voir ai_gateway.tf)."
+    error_message = "Chaque clé virtuelle doit viser la seule passerelle IA et porter deux budgets mensuels : en tokens, bloquant, sous le plafond en tokens de l'organisation ; en dollars, en suivi seul, sous les 30 $ de l'organisation."
   }
 }
 
