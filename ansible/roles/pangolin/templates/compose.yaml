@@ -1,7 +1,7 @@
 name: pangolin
 services:
   pangolin:
-    image: docker.io/fosrl/pangolin:ee-1.27.0@sha256:71a93bac11afb2466871fad745d9cadefab2d173a8ab8d0769f8f4431786a18b
+    image: docker.io/fosrl/pangolin:ee-1.27.1@sha256:60281d0342fa025cafd1ab9d94911ef56cd55699602389905b8dfb180f6e1905
     container_name: pangolin
     # Tout le trafic public passe par ce compose : un OOM ici coupe tout le
     # homelab, d'où des plafonds larges (pics mesurés le 31/10/2026, 30 h
