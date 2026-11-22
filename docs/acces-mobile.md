@@ -98,6 +98,12 @@ mais **restent soumis au filtre pays** (FR, DE et les pays de voyage) :
   dans `tofu/pangolin_config`), envoyé en en-têtes `P-Access-Token-Id` et
   `P-Access-Token`, puis la clé d'API de Homebox. Aucun chemin ouvert : la
   ressource reste derrière le SSO et le filtre pays.
+- OpenPost : appli mobile Android, un jeton par appareil (`android`, lu avec
+  `tofu output -json openpost_client_access_tokens` dans
+  `tofu/pangolin_config`), saisi dans les en-têtes de proxy de l'appli
+  (`P-Access-Token-Id` et `P-Access-Token`), puis le login d'OpenPost. Seul
+  `/media/*` est ouvert (`openpost_media_paths`) : le reste de la ressource
+  reste derrière le SSO et le filtre pays.
 - Grocy, serveur MCP local de Claude Code (`scripts/grocy-mcp`) : un jeton
   (`claude-code`, lu avec `tofu output -json grocy_client_access_tokens`
   dans `tofu/pangolin_config`), envoyé en en-têtes `P-Access-Token-Id` et
