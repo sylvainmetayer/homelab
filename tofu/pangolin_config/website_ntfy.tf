@@ -137,7 +137,6 @@ resource "uptimekuma_notification_ntfy" "ntfy" {
   priority = 4
 
   # Optional+computed: pinned, as on uptimekuma_notification_telegram.supervision.
-  is_active      = true
   is_default     = false
   apply_existing = false
 }

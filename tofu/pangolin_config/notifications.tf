@@ -55,11 +55,10 @@ resource "uptimekuma_notification_telegram" "supervision" {
   bot_token = local.telegram_bot_token
   chat_id   = local.telegram_chat_id
 
-  # `is_active`, `is_default` and `apply_existing` are optional+computed.
+  # `is_default` and `apply_existing` are optional+computed.
   # Leaving them out means "whatever the API decides", which is exactly how
   # the health-check probes ended up silently unconfigured - so every one is
   # pinned here on purpose.
-  is_active      = true
   is_default     = false # monitors are wired explicitly, none by default
   apply_existing = false
 

@@ -3533,7 +3533,6 @@ run "ssh_login_monitors_alert_on_every_login" {
     condition = (
       uptimekuma_notification_telegram.supervision.is_default == false
       && uptimekuma_notification_telegram.supervision.apply_existing == false
-      && uptimekuma_notification_telegram.supervision.is_active == true
       && uptimekuma_notification_telegram.supervision.chat_id == "-100123456789"
     )
     error_message = "La notification Telegram n'est ni par défaut ni rattachée en masse, et lit son chat dans uptimekuma_telegram_chat_id."

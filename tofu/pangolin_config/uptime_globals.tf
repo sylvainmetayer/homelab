@@ -18,8 +18,9 @@ resource "uptimekuma_tag" "managed_by" {
 }
 
 # No local of pins for the monitors, unlike local.resource_pins
-# (resource_defaults.tf): in breml/uptimekuma 0.5.0, as in 0.4.0 (re-checked
-# on the upgrade, 2026-11-01: ip_family, new, defaults to "auto"), every
+# (resource_defaults.tf): in breml/uptimekuma 0.6.0, as in 0.5.0 and 0.4.0
+# (re-checked on the upgrade to 0.6.0, 2026-11-22: no monitor, proxy, tag or
+# status page resource changed since 0.5.0; the notifications lost is_active), every
 # optional+computed attribute of uptimekuma_monitor_push, _group, _http and
 # _http_keyword (upside_down, active, max_retries, accepted_status_codes, ignore_tls...)
 # carries a static provider default (resource_monitor_base.go,
