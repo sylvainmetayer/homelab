@@ -17,7 +17,7 @@ services:
     # (surtout du cache de pages), 130 Mio pour Valkey, 311 Mio pour le
     # timelapse, 15 Mio pour swipe (pi, 31/10/2026, 26 h après le démarrage).
     mem_limit: 3g
-    image: ghcr.io/immich-app/immich-server:v3.4.0@sha256:7b7b575029168bfb9eb901d868ce7dbfda0d7818e78aaace29b7b8a08cd4e7d5
+    image: ghcr.io/immich-app/immich-server:v3.4.2@sha256:fc880c1bf665b4aab1e74c15e56ab871225989cd546536e6b77e771869af06bd
     # extends:
     #   file: hwaccel.transcoding.yml
     #   service: cpu # set to one of [nvenc, quicksync, rkmpp, vaapi, vaapi-wsl] for accelerated transcoding
@@ -55,7 +55,7 @@ services:
     mem_limit: 4g
     # For hardware acceleration, add one of -[armnn, cuda, rocm, openvino, rknn] to the image tag.
     # Example tag: ${IMMICH_VERSION:-release}-cuda
-    image: ghcr.io/immich-app/immich-machine-learning:v3.4.0@sha256:f4e7275c9fbd956ed7bccc738ac57890bcbd9f9c17844d2ea0b137e38a083454
+    image: ghcr.io/immich-app/immich-machine-learning:v3.4.2@sha256:739405742a79bd7447227c553bb62ed5491aa36acf00bc667af7f9c93b6fae91
     # extends: # uncomment this section for hardware acceleration - see https://docs.immich.app/features/ml-hardware-acceleration
     #   file: hwaccel.ml.yml
     #   service: cpu # set to one of [armnn, cuda, rocm, openvino, openvino-wsl, rknn] for accelerated inference - use the `-wsl` version for WSL2 where applicable
@@ -75,7 +75,7 @@ services:
     container_name: immich_redis
     mem_limit: 256m
     mem_reservation: 128m
-    image: docker.io/valkey/valkey:9@sha256:3add1a336a920ea54770a001ab6feb3da5fceea96a40373a3a2cd469b815f0b7
+    image: docker.io/valkey/valkey:9@sha256:1c2b25b09f354c66fe994733acdf12fcfd4bdf6f3bd92b88a93a70378d884056
     # Mot de passe du .env (REDIS_PASSWORD, que lit aussi immich-server).
     # Interpolé par compose dans la commande : valkey réécrit le titre de son
     # processus, `ps` sur le Pi ne le montre pas.
@@ -248,7 +248,7 @@ services:
   # immich-power-tools, le foyer). Il lit aussi la base d'Immich en direct,
   # chaque requête filtrée sur l'utilisateur connecté (README du rôle).
   immich-power-tools:
-    image: ghcr.io/immich-power-tools/immich-power-tools:0.25.0@sha256:85af8a9f116cfb626dcda491a49616baf90108fe428a885df5ab68bd7cddb291
+    image: ghcr.io/immich-power-tools/immich-power-tools:v0.26.0@sha256:a089be108f86d157ac8e078ddf47de2a2564dcb09b3d4bdd8c91f0074f25bef8
     container_name: immich-power-tools
     # ~93 Mio au repos, mesurés en local (Next.js, sans Immich). Pas encore
     # mesuré sur le Pi ni sous charge (analyses, recherche) : valeur
