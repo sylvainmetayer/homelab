@@ -39,7 +39,7 @@ runs:
           -e OLM_ID \
           -e OLM_SECRET \
           -e OVERRIDE_DNS=true \
-          docker.io/fosrl/olm:1.10.1@sha256:19943d7087262a0786f347bbefc0e9b4f01e857c198cd07de164fe83bc5e4d55
+          docker.io/fosrl/olm:1.10.2@sha256:b843a86bd11c357fc0eb04daa907a48ffa7ab23b98d840f317b8fdb4f3b076f2
 
     - name: Wait OLM startup
       shell: bash
