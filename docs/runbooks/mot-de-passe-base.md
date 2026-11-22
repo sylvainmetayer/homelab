@@ -42,10 +42,10 @@ session quand son mot de passe change), seules les nouvelles échouent.
 | Flip Planning, production (`flip_planning`) | flip, `flip.yml`, `flip_planning` | `flip-planning-db` (`postgres:19.0`) | `festival`, base `festival` | SOPS `prod_planning_db_password` (`vars:` de l'entrée de `flip.yml`) | `.env` (`DB_PASSWORD`, templaté) |
 | Flip Planning, démo | flip, `flip.yml`, `demo_planning` | `demo-planning-db` | `festival`, base `festival` | SOPS `demo_planning_db_password` | idem |
 | Flip Planning, démo Keycloak | flip, `flip.yml`, `demo_planning_kc` | `demo-planning-kc-db` et `demo-planning-kc-keycloak-db` | `festival` (base `festival`) et `keycloak` (base `keycloak`) | SOPS `demo_planning_kc_db_password` et `demo_planning_kc_keycloak_db_password` | `.env` ; compose (`KC_DB_PASSWORD` de Keycloak) |
-| Betisier (`betisier`) | docker, `docker.yml`, `betisier` | `betisier_db` (`lscr.io/linuxserver/mariadb:11.8.9`) | `betisier` ; root a le même mot de passe | SOPS `betisier_db_password` | `/opt/apps/betisier/config/config.inc.php` (`DBPASSWD`, à la main) |
-| Monica (`monica_v4`) | docker, `docker.yml`, **`monica`** | `monica_v4_db` (linuxserver 11.8.9) | `monica` ; root a le même mot de passe | SOPS `monica_v4_db_password` | `.env` (`DB_PASSWORD`, templaté) |
+| Betisier (`betisier`) | docker, `docker.yml`, `betisier` | `betisier_db` (`lscr.io/linuxserver/mariadb:11.8.10`) | `betisier` ; root a le même mot de passe | SOPS `betisier_db_password` | `/opt/apps/betisier/config/config.inc.php` (`DBPASSWD`, à la main) |
+| Monica (`monica_v4`) | docker, `docker.yml`, **`monica`** | `monica_v4_db` (linuxserver 11.8.10) | `monica` ; root a le même mot de passe | SOPS `monica_v4_db_password` | `.env` (`DB_PASSWORD`, templaté) |
 | Nextcloud (`nextcloud`) | docker, `docker.yml`, `nextcloud` | `nextcloud_db` (`mariadb:12.3.3`, image officielle) | `nextcloud` ; root a le même mot de passe | SOPS `nextcloud_db_password` | `config.php` de Nextcloud (`dbpassword`) : le conteneur `nextcloud` ne reçoit aucune variable de base |
-| BookStack (`wiki`) | docker, `docker.yml`, `wiki` | `bookstack_db` (linuxserver 11.8.9) | `bookstack` ; root a le même mot de passe | SOPS `wiki_db_password` (le défaut du rôle, `wiki`, n'est jamais utilisé) | `/opt/apps/wiki/config/www/.env` (`DB_PASSWORD`). Le `DB_PASS` du compose est ignoré : l'image actuelle ne lit que `DB_PASSWORD`, dans ce `.env` |
+| BookStack (`wiki`) | docker, `docker.yml`, `wiki` | `bookstack_db` (linuxserver 11.8.10) | `bookstack` ; root a le même mot de passe | SOPS `wiki_db_password` (le défaut du rôle, `wiki`, n'est jamais utilisé) | `/opt/apps/wiki/config/www/.env` (`DB_PASSWORD`). Le `DB_PASS` du compose est ignoré : l'image actuelle ne lit que `DB_PASSWORD`, dans ce `.env` |
 
 Aucun autre rôle ne lance de Postgres ni de MariaDB. La démo Keycloak n'est
 pas sauvegardée (`flip_planning_backup_enabled: false` dans `flip.yml`) :
@@ -276,7 +276,7 @@ mot de passe, par le même chemin.
 Le 2026-10-28, sur des conteneurs **jetables** du poste (podman), jamais sur
 les bases des hôtes, avec les images épinglées par les rôles (majeures
 comprises) : `postgres:18.6-alpine` et `postgres:14-alpine` (Immich est en
-14), `mariadb:12.3.3` (officielle) et `lscr.io/linuxserver/mariadb:11.8.9`.
+14), `mariadb:12.3.3` (officielle) et `lscr.io/linuxserver/mariadb:11.8.10`.
 Pour chacune : base et utilisateur créés comme le font les composes, rotation
 avec les commandes ci-dessus (`ssh_hote` remplacé par un shell local),
 ancien mot de passe refusé et nouveau accepté depuis un autre conteneur du
