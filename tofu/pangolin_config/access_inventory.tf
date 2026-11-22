@@ -63,9 +63,13 @@ locals {
   # a title, and a renamed role keeps its id. An entry leaves this list the day
   # its token or role is deleted in Pangolin (check.inventory_exceptions_stale
   # says so) or declared here.
-  # None today: Flip Planning "MCP" and Immich "todo wip" were deleted on
-  # 2026-10-28 (#525).
-  unmanaged_access_tokens = {}
+  # Flip Planning "MCP" and Immich "todo wip" were deleted on 2026-10-28 (#525).
+  unmanaged_access_tokens = {
+    # OpenPost « WIP - openpost Android », fait à la main le 2026-11-22 et
+    # remplacé par pangolin_resource_access_token.openpost_clients["android"] :
+    # à supprimer dans Pangolin une fois le nouveau jeton saisi dans l'appli.
+    "qv4gvbqx" = "OpenPost Android : ancien jeton manuel, à supprimer"
+  }
 
   unmanaged_roles = {
     # Made by Pangolin with the org; neither can be deleted.
@@ -82,6 +86,7 @@ locals {
     [for token in pangolin_resource_access_token.karakeep_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.immich_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.homebox_clients : tostring(token.id)],
+    [for token in pangolin_resource_access_token.openpost_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.grocy_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.papra_clients : tostring(token.id)],
     [for token in pangolin_resource_access_token.trek_mcp_clients : tostring(token.id)],
