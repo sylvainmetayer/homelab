@@ -161,7 +161,9 @@ mediamanager_subnet: 172.30.97.0/24
 # Provisoires, tirées de l'évaluation : à recaler à ~2x memory.peak après une
 # semaine d'essai (README). gluetun remesuré le 2026-11-09 : memory.peak à
 # 118 Mio pour 128, d'où 256m ; les autres restent à remesurer.
-mediamanager_mem_limit: 512m
+# MediaManager : memory.peak 463 Mio sur 512 (22/11/2026, 5 jours, cache de pages
+# compris), d'où 1g.
+mediamanager_mem_limit: 1g
 mediamanager_db_mem_limit: 256m
 mediamanager_db_mem_reservation: 128m
 mediamanager_qbittorrent_mem_limit: 1g
