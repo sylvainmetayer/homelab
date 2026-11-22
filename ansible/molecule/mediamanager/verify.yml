@@ -54,7 +54,7 @@
           # sous un nom fixe et que MediaManager rejoint en externe ; plus de
           # newt (Pangolin passe par nas-proxy).
           - mm_verify_app.networks.keys() | sort == ['db', 'default', 'proxy']
-          - mm_verify_app.mem_limit | int == 536870912
+          - mm_verify_app.mem_limit | int == 1073741824
           # Rappel OIDC en https : uvicorn croit le X-Forwarded-Proto de nas-proxy.
           - mm_verify_app.environment.FORWARDED_ALLOW_IPS == '*'
           # La base : jamais sur proxy ni sur un réseau qui sort.
