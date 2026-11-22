@@ -55,7 +55,7 @@ jobs:
       # Renovate ne bumpe que le lock, un pin écrit ici dériverait.
       - name: Install ansible + deps
         run: |
-          pip install --quiet --only-binary :all: uv==0.13.8
+          pip install --quiet --only-binary :all: uv==0.13.9
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
@@ -192,7 +192,7 @@ jobs:
       # Versions d'uv.lock (ansible-core, mitogen), comme le job Ansible lint.
       - name: Install ansible + deps
         run: |
-          pip install --quiet --only-binary :all: uv==0.13.8
+          pip install --quiet --only-binary :all: uv==0.13.9
           uv sync --locked --no-build
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
 
@@ -303,7 +303,7 @@ jobs:
 
       - name: Install the linters
         run: |
-          pip install --quiet --only-binary :all: uv==0.13.8
+          pip install --quiet --only-binary :all: uv==0.13.9
           curl --proto '=https' --tlsv1.2 -fsSLo /tmp/actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
           echo "${ACTIONLINT_SHA256}  /tmp/actionlint.tgz" | sha256sum -c -
           tar -xzf /tmp/actionlint.tgz -C /tmp actionlint
