@@ -52,3 +52,33 @@ output "uptime_backup_openpost_url" {
   value       = local.backup_push_urls["openpost"]
   sensitive   = true
 }
+
+# L'appli mobile d'OpenPost (Android) ne passe pas le mur SSO de Pangolin :
+# elle envoie un jeton d'accès Pangolin dans ses en-têtes de proxy
+# (Advanced à l'installation, ou Proxy headers dans le menu de l'espace de
+# travail : P-Access-Token-Id / P-Access-Token, v7.42.2), en plus du login
+# d'OpenPost. Tout le reste de la ressource reste derrière le SSO et le filtre
+# FR/DE. Un jeton par appareil, révocable seul. Lecture :
+# `tofu output -json openpost_client_access_tokens`.
+#
+# description et persist_session sont optionnels et calculés : déclarés, pour
+# qu'un changement fait dans l'interface se voie au plan (AGENTS.md).
+resource "pangolin_resource_access_token" "openpost_clients" {
+  for_each = toset(["android"])
+
+  resource_id     = pangolin_resource.website["openpost"].id
+  title           = "${pangolin_resource.website["openpost"].name} ${each.key}"
+  description     = "Appli mobile OpenPost (${each.key}), en-têtes de proxy"
+  persist_session = false
+}
+
+output "openpost_client_access_tokens" {
+  description = "OPENPOST - En-têtes Pangolin des clients (appli mobile)"
+  value = {
+    for client, token in pangolin_resource_access_token.openpost_clients : client => {
+      "P-Access-Token-Id" = tostring(token.id)
+      "P-Access-Token"    = token.token
+    }
+  }
+  sensitive = true
+}
