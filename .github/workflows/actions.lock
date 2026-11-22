@@ -11,7 +11,7 @@ workflows:
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
         - 'actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
         - 'opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4'
-        - 'step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a'
+        - 'step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c'
     '.github/workflows/lint.yaml':
         - 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9'
         - 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1'
@@ -88,8 +88,8 @@ dependencies:
         commit: 'sha1-a1320f892987e89d278cc92dc5adc984fb93aca4'
         owner_id: 142061836
         repo_id: 696284666
-    'step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a':
-        ref: 'v2.22.4'
-        commit: 'sha1-1d88384fd173af6ecb012dfd0264a306b711241a'
+    'step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c':
+        ref: 'v2.23.0'
+        commit: 'sha1-aebdcf6156ab6691adf63218240e476564a1ed4c'
         owner_id: 88700172
         repo_id: 422287306
