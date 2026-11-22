@@ -288,7 +288,7 @@ jobs:
       # par son tag (`gh extension install --pin` n'accepte pas de somme),
       # suivi par Renovate (gestionnaire regex des workflows), sans automerge.
       # renovate: datasource=github-releases depName=github/gh-actions-lock
-      GH_ACTIONS_LOCK_VERSION: v0.4.1
+      GH_ACTIONS_LOCK_VERSION: v0.5.0
 
     steps:
       - name: Checkout
