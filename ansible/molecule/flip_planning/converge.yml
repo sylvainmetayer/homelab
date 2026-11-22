@@ -130,6 +130,7 @@
         flip_planning_branding_product_name: "Flip Planning — Démo"
         flip_planning_cloudflare_web_analytics_token: ""
         flip_planning_horloge_simulee_autorisee: true
+        flip_planning_solver_engine: hand
         flip_planning_db_password: "{{ demo_planning_db_password }}"
         flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
         flip_planning_admin_password: "{{ demo_planning_admin_password }}"
