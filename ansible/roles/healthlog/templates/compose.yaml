@@ -67,7 +67,7 @@ services:
     # dessous, le ramasse-miettes bloque les requêtes). Pas encore mesuré :
     # pas de quota CPU, service interactif.
     mem_limit: 1536m
-    image: ghcr.io/mbombeck/healthlog:v1.47.1@sha256:fb8df926350591b1b4353a4b7e21456fcfddfaaf4f7eefeb9d732524ad0862d5
+    image: ghcr.io/mbombeck/healthlog:v1.48.5@sha256:7d8fc9c20a7f7b2c0f9382d133fd86e8bfd9732ae7f3d781ec4090e24bb1c500
     container_name: healthlog
     restart: unless-stopped
     security_opt:
