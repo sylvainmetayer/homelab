@@ -257,7 +257,8 @@ mediamanager`, puis `last_rotated` à la date du jour et `estimated: false`.
 
 ### Limites
 
-Provisoires, celles de l'évaluation : MediaManager 512 Mo, PostgreSQL 256 Mo
+Provisoires, celles de l'évaluation : MediaManager 1 Go (remesuré le
+2026-11-22 : pic de 463 Mio pour 512, cache de pages compris), PostgreSQL 256 Mo
 (`mem_reservation` 128 Mo), qBittorrent 1 Go avec `cpus: 2.00` et
 `cpu_shares: 512` (job par lots), Prowlarr 256 Mo, gluetun 256 Mo (remesuré le 2026-11-09 : pic de 118 Mio
 pour 128). **Les autres, à
