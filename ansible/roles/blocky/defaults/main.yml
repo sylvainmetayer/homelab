@@ -19,8 +19,8 @@ blocky_binary_version: "v0.37.0"
 # Sommes des archives de la release (blocky_checksums.txt) : get_url refuse
 # tout autre fichier. Une montée de version doit aussi les changer.
 blocky_binary_sha256:
-  x86_64: 92c52187dc9140c683d7fe29ab2ebfb0db398ff66031558212b6aec451891540
-  arm64: cf4050f4b83fbde1e8f16ca2bd3413600f89e3dccb83ead2f9bb87e0282abe0c
+  x86_64: 784d0617cb39944ca80197a9fe7ac2d796bcf1154dafb36a598c776a6c18da0e
+  arm64: 7ebd9f112d847eb37f8bb60930822865a2909627a33f1f969ded1557da56a904
 blocky_binary_dir: /usr/local/lib/blocky
 blocky_config_dir: /etc/blocky
 
