@@ -8,7 +8,7 @@ services:
     networks:
       - {{ betisier_newt_network }}
       - betisier
-    image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:f9f76c51438aaa1b6d06418e114d8b03e3c17e51381fd561e2569c9a02eaac42
+    image: ghcr.io/sylvainmetayer/betisier-tp:latest@sha256:2a23b99e809f082e5e9edf4ea5b2fcfd6294191375340c05c8b55fb9e4273fb0
     environment:
       - PUID={{ ansible_facts['user_uid'] }}
       - PGID={{ ansible_facts['user_gid'] }}
