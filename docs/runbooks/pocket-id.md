@@ -349,7 +349,7 @@ un contrôle échoue.
   `redirect_uri` piégées, codes entre clients, rejeu de code, refresh après
   rotation et après retrait du groupe.
 
-Résultats connus de la v2.19.1 (06/11/2026 ; l'image est en v2.19.2, non rejoués), à ne pas reprendre pour une
+Résultats connus de la v2.19.1 (06/11/2026 ; l'image est en v2.19.3, non rejoués), à ne pas reprendre pour une
 régression : PKCE `plain` accepté (activé en dur), ancien refresh token
 valable une minute après rotation (période de grâce voulue). Les en-têtes
 `nosniff`, `Referrer-Policy`, `Permissions-Policy` et CORP sont posés par le
