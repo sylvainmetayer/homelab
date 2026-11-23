@@ -292,6 +292,26 @@ Mettre à jour dans l'interface, attendre le redémarrage, se reconnecter.
    sans port en LAN, depuis l'hôte Proxmox `showmount -e 192.168.1.137` (export
    `/volume1/pve-backup` vers cet hôte), le moniteur « Certificats NAS » et
    l'agent Beszel `nas` au vert.
+3. Relire les réglages d'UGOS ci-dessous : une mise à jour ou un
+   redémarrage peut les remettre à leur valeur d'usine.
+
+### Réglages d'UGOS posés à la main
+
+Hors Ansible : faits dans l'interface, relus par SSH le 23/11/2026.
+
+| Réglage | Valeur | Contrôle en SSH |
+|---|---|---|
+| Pare-feu (11/11) | tout depuis `192.168.1.0/24` (LAN) et `172.16.0.0/12` (réseaux Docker, sans quoi les conteneurs ne sortent plus que vers 22/80/443/8443) ; 22, 80, 443, 8443 et 5443 ouverts à toute source, IPv6 comprise (accepté) ; refus du reste | `sudo iptables -S UG_INPUT` |
+| Signature SMB (23/11) | obligatoire | `sudo testparm -s` affiche `server signing = required` |
+| Exports NFS | `/volume1/pve-backup` vers l'hôte Proxmox seul ; le partage d'essai `nas-test` (export vers le Pi, `no_root_squash`) supprimé le 23/11 | `sudo exportfs -v` |
+
+Acceptés faute de réglage dans l'interface :
+
+- SMB2 et SMB3 vont ensemble, pas de minimum SMB3 ;
+- NFS v3, v4, v4.1 et v4.2 tous actifs (limités au LAN par le pare-feu) ;
+- l'interface ne propose aucune mise à jour alors que la base Debian a des
+  paquets en attente (125, dont 29 de sécurité, le 23/11) : seul Ugreen les
+  livre, pas d'`apt upgrade` à la main, qui casserait UGOS.
 
 ## Prévention
 
