@@ -5,7 +5,7 @@ Infra de la vitrine de planning-equipes, [planning.sylvain.dev](https://planning
 | Ressource | Rôle |
 |---|---|
 | `github_app_installation_repository.cloudflare` | Accès de l'app GitHub Cloudflare au dépôt (si `cloudflare_github_installation_id` est renseigné) |
-| `cloudflare_pages_project.planning` | Projet `planning-equipes` : dossier racine `site`, build `npm run build`, sortie `_site` ; production à chaque merge sur `main`, aperçu sur chaque branche, le tout limité aux commits qui touchent `site/**` |
+| `cloudflare_pages_project.planning` | Projet `planning-equipes` : dossier racine `site`, build `npm run build`, sortie `_site` ; production à chaque merge sur `main`, aperçu sur chaque branche, le tout limité aux commits qui touchent `site/` (motif `site/*` : Pages ne documente `*` qu'en début ou fin de motif, et il traverse les sous-dossiers ; `site/**` ne déclenchait aucun build) |
 | `cloudflare_pages_domain.planning` | Domaine personnalisé `planning.sylvain.dev` |
 | `ovh_domain_zone_record.planning` | CNAME `planning` → `<projet>.pages.dev` (prime sur le joker `*.sylvain.dev` de `tofu/dns`) |
 | `cloudflare_web_analytics_site.planning` | Pages vues, sans injection automatique ; jeton du beacon en sortie `web_analytics_token`, comparé au plan à la clé `beaconToken` de `site/src/_data/site.json` (`check "beacon_token"`) |
@@ -49,7 +49,7 @@ mise charge `secrets/secrets.sops.yaml` dans l'environnement (identifiants S3 du
      "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/planning-equipes/deployments" | jq .success'
    ```
 
-5. **Recopier le jeton du beacon** : `mise exec -- tofu -chdir=tofu/planning output -raw web_analytics_token` devient la valeur de `beaconToken` dans `site/src/_data/site.json` du dépôt `planning-equipes` (une PR ; son merge redéploie, le chemin `site/**` étant touché). L'identifiant du site, pour le tableau de bord ou l'API : `tofu output -raw web_analytics_site_tag`.
+5. **Recopier le jeton du beacon** : `mise exec -- tofu -chdir=tofu/planning output -raw web_analytics_token` devient la valeur de `beaconToken` dans `site/src/_data/site.json` du dépôt `planning-equipes` (une PR ; son merge redéploie, le chemin `site/` étant touché). L'identifiant du site, pour le tableau de bord ou l'API : `tofu output -raw web_analytics_site_tag`.
 6. `mise run plan-planning` doit être vide, **sans** avertissement `beacon_token`.
 7. Vérifier `curl -sI https://planning.sylvain.dev` (200, en-têtes de `_headers`) et `https://planning.sylvain.dev/en/`.
 8. Appliquer `tofu/pangolin_config` pour le moniteur Uptime Kuma « Planning (vitrine) » (`external_monitors.tf`) : `mise exec -- tofu -chdir=tofu/pangolin_config plan`, qui ne doit montrer que ce moniteur, puis `apply`. Après le site, sinon il passe DOWN.

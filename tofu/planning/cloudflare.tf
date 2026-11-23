@@ -33,7 +33,7 @@ resource "cloudflare_pages_project" "planning" {
       # Le dépôt est surtout l'application (Quarkus, Angular) : seul un commit
       # qui touche la vitrine déclenche un build, de production ou d'aperçu.
       # Optionnel et calculé : non déclaré, une dérive ne se verrait pas au plan.
-      path_includes = ["${var.site_dir}/**"]
+      path_includes = ["${var.site_dir}/*"]
     }
   }
 
