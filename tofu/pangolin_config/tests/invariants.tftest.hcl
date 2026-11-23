@@ -2795,10 +2795,11 @@ run "dns_resource_points_at_the_lxc_blocky" {
   assert {
     condition = (
       yamldecode(file("${path.module}/../../ansible/roles/blocky/defaults/main.yml")).blocky_custom_dns == {
-        "pve.lan"      = "192.168.1.26"
-        "docker.lan"   = "192.168.1.216"
-        "nas.lan"      = "192.168.1.137"
-        "newt-lxc.lan" = "192.168.1.200"
+        "pve.lan"           = "192.168.1.26"
+        "pve.sylvain.cloud" = "192.168.1.26"
+        "docker.lan"        = "192.168.1.216"
+        "nas.lan"           = "192.168.1.137"
+        "newt-lxc.lan"      = "192.168.1.200"
       }
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "pve ansible_host=192.168.1.26\n")
       && strcontains(file("${path.module}/../../ansible/inventory/hosts"), "nas ansible_host=192.168.1.137 ")
