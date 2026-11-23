@@ -84,7 +84,7 @@ run "projet_cloudflare_pages" {
 
   # Un commit de l'application ne doit pas redéployer la vitrine.
   assert {
-    condition     = cloudflare_pages_project.planning.source.config.path_includes == tolist(["site/**"])
+    condition     = cloudflare_pages_project.planning.source.config.path_includes == tolist(["site/*"])
     error_message = "Seuls les changements sous site/ doivent déclencher un build Pages."
   }
 
