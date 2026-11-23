@@ -118,6 +118,7 @@
         flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
         flip_planning_mem_reservation: 1g
+        flip_planning_solver_engine: hand
     - role: flip_planning
       vars:
         flip_planning_enabled: "{{ demo_planning_enabled }}"
