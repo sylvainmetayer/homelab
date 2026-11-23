@@ -109,9 +109,8 @@
         # — every instance shares its 4 GiB — the kernel reclaims from the others
         # first. See flip_planning_mem_reservation in the role defaults.
         flip_planning_mem_reservation: 1g
-        # The direct engine; the example instance keeps the application's
-        # default search.
-        flip_planning_solver_engine: hand
+        # Back on Timefold, the application's default: the direct engine left
+        # a hard rule broken on a solve with locked days that Timefold solves.
     # Demo environment: the same role, a second time, with its own compose
     # project directory, systemd unit, containers, docker network, database and
     # Borg repository. Only what cannot be shared is overridden here — the
@@ -152,8 +151,8 @@
         # Own credentials throughout: a leaked demo password must not open the
         # real planning. No Pangolin MCP access token (#763): /mcp/* is open
         # through a path ACCEPT here, the role default leaves it empty.
-        # The direct engine, as on production, so the demo shows what the
-        # festival runs.
+        # The direct engine stays on the demo, which is paused, to be tried
+        # again there once fixed.
         flip_planning_solver_engine: hand
         flip_planning_db_password: "{{ demo_planning_db_password }}"
         flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
