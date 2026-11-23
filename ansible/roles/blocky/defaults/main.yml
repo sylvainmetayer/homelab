@@ -65,8 +65,11 @@ blocky_conditional_mapping:
   1.168.192.in-addr.arpa: "{{ blocky_bbox_ip }}"
   .: "{{ blocky_bbox_ip }}"
 # Les hôtes à IP fixe que la Bbox ne nomme pas (IP de l'inventaire).
+# pve.sylvain.cloud : nom du certificat Let's Encrypt de Proxmox (tofu/proxmox,
+# UI), absent de tout DNS public ; la Bbox le servait en local.
 blocky_custom_dns:
   pve.lan: 192.168.1.26
+  pve.sylvain.cloud: 192.168.1.26
   docker.lan: 192.168.1.216
   nas.lan: 192.168.1.137
   newt-lxc.lan: 192.168.1.200
