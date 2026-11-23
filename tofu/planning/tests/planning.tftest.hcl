@@ -41,11 +41,11 @@ override_resource {
   }
 }
 
-# Les deux pages, à jour : leur beacon porte le jeton du site Web Analytics.
+# site.json à jour : beaconToken porte le jeton du site Web Analytics.
 override_data {
-  target = data.github_repository_file.beacon_pages
+  target = data.github_repository_file.beacon
   values = {
-    content = "<script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"fake-beacon-token\"}'></script>"
+    content = "{\"name\": \"Planning Équipes\", \"beaconToken\": \"fake-beacon-token\"}"
   }
 }
 
@@ -88,15 +88,15 @@ run "projet_cloudflare_pages" {
     error_message = "Seuls les changements sous site/ doivent déclencher un build Pages."
   }
 
-  # Site statique : pas de build, site/ publié tel quel (pages_build_output_dir
-  # = "." dans site/wrangler.toml).
+  # Site Eleventy : build dans site/, sortie _site (pages_build_output_dir de
+  # site/wrangler.toml).
   assert {
     condition = (
-      cloudflare_pages_project.planning.build_config.build_command == "" &&
-      cloudflare_pages_project.planning.build_config.destination_dir == "." &&
+      cloudflare_pages_project.planning.build_config.build_command == "npm run build" &&
+      cloudflare_pages_project.planning.build_config.destination_dir == "_site" &&
       cloudflare_pages_project.planning.build_config.root_dir == "site"
     )
-    error_message = "Build Pages : aucune commande, dossier racine site, sortie « . »."
+    error_message = "Build Pages : npm run build, dossier racine site, sortie _site."
   }
 
   assert {
@@ -126,58 +126,38 @@ run "web_analytics" {
   }
 
   assert {
-    condition     = toset(keys(data.github_repository_file.beacon_pages)) == toset(["index.html", "en/index.html"])
-    error_message = "Le check beacon_token doit lire les deux pages, française et anglaise."
-  }
-
-  assert {
-    condition = alltrue([
-      for p in data.github_repository_file.beacon_pages :
-      p.repository == "planning-equipes" && p.branch == "main" && startswith(p.file, "site/")
-    ])
-    error_message = "Les pages lues doivent être celles de site/ sur main du dépôt planning-equipes."
+    condition = (
+      data.github_repository_file.beacon.repository == "planning-equipes" &&
+      data.github_repository_file.beacon.branch == "main" &&
+      data.github_repository_file.beacon.file == "site/src/_data/site.json"
+    )
+    error_message = "Le check beacon_token doit lire site/src/_data/site.json sur main du dépôt planning-equipes."
   }
 }
 
-# Jeton pas encore recopié (le placeholder de la PR planning-equipes) ou site
-# Web Analytics recréé : le check beacon_token doit le signaler.
+# Jeton pas encore recopié ou site Web Analytics recréé : le check
+# beacon_token doit le signaler.
 run "jeton_beacon_absent_signale" {
   command = plan
 
   override_data {
-    target = data.github_repository_file.beacon_pages
+    target = data.github_repository_file.beacon
     values = {
-      content = "<script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"A_REMPLACER_PAR_LE_JETON\"}'></script>"
+      content = "{\"beaconToken\": \"A_REMPLACER_PAR_LE_JETON\"}"
     }
   }
 
   expect_failures = [check.beacon_token]
 }
 
-# Une seule page à jour (la française), l'anglaise encore au jeton factice :
-# le check doit exiger les deux.
-run "jeton_beacon_sur_une_seule_page_signale" {
+# Le jeton présent ailleurs que sous beaconToken ne suffit pas.
+run "jeton_hors_de_beacon_token_signale" {
   command = plan
 
   override_data {
-    target = data.github_repository_file.beacon_pages["en/index.html"]
+    target = data.github_repository_file.beacon
     values = {
-      content = "<script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"A_REMPLACER_PAR_LE_JETON\"}'></script>"
-    }
-  }
-
-  expect_failures = [check.beacon_token]
-}
-
-# Le jeton présent ailleurs que dans data-cf-beacon (un commentaire) ne
-# suffit pas.
-run "jeton_hors_du_beacon_signale" {
-  command = plan
-
-  override_data {
-    target = data.github_repository_file.beacon_pages
-    values = {
-      content = "<!-- fake-beacon-token --><script defer src=\"https://static.cloudflareinsights.com/beacon.min.js\" data-cf-beacon='{\"token\": \"A_REMPLACER_PAR_LE_JETON\"}'></script>"
+      content = "{\"note\": \"fake-beacon-token\", \"beaconToken\": \"\"}"
     }
   }
 

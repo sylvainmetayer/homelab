@@ -1,19 +1,21 @@
 locals {
   hostname = "${var.subdomain}.${var.domain_zone}"
 
-  # Pages qui portent le beacon Web Analytics, écrit en dur (pas de build pour
-  # l'injecter) : la française et l'anglaise.
-  beacon_pages = toset(["index.html", "en/index.html"])
+  # Fichier de données Eleventy qui porte le jeton du beacon Web Analytics,
+  # injecté par le build dans toutes les pages.
+  beacon_file = "src/_data/site.json"
 }
 
-# Vitrine statique de planning-equipes : dossier site/ du dépôt, sans build.
+# Vitrine de planning-equipes : dossier site/ du dépôt, un site Eleventy.
 #
 # Prérequis : l'application GitHub « Cloudflare Workers and Pages » installée
 # sur le compte et ayant accès au dépôt (github_app_installation_repository
 # dans github.tf, ou mode « All repositories »), sinon la création échoue.
 #
 # site/wrangler.toml fait foi pour le dossier publié (pages_build_output_dir =
-# ".") et la date de compatibilité, dès qu'il déclare pages_build_output_dir.
+# "_site"), la date de compatibilité et la version de Node ([vars]
+# NODE_VERSION : avec un wrangler.toml, le build ignore les variables du
+# dashboard, tofu/1y).
 resource "cloudflare_pages_project" "planning" {
   account_id        = local.cloudflare_account_id
   name              = var.repository
@@ -37,10 +39,10 @@ resource "cloudflare_pages_project" "planning" {
 
   depends_on = [github_app_installation_repository.cloudflare]
 
-  # Pas de build : le dossier racine est publié tel quel.
+  # Build Eleventy dans le dossier racine, sortie _site.
   build_config = {
-    build_command   = ""
-    destination_dir = "."
+    build_command   = "npm run build"
+    destination_dir = "_site"
     root_dir        = var.site_dir
   }
 
@@ -64,37 +66,32 @@ resource "cloudflare_pages_domain" "planning" {
 }
 
 # Pages vues. sylvain.dev n'est pas une zone Cloudflare : pas d'injection
-# automatique, les deux pages chargent le beacon avec le jeton exporté en
-# sortie (web_analytics_token), recopié à la main.
+# automatique, les pages chargent le beacon avec le jeton exporté en sortie
+# (web_analytics_token), recopié à la main dans site/src/_data/site.json.
 resource "cloudflare_web_analytics_site" "planning" {
   account_id   = local.cloudflare_account_id
   host         = local.hostname
   auto_install = false
 }
 
-# Le jeton est recopié à la main dans les deux pages (README.md, « Ordre des
-# opérations »). Tant qu'il ne l'est pas, ou si le site Web Analytics est
+# Le jeton est recopié à la main dans site/src/_data/site.json (README.md,
+# « Ordre des opérations »). Tant qu'il ne l'est pas, ou si le site Web Analytics est
 # recréé (changement d'hôte…), le plan le signale au lieu de laisser les pages
 # vues se perdre sans bruit.
 #
 # Data source hors du bloc check : à l'intérieur, OpenTofu reporte toujours sa
 # lecture à l'apply et le plan n'est jamais vide.
-data "github_repository_file" "beacon_pages" {
-  for_each = local.beacon_pages
-
+data "github_repository_file" "beacon" {
   repository = var.repository
-  file       = "${var.site_dir}/${each.key}"
+  file       = "${var.site_dir}/${local.beacon_file}"
   branch     = "main"
 }
 
-# La paire "token": "<jeton>" du data-cf-beacon, pas le jeton seul : un jeton
-# resté dans un commentaire ne doit pas suffire.
+# La clé beaconToken du JSON, lue comme telle : un jeton resté ailleurs dans
+# le fichier ne doit pas suffire.
 check "beacon_token" {
   assert {
-    condition = alltrue([
-      for page in data.github_repository_file.beacon_pages :
-      strcontains(try(page.content, ""), "\"token\": \"${cloudflare_web_analytics_site.planning.site_token}\"")
-    ])
-    error_message = "Le beacon de site/index.html ou site/en/index.html (dépôt planning-equipes, main) ne porte pas `tofu output -raw web_analytics_token`."
+    condition     = try(jsondecode(data.github_repository_file.beacon.content).beaconToken, "") == cloudflare_web_analytics_site.planning.site_token
+    error_message = "beaconToken de site/src/_data/site.json (dépôt planning-equipes, main) n'est pas `tofu output -raw web_analytics_token`."
   }
 }
