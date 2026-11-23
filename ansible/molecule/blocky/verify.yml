@@ -110,6 +110,7 @@
         - { name: allowed.molecule-homelab.net, expected: [192.0.2.30] }
         # customDNS (hôtes à IP fixe) et conditional (la Bbox, domaine lan).
         - { name: pve.lan, expected: [192.168.1.26] }
+        - { name: pve.sylvain.cloud, expected: [192.168.1.26] }
         - { name: pi.lan, expected: [192.168.1.96] }
         # Rebinding : vidé, sauf un nom de blocky_rebinding_allowed_domains.
         - { name: rebind.molecule-homelab.net, expected: [] }
