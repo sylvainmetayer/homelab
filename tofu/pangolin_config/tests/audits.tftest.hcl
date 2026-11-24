@@ -70,7 +70,8 @@ variables {
   telegram_bot_token               = "fake-telegram-bot-token"
   telegram_chat_id                 = "-100123456789"
   # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
-  ai_anthropic_api_key = "fake-anthropic-api-key"
+  ai_anthropic_api_key  = "fake-anthropic-api-key"
+  ai_openrouter_api_key = "fake-openrouter-api-key"
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide

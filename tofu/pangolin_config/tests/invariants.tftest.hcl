@@ -53,7 +53,8 @@ variables {
   telegram_bot_token               = "fake-telegram-bot-token"
   telegram_chat_id                 = "-100123456789"
   # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
-  ai_anthropic_api_key = "fake-anthropic-api-key"
+  ai_anthropic_api_key  = "fake-anthropic-api-key"
+  ai_openrouter_api_key = "fake-openrouter-api-key"
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
@@ -433,6 +434,11 @@ override_resource {
 override_resource {
   target = pangolin_ai_provider.anthropic["ia"]
   values = { id = 41 }
+}
+
+override_resource {
+  target = pangolin_ai_provider.openrouter["ia"]
+  values = { id = 42 }
 }
 
 override_resource {
@@ -4062,7 +4068,7 @@ run "domain_redirects_keep_their_behaviour" {
   }
 }
 
-# Passerelle IA (ai_gateway.tf) : fournisseur Anthropic seul, modèles en liste
+# Passerelle IA (ai_gateway.tf) : Anthropic et OpenRouter, modèles en liste
 # d'autorisation, chaque clé limitée à la passerelle et plafonnée (tokens
 # bloquants, dollars en suivi, 30 jours glissants), journal hors de Tofu.
 run "ai_gateway_keys_are_scoped_and_capped" {
@@ -4074,13 +4080,18 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && pangolin_resource.ai_gateway["ia"].subdomain == "ia"
       && !contains(keys(local.managed_resources), pangolin_resource.ai_gateway["ia"].name)
       && contains(local.unruled_resources, pangolin_resource.ai_gateway["ia"].name)
-      && length(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == 1 && contains(pangolin_resource.ai_gateway["ia"].ai_provider_ids, pangolin_ai_provider.anthropic["ia"].id)
+      && toset(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == toset([pangolin_ai_provider.anthropic["ia"].id, pangolin_ai_provider.openrouter["ia"].id])
       && pangolin_ai_provider.anthropic["ia"].type == "anthropic"
       && pangolin_ai_provider.anthropic["ia"].upstream_url == "https://api.anthropic.com"
       && contains(pangolin_ai_provider.anthropic["ia"].capabilities, "openai_chat")
       && alltrue([for m in pangolin_ai_model.anthropic : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.anthropic["ia"].id])
+      && pangolin_ai_provider.openrouter["ia"].type == "openRouter"
+      && pangolin_ai_provider.openrouter["ia"].upstream_url == "https://openrouter.ai/api/v1"
+      && alltrue([for m in pangolin_ai_model.openrouter : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.openrouter["ia"].id])
+      # Claude ne passe jamais par OpenRouter : sinon deux fournisseurs pour un modèle.
+      && alltrue([for m in pangolin_ai_model.openrouter : !startswith(m.model_key, "anthropic/") && m.model_key != "*"])
     )
-    error_message = "La passerelle IA doit rester en mode inference sur ia (sans règle possible, donc hors filtre FR/DE : local.unruled_resources), branchée au seul fournisseur Anthropic et à ses modèles autorisés."
+    error_message = "La passerelle IA doit rester en mode inference sur ia (sans règle possible, donc hors filtre FR/DE : local.unruled_resources), branchée à Anthropic et à OpenRouter, chacun avec ses modèles autorisés, sans Claude ni joker total chez OpenRouter."
   }
 
   assert {
@@ -4120,6 +4131,17 @@ run "ai_gateway_without_its_sops_key_fails_plan" {
 
   variables {
     ai_anthropic_api_key = ""
+  }
+}
+
+# OpenRouter allumé sans sa clé SOPS : même refus.
+run "ai_openrouter_without_its_sops_key_fails_plan" {
+  command = plan
+
+  expect_failures = [terraform_data.ai_gateway_key]
+
+  variables {
+    ai_openrouter_api_key = ""
   }
 }
 

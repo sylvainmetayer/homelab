@@ -484,6 +484,14 @@ passerelle, nouvelle clé. `sops set`, monter le sous-module, `plan` de
 un appel avec une clé virtuelle, puis révoquer l'ancienne clé. Les clés
 virtuelles des applis ne changent pas.
 
+### Clé API OpenRouter (passerelle IA)
+
+`pangolin_ai_openrouter_api_key` (fichier racine, lue par
+`tofu/pangolin_config/ai_gateway.tf`) : openrouter.ai, Settings, Keys, nouvelle
+clé avec une limite de crédit. `sops set`, monter le sous-module, `plan` de
+`tofu/pangolin_config` (seul `pangolin_ai_provider.openrouter` change), `apply`,
+un appel avec la clé virtuelle `openrouter`, puis supprimer l'ancienne clé.
+
 ## Secrets d'application (tous les deux ans)
 
 ### Secret d'appli lu par Ansible
