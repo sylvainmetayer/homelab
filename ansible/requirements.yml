@@ -18,6 +18,6 @@ collections:
     version: "12.1.0"
 roles:
   - src: geerlingguy.docker
-    version: 8.0.0
+    version: 8.0.1
   - src: andrewrothstein.starship
     version: v1.3.0
