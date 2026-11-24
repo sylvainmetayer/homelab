@@ -206,6 +206,16 @@ variable "ai_anthropic_api_key" {
   default     = ""
 }
 
+# Clé OpenRouter de la passerelle IA (ai_gateway.tf), facultative comme celle
+# d'Anthropic : vide, le plan échoue tant que local.ai_openrouter_enabled est
+# vrai. State.
+variable "ai_openrouter_api_key" {
+  description = "Clé API OpenRouter de la passerelle IA (clé SOPS pangolin_ai_openrouter_api_key)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Adresse privée de flip (tofu/pangolin, variable flip_server), pour flip.internal
 # (private_resources.tf). Elle était lue par terraform_remote_state, qui rangeait
 # dans ce state toutes les sorties de tofu/pangolin, dont le mot de passe de la
@@ -240,4 +250,5 @@ locals {
   ntfy_uptime_kuma_token = var.ntfy_uptime_kuma_token
   pocket_id_api_token    = var.pocket_id_api_token
   ai_anthropic_api_key   = var.ai_anthropic_api_key
+  ai_openrouter_api_key  = var.ai_openrouter_api_key
 }

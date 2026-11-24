@@ -38,6 +38,28 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 Pour Claude Code : `ANTHROPIC_BASE_URL=https://ia.sylvain.cloud`,
 `ANTHROPIC_API_KEY=$K`.
 
+## Modèles d'OpenRouter
+
+Second fournisseur, pour les essais (clé `openrouter`). Format OpenAI
+seulement, avec le nom OpenRouter du modèle (liste sur openrouter.ai/models) :
+
+```bash
+K=$(mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq -r .openrouter)
+curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" \
+  -H 'content-type: application/json' \
+  -d '{"model":"mistralai/mistral-small-3.2-24b-instruct","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
+```
+
+- Pangolin route par nom de modèle : `claude-*` va chez Anthropic, ce qui
+  correspond à `local.ai_openrouter_models` (`mistralai/*`, `openai/*`,
+  `google/*`, `*:free`) chez OpenRouter. Un autre éditeur : un joker de plus.
+- Toute clé virtuelle peut appeler ces modèles. Les `:free` gardent souvent
+  les prompts (réglages de confidentialité du compte OpenRouter) : jamais de
+  données de santé, de documents ni le chat du foyer.
+- Le coût en dollars de Pangolin n'est qu'une estimation pour ces modèles ;
+  la limite de crédit du compte OpenRouter est le vrai plafond.
+- Couper : `local.ai_openrouter_enabled = false`, plan, apply.
+
 ## Brancher une appli
 
 1. Une entrée dans `local.ai_keys` (`ai_gateway.tf`) : description.
@@ -73,6 +95,8 @@ mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_a
 - Redéployer ensuite l'hôte de l'appli, qui garde sinon l'ancienne clé (401).
 - La clé Anthropic elle-même (`pangolin_ai_anthropic_api_key`) :
   [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-anthropic-passerelle-ia).
+- La clé OpenRouter (`pangolin_ai_openrouter_api_key`) :
+  [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-openrouter-passerelle-ia).
 
 ## Budgets
 

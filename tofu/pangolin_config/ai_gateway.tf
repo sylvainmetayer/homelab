@@ -27,6 +27,17 @@
 # depuis le 12/11/2026 (décision de Sylvain). Il garde les prompts et les
 # réponses en entier, sans masquage (README) ; 0 l'éteint.
 #
+# Second fournisseur, OpenRouter (essais, 2026-11-24) : une clé pour des
+# centaines de modèles. Pangolin route par nom de modèle : `claude-*` reste chez
+# Anthropic (fournisseur natif prioritaire), `mistralai/…`, `openai/…`,
+# `google/…` ou `…:free` part chez OpenRouter (local.ai_openrouter_models).
+# Toute clé virtuelle peut demander ces modèles : les applis restent sur les
+# leurs, réglés à la main ; les modèles `:free` gardent souvent les prompts,
+# jamais pour HealthLog, Papra ni le chat du foyer. Le vrai plafond en dollars
+# est la limite de crédit du compte OpenRouter. Interrupteur et précondition
+# comme pour Anthropic (local.ai_openrouter_enabled, clé SOPS
+# `pangolin_ai_openrouter_api_key`).
+#
 # Tous les attributs optionnels+calculés sont déclarés (AGENTS.md), budgets
 # compris (enabled, enforcement, period) : non déclarés, un changement fait dans
 # l'interface passerait inaperçu au plan.
@@ -36,11 +47,25 @@ locals {
   ai_gateway_enabled = true
   ai_gateway         = local.ai_gateway_enabled ? toset(["ia"]) : toset([])
 
+  ai_openrouter_enabled = true
+  ai_openrouter         = local.ai_openrouter_enabled ? local.ai_gateway : toset([])
+
   # Liste d'autorisation du fournisseur : seuls ces modèles passent.
   ai_models = {
     haiku  = { key = "claude-haiku-5-5", name = "Claude Haiku 5.5" }
     sonnet = { key = "claude-sonnet-5-5", name = "Claude Sonnet 5.5" }
     opus   = { key = "claude-opus-5-5", name = "Claude Opus 5.5" }
+  }
+
+  # Liste d'autorisation d'OpenRouter, en jokers (* et ?, Pangolin
+  # server/lib/aiModelKeyMatch.ts) : pas de `anthropic/*`, Claude passe en
+  # direct. `openai/*` inclut des modèles très chers : la limite de crédit du
+  # compte OpenRouter est le garde-fou.
+  ai_openrouter_models = {
+    mistral = { key = "mistralai/*", name = "Mistral (OpenRouter)" }
+    openai  = { key = "openai/*", name = "OpenAI (OpenRouter)" }
+    google  = { key = "google/*", name = "Google (OpenRouter)" }
+    free    = { key = "*:free", name = "Modèles gratuits (OpenRouter)" }
   }
 
   # Une clé virtuelle par appli : budget_tokens (bloquant) et budget_usd (suivi
@@ -108,6 +133,14 @@ locals {
       budget_tokens = 1000000
       budget_usd    = 2
     }
+    # Essais des modèles d'OpenRouter (comparaison avec Haiku, modèles
+    # gratuits). Dollars approximatifs : Pangolin estime le prix d'un modèle
+    # OpenRouter par son catalogue, et ne connaît pas les `:free`.
+    openrouter = {
+      description   = "Essais des modèles d'OpenRouter"
+      budget_tokens = 2000000
+      budget_usd    = 5
+    }
   }
 
   # Plafonds de toute l'organisation, toutes clés confondues (30 jours glissants).
@@ -122,6 +155,10 @@ resource "terraform_data" "ai_gateway_key" {
     precondition {
       condition     = !local.ai_gateway_enabled || nonsensitive(local.ai_anthropic_api_key != "")
       error_message = "Passerelle IA allumée (local.ai_gateway_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_anthropic_api_key dans secrets/secrets.sops.yaml (ou son TF_VAR_ai_anthropic_api_key absent de mise.toml). La mettre (et son entrée dans secrets-rotation.yaml), ou passer l'interrupteur à false pour tout retirer."
+    }
+    precondition {
+      condition     = length(local.ai_openrouter) == 0 || nonsensitive(local.ai_openrouter_api_key != "")
+      error_message = "OpenRouter allumé (local.ai_openrouter_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_openrouter_api_key dans secrets/secrets.sops.yaml (ou son TF_VAR_ai_openrouter_api_key absent de mise.toml). La mettre (et son entrée dans secrets-rotation.yaml), ou passer local.ai_openrouter_enabled à false."
     }
   }
 }
@@ -152,6 +189,31 @@ resource "pangolin_ai_model" "anthropic" {
   enabled     = true
 }
 
+resource "pangolin_ai_provider" "openrouter" {
+  for_each = local.ai_openrouter
+
+  name         = "openrouter"
+  type         = "openRouter"
+  upstream_url = "https://openrouter.ai/api/v1"
+  api_key      = local.ai_openrouter_api_key
+  auth_type    = "bearer"
+  # Les valeurs par défaut du type dans Pangolin (src/lib/aiProviderDefaults.ts).
+  capabilities          = ["openai_chat"]
+  routing_mode          = "url"
+  enabled               = true
+  skip_tls_verification = false
+}
+
+resource "pangolin_ai_model" "openrouter" {
+  for_each = length(local.ai_openrouter) > 0 ? local.ai_openrouter_models : {}
+
+  provider_id = pangolin_ai_provider.openrouter["ia"].id
+  model_key   = each.value.key
+  name        = each.value.name
+  list_type   = "allow"
+  enabled     = true
+}
+
 # Hors de local.managed_resources : Pangolin refuse les règles (pays, chemins)
 # sur une ressource `inference`, elle n'est donc pas filtrée FR/DE
 # (local.unruled_resources, rules.tf). L'authentification ne se coupe pas (clé
@@ -167,7 +229,7 @@ resource "pangolin_resource" "ai_gateway" {
   sso             = true
   skip_to_idp_id  = pangolin_idp.pocket_id.id
   apply_rules     = true
-  ai_provider_ids = [pangolin_ai_provider.anthropic[each.key].id]
+  ai_provider_ids = concat([pangolin_ai_provider.anthropic[each.key].id], [for p in pangolin_ai_provider.openrouter : p.id])
 
   # Mêmes épingles que pangolin_resource.website (resource_defaults.tf), sauf
   # `mode`.
