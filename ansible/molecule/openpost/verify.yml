@@ -98,7 +98,7 @@
           - openpost_env.OPENPOST_AI_BASE_URL == 'https://ia.sylvain.cloud/v1'
           - openpost_env.OPENPOST_AI_API_KEY == 'molecule-openpost-ia'
           - openpost_env.OPENPOST_TEXT_GENERATION_MODEL == 'claude-haiku-5-5'
-          - openpost_env.OPENPOST_WORKFLOWS_AI_ENABLED == 'false'
+          - openpost_env.OPENPOST_WORKFLOWS_AI_ENABLED == 'true'
         fail_msg: "Environnement d'openpost inattendu : {{ openpost_env.keys() | list }}"
 
     # Cible Pangolin : conteneur `openpost`, port 8080, sur newt seulement.

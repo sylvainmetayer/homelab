@@ -157,15 +157,15 @@ v7.42.2 (`response_format: json_schema` strict, `reasoning_effort`, image en
 Les deux premières lignes sont déduites du schéma envoyé, pas encore essayées
 dans l'appli. Le refus vient du point compatible OpenAI d'Anthropic, pas de
 Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
-version, reprendre le tableau et rallumer les décisions si les schémas ont
-changé. La v7.42.5 contient « adapt strict response bounds for custom
+version, reprendre le tableau et éteindre les décisions si un schéma est
+de nouveau refusé. La v7.42.5 contient « adapt strict response bounds for custom
 gateways » (`internal/ai/compatible_schema.go`), qui déplace
 `minimum`/`maximum`/`minItems`/`maxItems` dans la `description` du schéma pour
 un point d'accès personnalisé : les décisions de workflow sont rallumées avec
 elle (2026-11-24). Si une erreur 400 revient dans le journal de la passerelle
 (clé `openpost`), repasser `OPENPOST_WORKFLOWS_AI_ENABLED` à `false`. Les lignes
-« génération » ci-dessus sont à réessayer dans l'appli. Génération d'images (fal, `FAL_KEY`) : non
-branchée.
+« génération » ci-dessus sont à réessayer dans l'appli. Génération d'images
+(fal, `FAL_KEY`) : non branchée.
 
 ## Mails
 
