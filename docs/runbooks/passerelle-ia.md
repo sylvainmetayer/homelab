@@ -59,7 +59,7 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 - Le coût en dollars de Pangolin n'est qu'une estimation pour ces modèles ;
   la limite de crédit du compte OpenRouter est le vrai plafond.
 - Couper : `local.ai_openrouter_enabled = false`, plan, apply. OpenPost
-  (`google/gemini-2.5-flash`, rôle `openpost`) en dépend depuis le 2026-11-24 :
+  (`openai/gpt-4.1-mini`, rôle `openpost`) en dépend depuis le 2026-11-24 :
   repasser d'abord `openpost_ai_model` à `claude-haiku-5-5`.
 - Un `:free` qui répond 429 « temporarily rate-limited upstream » : saturé chez
   OpenRouter (constaté le 2026-11-24 sur les Gemma 4), pas la passerelle ;

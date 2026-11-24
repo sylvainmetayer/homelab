@@ -97,7 +97,7 @@
           # IA par la passerelle de Pangolin (sortie fictive du converge).
           - openpost_env.OPENPOST_AI_BASE_URL == 'https://ia.sylvain.cloud/v1'
           - openpost_env.OPENPOST_AI_API_KEY == 'molecule-openpost-ia'
-          - openpost_env.OPENPOST_TEXT_GENERATION_MODEL == 'google/gemini-2.5-flash'
+          - openpost_env.OPENPOST_TEXT_GENERATION_MODEL == 'openai/gpt-4.1-mini'
           - openpost_env.OPENPOST_WORKFLOWS_AI_ENABLED == 'true'
         fail_msg: "Environnement d'openpost inattendu : {{ openpost_env.keys() | list }}"
 

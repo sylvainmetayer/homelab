@@ -138,11 +138,14 @@ Depuis la v7.40.2, OpenPost appelle une passerelle compatible OpenAI
 (`OPENPOST_AI_BASE_URL`, il y ajoute `/chat/completions`) : ici la passerelle
 IA de Pangolin, `https://ia.sylvain.cloud/v1`, clé virtuelle `openpost`
 (`tofu/pangolin_config/ai_gateway.tf`, lue dans `terraform_outputs`), modèle
-`google/gemini-2.5-flash` pour tout depuis le 2026-11-24, par le fournisseur
-OpenRouter de la passerelle : Anthropic refuse le schéma de la génération de
-posts (tableau ci-dessous, #535), Gemini l'accepte (4 options valides en 6 s,
-essai direct sur la passerelle). Les prompts, images comprises, partent donc
-chez OpenRouter et Google. Repasser `openpost_ai_model` à `claude-haiku-5-5`
+`openai/gpt-4.1-mini` pour tout depuis le 2026-11-24, par le fournisseur OpenRouter de la
+passerelle : Anthropic refuse le schéma de l'étape `options_writer` de la
+génération de posts (« compiled grammar is too large », #535), et
+`google/gemini-2.5-flash`, essayé en premier, refuse celui de l'étape
+`options_director` (« too much branching » : les `enum` du catalogue de
+mèmes). GPT-4.1 mini accepte les deux schémas réels de la v7.42.5 (essai
+direct sur la passerelle). Les prompts, images comprises, partent donc chez
+OpenRouter et OpenAI. Repasser `openpost_ai_model` à `claude-haiku-5-5`
 une fois #535 corrigé en amont. Clé absente du state : le bloc n'est pas rendu,
 l'IA reste éteinte : après l'`apply` de `tofu/pangolin_config` qui crée la clé,
 relancer `flip.yml --tags openpost` (le merge déploie avant, sans clé). Les prompts passent par le journal de la passerelle
@@ -156,11 +159,11 @@ v7.42.2 (`response_format: json_schema` strict, `reasoning_effort`, image en
 |---|---|---|
 | Texte alternatif d'une image | marche | image et sortie libre acceptées |
 | « Raccourcir avec l'IA » | marche | schéma avec `minLength`/`maxLength` seulement, accepté |
-| Génération de posts (page Idées), angles, séries, mèmes, découverte, recyclage | **400** avec Claude, essayé le 2026-11-24 en v7.42.5 ; avec Gemini, seule la génération de posts est essayée (4 options), le reste est à réessayer dans l'appli | l'étape `options_director` passe, `options_writer` reçoit « The compiled grammar is too large » : schéma strict trop gros, même pour un seul compte ([getopenpost/openpost#535](https://github.com/getopenpost/openpost/issues/535)) |
+| Génération de posts (page Idées), angles, séries, mèmes, découverte, recyclage | **400** avec Claude et avec Gemini 2.5 Flash, essayé le 2026-11-24 en v7.42.5 ; avec GPT-4.1 mini, voir la date de bascule ci-dessus, le reste (angles, séries…) est à réessayer dans l'appli | l'étape `options_director` passe, `options_writer` reçoit « The compiled grammar is too large » : schéma strict trop gros, même pour un seul compte ([getopenpost/openpost#535](https://github.com/getopenpost/openpost/issues/535)) |
 | Décisions de workflow | **400** en v7.42.2 ; rallumées en v7.42.5 (`OPENPOST_WORKFLOWS_AI_ENABLED=true`) | schéma avec `minimum`/`maximum` sur un nombre, passés en `description` depuis la v7.42.5 |
 
 Les deux premières lignes sont déduites du schéma envoyé avec Claude, pas encore
-essayées dans l'appli, ni avec Gemini. Le refus vient du point compatible OpenAI d'Anthropic, pas de
+essayées dans l'appli, ni avec GPT-4.1 mini. Le refus vient du point compatible OpenAI d'Anthropic, pas de
 Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
 version, reprendre le tableau et éteindre les décisions si un schéma est
 de nouveau refusé. La v7.42.5 contient « adapt strict response bounds for custom

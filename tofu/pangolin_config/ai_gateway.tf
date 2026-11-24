@@ -125,9 +125,9 @@ locals {
       budget_usd    = 10
     }
     # Assistant d'écriture (texte alternatif des images, raccourcir un post),
-    # format OpenAI (rôle openpost, flip.yml). Modèle `google/gemini-2.5-flash`
-    # par OpenRouter depuis le 2026-11-24 : Anthropic refuse les schémas JSON de
-    # la génération de posts (README du rôle openpost). Couper OpenRouter
+    # format OpenAI (rôle openpost, flip.yml). Modèle `openai/gpt-4.1-mini`
+    # par OpenRouter depuis le 2026-11-24 : Anthropic et Gemini refusent les
+    # schémas JSON de la génération de posts (README du rôle openpost). Couper OpenRouter
     # (local.ai_openrouter_enabled) éteint donc l'IA d'OpenPost.
     openpost = {
       description   = "OpenPost : assistant d'écriture"
