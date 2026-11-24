@@ -109,7 +109,7 @@ services:
     # recaler sur memory.peak (mem_report).
     mem_reservation: 64m
     restart: unless-stopped
-    image: redis:8.2.11-bookworm@sha256:b0b01167ff47bc3868e56a967895a26be4230891a1f42a78ab61cdd227accc8d
+    image: redis:8.2.11-bookworm@sha256:7c4e275ed6833fd644ddf41552aafc6bd4af2616806ad431d1c039377ef2269b
     container_name: nextcloud_redis
     security_opt:
       - no-new-privileges:true
