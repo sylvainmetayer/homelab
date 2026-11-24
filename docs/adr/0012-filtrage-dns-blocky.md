@@ -17,7 +17,7 @@ dépôt et déployé par Ansible ; un DNS réglé dans une UI y ferait exception
 le template, Molecule le valide, une PR le relit, comme le reste du dépôt.
 Deux instances, que le DHCP de la Bbox doit annoncer toutes les deux : le Pi
 (conteneur) et le LXC newt (binaire, pas de Docker). Listes HaGeZi Pro et
-TIF medium ; amont en DoT chez Quad9 et Mullvad. Bascule du DHCP à faire à la
+TIF medium ; amont en DoT chez Quad9 et Mullvad (Quad9 remplacé par DNS4EU sans filtre le 2026-11-24 : il refuse toute requête venue de France, REFUSED EDE 18). Bascule du DHCP à faire à la
 main dans la Bbox ([runbook](../runbooks/dns-blocky.md)), pas encore faite.
 
 Relevé du 2026-11-05 (lecture seule) : depuis leur démarrage (01/11, soit
