@@ -154,8 +154,10 @@ resource "proxmox_virtual_environment_vm" "docker" {
 
     # Les DNS que donnait le DHCP de la box : sans eux, une IP fixe ne reçoit
     # que ceux de l'hôte Proxmox.
+    # Pas Quad9 en secours : il refuse depuis le 24/11/2026 toute requête venue
+    # de France ; DNS4EU sans filtre à sa place, comme Blocky.
     dns {
-      servers = ["192.168.1.254", "9.9.9.9", "1.1.1.1"]
+      servers = ["192.168.1.254", "86.54.11.100", "1.1.1.1"]
     }
 
     # Liaison des fichiers Cloud-Init
