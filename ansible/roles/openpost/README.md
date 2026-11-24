@@ -152,18 +152,19 @@ v7.42.2 (`response_format: json_schema` strict, `reasoning_effort`, image en
 | Texte alternatif d'une image | marche | image et sortie libre acceptées |
 | « Raccourcir avec l'IA » | marche | schéma avec `minLength`/`maxLength` seulement, accepté |
 | Génération de posts, angles, séries, mèmes, découverte, recyclage | **400** | leurs schémas portent `maxItems`, qu'Anthropic refuse |
-| Décisions de workflow | **400**, éteintes (`OPENPOST_WORKFLOWS_AI_ENABLED=false`) | schéma avec `minimum`/`maximum` sur un nombre |
+| Décisions de workflow | **400** en v7.42.2 ; rallumées en v7.42.5 (`OPENPOST_WORKFLOWS_AI_ENABLED=true`) | schéma avec `minimum`/`maximum` sur un nombre, passés en `description` depuis la v7.42.5 |
 
 Les deux premières lignes sont déduites du schéma envoyé, pas encore essayées
 dans l'appli. Le refus vient du point compatible OpenAI d'Anthropic, pas de
 Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
 version, reprendre le tableau et rallumer les décisions si les schémas ont
-changé. **À reprendre avec la v7.42.5** : elle contient « adapt strict response
-bounds for custom gateways » (`internal/ai/compatible_schema.go`), qui déplace
+changé. La v7.42.5 contient « adapt strict response bounds for custom
+gateways » (`internal/ai/compatible_schema.go`), qui déplace
 `minimum`/`maximum`/`minItems`/`maxItems` dans la `description` du schéma pour
-un point d'accès personnalisé : les lignes en **400** ci-dessus ne sont plus
-vraies de la même façon, à réessayer avant de rallumer
-`OPENPOST_WORKFLOWS_AI_ENABLED`. Génération d'images (fal, `FAL_KEY`) : non
+un point d'accès personnalisé : les décisions de workflow sont rallumées avec
+elle (2026-11-24). Si une erreur 400 revient dans le journal de la passerelle
+(clé `openpost`), repasser `OPENPOST_WORKFLOWS_AI_ENABLED` à `false`. Les lignes
+« génération » ci-dessus sont à réessayer dans l'appli. Génération d'images (fal, `FAL_KEY`) : non
 branchée.
 
 ## Mails
