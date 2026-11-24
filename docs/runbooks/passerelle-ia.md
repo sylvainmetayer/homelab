@@ -47,7 +47,7 @@ seulement, avec le nom OpenRouter du modèle (liste sur openrouter.ai/models) :
 K=$(mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq -r .openrouter)
 curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" \
   -H 'content-type: application/json' \
-  -d '{"model":"mistralai/mistral-small-3.2-24b-instruct","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
+  -d '{"model":"mistralai/mistral-small-2603","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
 - Pangolin route par nom de modèle : `claude-*` va chez Anthropic, ce qui
@@ -59,6 +59,9 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
 - Le coût en dollars de Pangolin n'est qu'une estimation pour ces modèles ;
   la limite de crédit du compte OpenRouter est le vrai plafond.
 - Couper : `local.ai_openrouter_enabled = false`, plan, apply.
+- Un `:free` qui répond 429 « temporarily rate-limited upstream » : saturé chez
+  OpenRouter (constaté le 2026-11-24 sur les Gemma 4), pas la passerelle ;
+  réessayer plus tard ou prendre un modèle payant.
 
 ## Brancher une appli
 
