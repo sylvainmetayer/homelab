@@ -156,11 +156,11 @@ v7.42.2 (`response_format: json_schema` strict, `reasoning_effort`, image en
 |---|---|---|
 | Texte alternatif d'une image | marche | image et sortie libre acceptées |
 | « Raccourcir avec l'IA » | marche | schéma avec `minLength`/`maxLength` seulement, accepté |
-| Génération de posts (page Idées), angles, séries, mèmes, découverte, recyclage | **400** avec Claude, essayé le 2026-11-24 en v7.42.5 ; passe avec Gemini | l'étape `options_director` passe, `options_writer` reçoit « The compiled grammar is too large » : schéma strict trop gros, même pour un seul compte ([getopenpost/openpost#535](https://github.com/getopenpost/openpost/issues/535)) |
+| Génération de posts (page Idées), angles, séries, mèmes, découverte, recyclage | **400** avec Claude, essayé le 2026-11-24 en v7.42.5 ; avec Gemini, seule la génération de posts est essayée (4 options), le reste est à réessayer dans l'appli | l'étape `options_director` passe, `options_writer` reçoit « The compiled grammar is too large » : schéma strict trop gros, même pour un seul compte ([getopenpost/openpost#535](https://github.com/getopenpost/openpost/issues/535)) |
 | Décisions de workflow | **400** en v7.42.2 ; rallumées en v7.42.5 (`OPENPOST_WORKFLOWS_AI_ENABLED=true`) | schéma avec `minimum`/`maximum` sur un nombre, passés en `description` depuis la v7.42.5 |
 
-Les deux premières lignes sont déduites du schéma envoyé, pas encore essayées
-dans l'appli. Le refus vient du point compatible OpenAI d'Anthropic, pas de
+Les deux premières lignes sont déduites du schéma envoyé avec Claude, pas encore
+essayées dans l'appli, ni avec Gemini. Le refus vient du point compatible OpenAI d'Anthropic, pas de
 Pangolin (qui transmet tel quel) : signalé en amont à OpenPost. À une montée de
 version, reprendre le tableau et éteindre les décisions si un schéma est
 de nouveau refusé. La v7.42.5 contient « adapt strict response bounds for custom

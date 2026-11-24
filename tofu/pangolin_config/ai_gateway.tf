@@ -125,9 +125,10 @@ locals {
       budget_usd    = 10
     }
     # Assistant d'écriture (texte alternatif des images, raccourcir un post),
-    # format OpenAI, Haiku (rôle openpost, flip.yml). La génération de posts,
-    # les mèmes et les décisions de workflow échouent tant qu'OpenPost envoie
-    # des schémas JSON qu'Anthropic refuse (README du rôle openpost).
+    # format OpenAI (rôle openpost, flip.yml). Modèle `google/gemini-2.5-flash`
+    # par OpenRouter depuis le 2026-11-24 : Anthropic refuse les schémas JSON de
+    # la génération de posts (README du rôle openpost). Couper OpenRouter
+    # (local.ai_openrouter_enabled) éteint donc l'IA d'OpenPost.
     openpost = {
       description   = "OpenPost : assistant d'écriture"
       budget_tokens = 1000000
