@@ -35,11 +35,13 @@ openpost_stock_media_enabled: >-
 # tofu/pangolin_config/ai_gateway.tf). Clé vide : IA éteinte, rien n'est rendu.
 # Un seul modèle pour tout, par OpenRouter (2026-11-24) : Anthropic refuse le
 # schéma de la génération de posts (« compiled grammar is too large »,
-# getopenpost/openpost#535), Gemini l'accepte. Prompts et images partent donc
-# chez OpenRouter et Google. Retour à claude-haiku-5-5 une fois #535 corrigé.
+# getopenpost/openpost#535) ; Gemini 2.5 Flash refuse celui de la première
+# étape (« too much branching »). GPT-4.1 mini accepte les deux. Prompts et
+# images partent donc chez OpenRouter et OpenAI. Retour à claude-haiku-5-5 une
+# fois #535 corrigé.
 openpost_ai_api_key: "{{ (terraform_outputs.ai_gateway_keys.value | default({})).openpost | default('') }}"
 openpost_ai_base_url: https://ia.sylvain.cloud/v1
-openpost_ai_model: google/gemini-2.5-flash
+openpost_ai_model: openai/gpt-4.1-mini
 
 # Le premier compte créé est administrateur de l'instance. Laissée ouverte :
 # true ferme aussi la création de compte par un premier login Pocket ID
