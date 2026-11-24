@@ -2,7 +2,7 @@
 
 Blocky filtre le DNS du réseau local ([ADR 0012](../../../docs/adr/0012-filtrage-dns-blocky.md)) :
 listes HaGeZi (publicité, traqueurs, malveillants), résolveurs amont en
-DNS-over-TLS (Quad9, Mullvad). Deux instances, que le DHCP de la Bbox annonce
+DNS-over-TLS (DNS4EU sans filtre, Mullvad). Deux instances, que le DHCP de la Bbox annonce
 toutes les deux. Procédure d'incident et bascule du DHCP :
 [docs/runbooks/dns-blocky.md](../../../docs/runbooks/dns-blocky.md).
 

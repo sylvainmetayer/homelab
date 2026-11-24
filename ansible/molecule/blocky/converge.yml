@@ -1,6 +1,6 @@
 ---
 # Comme lxc.yml (mode binary, host_vars/newt-lxc), contre le faux résolveur
-# amont de prepare.yml au lieu de Quad9 et Mullvad, et des listes en ligne au
+# amont de prepare.yml au lieu de DNS4EU et Mullvad, et des listes en ligne au
 # lieu de celles de HaGeZi : rien ne dépend d'Internet une fois le binaire
 # téléchargé.
 - name: Converge

@@ -10,7 +10,7 @@ interrogeait : bascule non constatée, voir l'ADR) :
 | Raspberry Pi | 192.168.1.96 | `pi.yml` (CI au merge) | conteneur `dc@blocky`, `/opt/apps/blocky` |
 | LXC newt | 192.168.1.200 | `lxc.yml` (à la main) | binaire, `blocky.service`, `/etc/blocky` |
 
-Chacune résout en DNS-over-TLS chez Quad9 et Mullvad, bloque les listes
+Chacune résout en DNS-over-TLS chez DNS4EU (sans filtre) et Mullvad, bloque les listes
 HaGeZi Pro (`ads`) et HaGeZi TIF medium (`threats`), rafraîchies chaque jour,
 renvoie le domaine `lan` et la zone inverse à la Bbox (192.168.1.254), et ne
 journalise aucune requête.
@@ -26,7 +26,7 @@ revient, sans filtrage. Un seul poste : lui donner `192.168.1.254` comme DNS
 ## Symptôme
 
 - « Plus d'Internet » sur tous les appareils, alors que la Bbox est
-  synchronisée (une IP en ping marche : `ping 9.9.9.9`, mais pas
+  synchronisée (une IP en ping marche : `ping 1.1.1.1`, mais pas
   `ping example.com`).
 - Un site ou une appli ne charge plus, ou une partie seulement (connexion à
   la banque, lien d'un e-mail, paiement) : un domaine bloqué à tort.

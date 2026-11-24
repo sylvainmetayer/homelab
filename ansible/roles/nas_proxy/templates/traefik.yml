@@ -89,9 +89,10 @@ certificatesResolvers:
       # {{ nas_proxy_qbittorrent_domain }} visent une IP privée, aucun HTTP-01
       # possible.
       # Résolveurs publics pour la vérification de propagation : pas de cache
-      # de la Bbox entre l'ajout du TXT et la vérification.
+      # de la Bbox entre l'ajout du TXT et la vérification. Pas Quad9 : il
+      # refuse depuis le 24/11/2026 toute requête venue de France.
       dnsChallenge:
         provider: ovh
         resolvers:
           - "1.1.1.1:53"
-          - "9.9.9.9:53"
+          - "86.54.11.100:53"
