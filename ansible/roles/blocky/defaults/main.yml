@@ -38,20 +38,22 @@ blocky_mem_limit: 384m
 blocky_gomemlimit: 160MiB
 
 # --- Résolveurs amont ---------------------------------------------------------
-# DNS-over-TLS vers deux résolveurs sans journalisation : Quad9 (Suisse, à but
-# non lucratif, bloque aussi les domaines malveillants qu'il connaît) et
-# Mullvad (Suède, sans filtrage). dns0.eu, l'autre candidat, a fermé en 2025.
+# DNS-over-TLS vers deux résolveurs sans journalisation : DNS4EU sans filtre
+# (projet soutenu par l'UE, hébergé dans l'UE) et Mullvad (Suède, sans
+# filtrage). dns0.eu a fermé en 2025 ; Quad9 refuse depuis le 24/11/2026 toute
+# requête venue de France (REFUSED, EDE 18 « French legal constraints »).
 # parallel_best : chaque requête part vers deux résolveurs, la plus rapide
-# gagne ; une panne de l'un ne se voit pas.
+# gagne ; une panne de l'un ne se voit pas, mais un refus rapide gagne aussi :
+# un résolveur qui répond REFUSED à tout coupe le DNS de la maison.
 blocky_upstreams:
-  - tcp-tls:dns.quad9.net
+  - tcp-tls:unfiltered.joindns4.eu
   - tcp-tls:dns.mullvad.net
 # Résolution des noms ci-dessus et des URL des listes, par leurs IP en dur et
 # en DoT : ni le resolv.conf de l'hôte (qui peut pointer sur Blocky lui-même)
 # ni un DNS en clair.
 blocky_bootstrap_dns:
-  - upstream: tcp-tls:dns.quad9.net
-    ips: [9.9.9.9, 149.112.112.112]
+  - upstream: tcp-tls:unfiltered.joindns4.eu
+    ips: [86.54.11.100, 86.54.11.200]
   - upstream: tcp-tls:dns.mullvad.net
     ips: [194.242.2.2]
 

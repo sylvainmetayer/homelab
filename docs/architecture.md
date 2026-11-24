@@ -244,7 +244,7 @@ binaire, `lxc.yml`) et le Pi (192.168.1.96, conteneur publié sur son IP LAN
 seule, `pi.yml`). Une panne de l'un passe inaperçue des clients, qui
 basculent sur l'autre.
 
-- **Amont** : DNS-over-TLS vers Quad9 et Mullvad (`parallel_best`), amorcé par
+- **Amont** : DNS-over-TLS vers DNS4EU (sans filtre) et Mullvad (`parallel_best`), amorcé par
   leurs IP (`bootstrapDns`) : Blocky ne dépend ni du `resolv.conf` de son hôte
   ni de la Bbox. Cache et préchargement des noms fréquents.
 - **Filtrage** : HaGeZi Pro (publicités, traqueurs) et HaGeZi TIF medium
