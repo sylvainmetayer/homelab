@@ -4087,6 +4087,7 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && alltrue([for m in pangolin_ai_model.anthropic : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.anthropic["ia"].id])
       && pangolin_ai_provider.openrouter["ia"].type == "openRouter"
       && pangolin_ai_provider.openrouter["ia"].upstream_url == "https://openrouter.ai/api/v1"
+      && length(pangolin_ai_model.openrouter) == length(local.ai_openrouter_models)
       && alltrue([for m in pangolin_ai_model.openrouter : m.list_type == "allow" && m.enabled && m.provider_id == pangolin_ai_provider.openrouter["ia"].id])
       # Claude ne passe jamais par OpenRouter : sinon deux fournisseurs pour un modèle.
       && alltrue([for m in pangolin_ai_model.openrouter : !startswith(m.model_key, "anthropic/") && m.model_key != "*"])
