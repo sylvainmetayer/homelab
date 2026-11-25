@@ -218,8 +218,8 @@ variable "ai_openrouter_api_key" {
 
 # Infomaniak AI Tools, troisième fournisseur de la passerelle (ai_gateway.tf),
 # facultatif comme les autres : vide, le plan échoue tant que
-# local.ai_infomaniak_enabled est vrai. Le jeton va au state ; l'identifiant du
-# produit entre dans l'URL amont.
+# var.ai_infomaniak_enabled est vrai. Le jeton va au state ; l'identifiant du
+# produit, pas un secret, entre dans l'URL amont, lisible au plan.
 variable "ai_infomaniak_api_key" {
   description = "Jeton de l'API Infomaniak (AI Tools) de la passerelle IA (clé SOPS pangolin_ai_infomaniak_api_key)."
   type        = string
@@ -230,7 +230,6 @@ variable "ai_infomaniak_api_key" {
 variable "ai_infomaniak_product_id" {
   description = "Identifiant du produit Infomaniak AI Tools (clé SOPS pangolin_ai_infomaniak_product_id)."
   type        = string
-  sensitive   = true
   default     = ""
 }
 

@@ -73,21 +73,25 @@ Infomaniak du modèle :
 
 ```bash
 K=$(mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq -r .openrouter)
-curl https://ia.sylvain.cloud/v1/models -H "Authorization: Bearer $K"   # la liste
 curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" \
   -H 'content-type: application/json' \
   -d '{"model":"<modèle>","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
+- La liste des modèles : `GET https://api.infomaniak.com/2/ai/<produit>/openai/v1/models`
+  avec le jeton Infomaniak, pas le `/v1/models` de la passerelle (tiré du
+  catalogue de Pangolin, sans les modèles d'Infomaniak).
 - Tous les modèles exposés sont autorisés (joker `*`). Pangolin prend le motif
   le plus précis : `claude-*` reste chez Anthropic, `mistralai/*`, `openai/*`,
   `google/*`, `*:free` chez OpenRouter, tout autre nom part chez Infomaniak
-  (404 de leur côté s'il ne le connaît pas).
+  (404 de leur côté s'il ne le connaît pas), y compris une faute de frappe
+  d'une appli. Sauf `claude*`, bloqué chez Infomaniak : un ancien nom de
+  Claude reçoit un 403.
 - Plafond : 5 € par mois (30 jours glissants) sur le fournisseur entier,
-  toutes clés confondues, bloquant (429 au-delà) : 1,5 M tokens et 5,8 $.
+  toutes clés confondues, bloquant (429 au-delà) : 1,4 M tokens et 5,8 $.
   Pangolin ne connaît pas les prix d'Infomaniak : c'est le plafond en tokens
   qui bloque vraiment. Les montants : `local.ai_infomaniak_budget_*`.
-- Couper : `local.ai_infomaniak_enabled = false`, plan, apply.
+- Couper : `var.ai_infomaniak_enabled = false`, plan, apply.
 - Clés SOPS : `pangolin_ai_infomaniak_api_key` (jeton de l'API, manager
   Infomaniak, portée AI Tools) et `pangolin_ai_infomaniak_product_id` (GET
   `https://api.infomaniak.com/1/ai` avec ce jeton, champ `product_id`).
