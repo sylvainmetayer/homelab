@@ -647,7 +647,7 @@ l'output `homepage_pangolin_org` de `tofu/pangolin_config` (apply requis).
 
 ### Compte d'administration d'une appli
 
-Mots de passe des comptes admin (`*_admin_password`, `*_pgadmin_password`,
+Mots de passe des comptes admin (`*_admin_password`,
 `beszel_admin_password`…). La plupart des
 applis ne lisent ce mot de passe qu'à la création du compte : changer
 d'abord le mot de passe **dans l'appli** (son interface, ou sa commande

@@ -227,7 +227,6 @@ services:
       - {{ flip_planning_container_prefix }}-keycloak
 {% endif %}
 
-
 networks:
   # No route to the Internet through it: every other member (app, mailpit)
   # keeps its own through newt, postgres needs none.
