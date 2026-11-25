@@ -57,6 +57,7 @@ variables {
   ai_openrouter_api_key    = "fake-openrouter-api-key"
   ai_infomaniak_api_key    = "fake-infomaniak-api-key"
   ai_infomaniak_product_id = "12345"
+  ai_infomaniak_enabled    = true
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
@@ -4110,7 +4111,14 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && pangolin_ai_provider.infomaniak["ia"].upstream_url == "https://api.infomaniak.com/2/ai/12345/openai/v1"
       && contains(pangolin_ai_provider.infomaniak["ia"].capabilities, "openai_chat")
       && pangolin_ai_model.infomaniak["ia"].model_key == "*"
+      && pangolin_ai_model.infomaniak["ia"].list_type == "allow"
       && pangolin_ai_model.infomaniak["ia"].provider_id == pangolin_ai_provider.infomaniak["ia"].id
+      && pangolin_ai_model.infomaniak_no_claude["ia"].model_key == "claude*"
+      && pangolin_ai_model.infomaniak_no_claude["ia"].list_type == "block"
+      && pangolin_ai_model.infomaniak_no_claude["ia"].provider_id == pangolin_ai_provider.infomaniak["ia"].id
+      # Le joker total n'existe que chez Infomaniak, Claude en clés exactes :
+      # sinon le motif le plus précis ne départage plus les fournisseurs.
+      && alltrue([for m in pangolin_ai_model.anthropic : !strcontains(m.model_key, "*") && !strcontains(m.model_key, "?")])
       && alltrue([
         for b in [pangolin_ai_budget.infomaniak_usd["ia"], pangolin_ai_budget.infomaniak_tokens["ia"]] :
         b.provider_id == pangolin_ai_provider.infomaniak["ia"].id && b.virtual_api_key_id == null
@@ -4119,9 +4127,9 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && pangolin_ai_budget.infomaniak_usd["ia"].unit == "usd"
       && pangolin_ai_budget.infomaniak_usd["ia"].amount <= 6
       && pangolin_ai_budget.infomaniak_tokens["ia"].unit == "tokens"
-      && pangolin_ai_budget.infomaniak_tokens["ia"].amount <= 1500000
+      && pangolin_ai_budget.infomaniak_tokens["ia"].amount <= 1400000
     )
-    error_message = "Infomaniak doit rester un fournisseur custom sur /2/ai/<produit>/openai/v1, tous modèles autorisés, plafonné à 5 € par mois (≤ 6 $ et ≤ 1,5 M tokens, bloquants) sur le fournisseur."
+    error_message = "Infomaniak doit rester un fournisseur custom sur /2/ai/<produit>/openai/v1, tous modèles autorisés, Claude bloqué chez lui, Claude en clés exactes chez Anthropic, plafonné à 5 € par mois (≤ 6 $ et ≤ 1,4 M tokens, bloquants) sur le fournisseur."
   }
 
   assert {

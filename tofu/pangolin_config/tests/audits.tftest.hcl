@@ -74,6 +74,7 @@ variables {
   ai_openrouter_api_key    = "fake-openrouter-api-key"
   ai_infomaniak_api_key    = "fake-infomaniak-api-key"
   ai_infomaniak_product_id = "12345"
+  ai_infomaniak_enabled    = true
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide

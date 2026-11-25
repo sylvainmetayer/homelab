@@ -45,16 +45,25 @@
 # (server/routers/aiGateway/pipeline.ts), donc `claude-*` (clés exactes) reste
 # chez Anthropic et `mistralai/*`, `openai/*`, `google/*`, `*:free` chez
 # OpenRouter ; tout autre nom part chez Infomaniak, qui répond 404 s'il ne le
-# connaît pas. Plafond de 5 € par mois sur le fournisseur (local.ai_infomaniak_budget_*),
+# connaît pas. Sauf `claude*` (liste de blocage) : un ancien nom de Claude
+# resté dans une appli est refusé au lieu de partir chez Infomaniak. Plafond de 5 € par mois sur le fournisseur (local.ai_infomaniak_budget_*),
 # bloquant. Clés SOPS `pangolin_ai_infomaniak_api_key` (jeton de l'API
 # Infomaniak, portée AI Tools) et `pangolin_ai_infomaniak_product_id`
 # (identifiant du produit AI Tools, GET /1/ai), interrupteur
-# local.ai_infomaniak_enabled.
+# var.ai_infomaniak_enabled.
 #
 # Tous les attributs optionnels+calculés sont déclarés (AGENTS.md), budgets
 # compris (enabled, enforcement, period) : non déclarés, un changement fait dans
 # l'interface passerait inaperçu au plan.
 # ---------------------------------------------------------------------------
+
+# Interrupteur d'Infomaniak, en variable pour que les tests l'allument : à
+# passer à true (le défaut, ici) une fois les deux clés SOPS posées.
+variable "ai_infomaniak_enabled" {
+  description = "Branche Infomaniak AI Tools sur la passerelle IA (clés SOPS pangolin_ai_infomaniak_*)."
+  type        = bool
+  default     = false
+}
 
 locals {
   ai_gateway_enabled = true
@@ -63,17 +72,17 @@ locals {
   ai_openrouter_enabled = true
   ai_openrouter         = local.ai_openrouter_enabled ? local.ai_gateway : toset([])
 
-  ai_infomaniak_enabled = true
+  ai_infomaniak_enabled = var.ai_infomaniak_enabled
   ai_infomaniak         = local.ai_infomaniak_enabled ? local.ai_gateway : toset([])
 
   # 5 € par mois (30 jours glissants) sur tout Infomaniak, toutes clés
   # confondues, en deux budgets bloquants. Pangolin ne connaît pas le prix d'un
   # fournisseur `custom` (catalogue, server/lib/aiModelPricing.ts) : les
   # dollars ne comptent que les modèles qu'il retrouve ailleurs, en
-  # approximation. Les tokens sont donc le vrai plafond : 1,5 M, soit 5 € même
-  # tout en sortie du modèle le plus cher constaté (Kimi-K2.6, ~4 $ le million).
+  # approximation. Les tokens sont donc le vrai plafond : 1,4 M, soit 5,6 $ tout
+  # en sortie du modèle le plus cher constaté (Kimi-K2.6, ~4 $ le million).
   ai_infomaniak_budget_usd    = 5.8 # 5 € en dollars, unité imposée par Pangolin
-  ai_infomaniak_budget_tokens = 1500000
+  ai_infomaniak_budget_tokens = 1400000
 
   # Liste d'autorisation du fournisseur : seuls ces modèles passent.
   ai_models = {
@@ -187,8 +196,8 @@ resource "terraform_data" "ai_gateway_key" {
       error_message = "OpenRouter allumé (local.ai_openrouter_enabled, ai_gateway.tf) sans la clé SOPS pangolin_ai_openrouter_api_key dans secrets/secrets.sops.yaml (ou son TF_VAR_ai_openrouter_api_key absent de mise.toml). La mettre (et son entrée dans secrets-rotation.yaml), ou passer local.ai_openrouter_enabled à false."
     }
     precondition {
-      condition     = length(local.ai_infomaniak) == 0 || (nonsensitive(local.ai_infomaniak_api_key != "") && nonsensitive(local.ai_infomaniak_product_id != ""))
-      error_message = "Infomaniak allumé (local.ai_infomaniak_enabled, ai_gateway.tf) sans les clés SOPS pangolin_ai_infomaniak_api_key et pangolin_ai_infomaniak_product_id dans secrets/secrets.sops.yaml (ou leurs TF_VAR_ absents de mise.toml). Les mettre (et leurs entrées dans secrets-rotation.yaml), ou passer local.ai_infomaniak_enabled à false."
+      condition     = length(local.ai_infomaniak) == 0 || (nonsensitive(local.ai_infomaniak_api_key != "") && local.ai_infomaniak_product_id != "")
+      error_message = "Infomaniak allumé (var.ai_infomaniak_enabled, ai_gateway.tf) sans les clés SOPS pangolin_ai_infomaniak_api_key et pangolin_ai_infomaniak_product_id dans secrets/secrets.sops.yaml (ou leurs TF_VAR_ absents de mise.toml). Les mettre (et leurs entrées dans secrets-rotation.yaml), ou passer le défaut de var.ai_infomaniak_enabled à false."
     }
   }
 }
@@ -293,8 +302,9 @@ resource "pangolin_ai_provider" "infomaniak" {
   upstream_url = "https://api.infomaniak.com/2/ai/${local.ai_infomaniak_product_id}/openai/v1"
   api_key      = local.ai_infomaniak_api_key
   auth_type    = "bearer"
-  # `custom` n'a pas de capacités par défaut : chat OpenAI et liste des modèles.
-  capabilities          = ["openai_chat", "v1_models"]
+  # `custom` n'a pas de capacités par défaut : le chat OpenAI seul, comme
+  # OpenRouter (le /v1/models de la passerelle sort du catalogue de Pangolin).
+  capabilities          = ["openai_chat"]
   routing_mode          = "url"
   enabled               = true
   skip_tls_verification = false
@@ -307,6 +317,18 @@ resource "pangolin_ai_model" "infomaniak" {
   model_key   = "*"
   name        = "Tous les modèles (Infomaniak)"
   list_type   = "allow"
+  enabled     = true
+}
+
+# La liste de blocage s'applique après le joker : `claude*` n'atteint jamais
+# Infomaniak (403 propre pour un nom de Claude retiré ou mal tapé).
+resource "pangolin_ai_model" "infomaniak_no_claude" {
+  for_each = local.ai_infomaniak
+
+  provider_id = pangolin_ai_provider.infomaniak[each.key].id
+  model_key   = "claude*"
+  name        = "Claude (jamais par Infomaniak)"
+  list_type   = "block"
   enabled     = true
 }
 
