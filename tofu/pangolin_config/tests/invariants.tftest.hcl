@@ -53,8 +53,10 @@ variables {
   telegram_bot_token               = "fake-telegram-bot-token"
   telegram_chat_id                 = "-100123456789"
   # Passerelle IA (ai_gateway.tf), allumée : sa clé doit exister.
-  ai_anthropic_api_key  = "fake-anthropic-api-key"
-  ai_openrouter_api_key = "fake-openrouter-api-key"
+  ai_anthropic_api_key     = "fake-anthropic-api-key"
+  ai_openrouter_api_key    = "fake-openrouter-api-key"
+  ai_infomaniak_api_key    = "fake-infomaniak-api-key"
+  ai_infomaniak_product_id = "12345"
 }
 
 # local.domain_ids indexe "sylvain.cloud" et "sylvain.dev" : une liste vide
@@ -439,6 +441,11 @@ override_resource {
 override_resource {
   target = pangolin_ai_provider.openrouter["ia"]
   values = { id = 42 }
+}
+
+override_resource {
+  target = pangolin_ai_provider.infomaniak["ia"]
+  values = { id = 43 }
 }
 
 override_resource {
@@ -4080,7 +4087,7 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && pangolin_resource.ai_gateway["ia"].subdomain == "ia"
       && !contains(keys(local.managed_resources), pangolin_resource.ai_gateway["ia"].name)
       && contains(local.unruled_resources, pangolin_resource.ai_gateway["ia"].name)
-      && toset(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == toset([pangolin_ai_provider.anthropic["ia"].id, pangolin_ai_provider.openrouter["ia"].id])
+      && toset(pangolin_resource.ai_gateway["ia"].ai_provider_ids) == toset([pangolin_ai_provider.anthropic["ia"].id, pangolin_ai_provider.openrouter["ia"].id, pangolin_ai_provider.infomaniak["ia"].id])
       && pangolin_ai_provider.anthropic["ia"].type == "anthropic"
       && pangolin_ai_provider.anthropic["ia"].upstream_url == "https://api.anthropic.com"
       && contains(pangolin_ai_provider.anthropic["ia"].capabilities, "openai_chat")
@@ -4093,6 +4100,28 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && alltrue([for m in pangolin_ai_model.openrouter : !startswith(m.model_key, "anthropic/") && m.model_key != "*"])
     )
     error_message = "La passerelle IA doit rester en mode inference sur ia (sans règle possible, donc hors filtre FR/DE : local.unruled_resources), branchée à Anthropic et à OpenRouter, chacun avec ses modèles autorisés, sans Claude ni joker total chez OpenRouter."
+  }
+
+  # Infomaniak : tous ses modèles par `*`, moins précis que les clés exactes de
+  # Claude et les jokers d'OpenRouter ; 5 € par mois, bloquant, sur le fournisseur.
+  assert {
+    condition = (
+      pangolin_ai_provider.infomaniak["ia"].type == "custom"
+      && pangolin_ai_provider.infomaniak["ia"].upstream_url == "https://api.infomaniak.com/2/ai/12345/openai/v1"
+      && contains(pangolin_ai_provider.infomaniak["ia"].capabilities, "openai_chat")
+      && pangolin_ai_model.infomaniak["ia"].model_key == "*"
+      && pangolin_ai_model.infomaniak["ia"].provider_id == pangolin_ai_provider.infomaniak["ia"].id
+      && alltrue([
+        for b in [pangolin_ai_budget.infomaniak_usd["ia"], pangolin_ai_budget.infomaniak_tokens["ia"]] :
+        b.provider_id == pangolin_ai_provider.infomaniak["ia"].id && b.virtual_api_key_id == null
+        && b.period == "monthly" && b.enforcement == "hard" && b.enabled
+      ])
+      && pangolin_ai_budget.infomaniak_usd["ia"].unit == "usd"
+      && pangolin_ai_budget.infomaniak_usd["ia"].amount <= 6
+      && pangolin_ai_budget.infomaniak_tokens["ia"].unit == "tokens"
+      && pangolin_ai_budget.infomaniak_tokens["ia"].amount <= 1500000
+    )
+    error_message = "Infomaniak doit rester un fournisseur custom sur /2/ai/<produit>/openai/v1, tous modèles autorisés, plafonné à 5 € par mois (≤ 6 $ et ≤ 1,5 M tokens, bloquants) sur le fournisseur."
   }
 
   assert {
@@ -4143,6 +4172,17 @@ run "ai_openrouter_without_its_sops_key_fails_plan" {
 
   variables {
     ai_openrouter_api_key = ""
+  }
+}
+
+# Infomaniak allumé sans son jeton ou sans son produit : même refus.
+run "ai_infomaniak_without_its_sops_keys_fails_plan" {
+  command = plan
+
+  expect_failures = [terraform_data.ai_gateway_key]
+
+  variables {
+    ai_infomaniak_product_id = ""
   }
 }
 

@@ -492,6 +492,15 @@ clé avec une limite de crédit. `sops set`, monter le sous-module, `plan` de
 `tofu/pangolin_config` (seul `pangolin_ai_provider.openrouter` change), `apply`,
 un appel avec la clé virtuelle `openrouter`, puis supprimer l'ancienne clé.
 
+### Jeton API Infomaniak (passerelle IA)
+
+`pangolin_ai_infomaniak_api_key` (fichier racine, lue par
+`tofu/pangolin_config/ai_gateway.tf`) : manager Infomaniak, Développeur, Jetons
+API, nouveau jeton de portée AI Tools. `sops set`, monter le sous-module,
+`plan` de `tofu/pangolin_config` (seul `pangolin_ai_provider.infomaniak`
+change), `apply`, un appel à un modèle d'Infomaniak, puis révoquer l'ancien
+jeton. `pangolin_ai_infomaniak_product_id` est un identifiant, sans rotation.
+
 ## Secrets d'application (tous les deux ans)
 
 ### Secret d'appli lu par Ansible

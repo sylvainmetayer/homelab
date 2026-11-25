@@ -216,6 +216,24 @@ variable "ai_openrouter_api_key" {
   default     = ""
 }
 
+# Infomaniak AI Tools, troisième fournisseur de la passerelle (ai_gateway.tf),
+# facultatif comme les autres : vide, le plan échoue tant que
+# local.ai_infomaniak_enabled est vrai. Le jeton va au state ; l'identifiant du
+# produit entre dans l'URL amont.
+variable "ai_infomaniak_api_key" {
+  description = "Jeton de l'API Infomaniak (AI Tools) de la passerelle IA (clé SOPS pangolin_ai_infomaniak_api_key)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "ai_infomaniak_product_id" {
+  description = "Identifiant du produit Infomaniak AI Tools (clé SOPS pangolin_ai_infomaniak_product_id)."
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 # Adresse privée de flip (tofu/pangolin, variable flip_server), pour flip.internal
 # (private_resources.tf). Elle était lue par terraform_remote_state, qui rangeait
 # dans ce state toutes les sorties de tofu/pangolin, dont le mot de passe de la
@@ -251,4 +269,7 @@ locals {
   pocket_id_api_token    = var.pocket_id_api_token
   ai_anthropic_api_key   = var.ai_anthropic_api_key
   ai_openrouter_api_key  = var.ai_openrouter_api_key
+
+  ai_infomaniak_api_key    = var.ai_infomaniak_api_key
+  ai_infomaniak_product_id = var.ai_infomaniak_product_id
 }
