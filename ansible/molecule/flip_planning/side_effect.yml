@@ -33,6 +33,26 @@
       flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
       flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
       flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
+    # L'entrée de la production, pour le play du redémarrage.
+    side_effect_prod_vars: &prod_vars
+      flip_planning_branding_logo: flip/flip.png
+      flip_planning_branding_pdf_logo: flip/flip-logo.png
+      flip_planning_branding_pdf_strip: flip/flip-strip.png
+      flip_planning_branding_mascot: flip/flip-woopy.png
+      flip_planning_branding_mascot_icon: flip/flip-woopy-loader.png
+      flip_planning_db_password: "{{ prod_planning_db_password }}"
+      flip_planning_pgadmin_password: "{{ prod_planning_pgadmin_password }}"
+      flip_planning_admin_password: "{{ prod_planning_admin_password }}"
+      flip_planning_session_encryption_key: "{{ prod_planning_session_encryption_key }}"
+      flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
+      flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
+      flip_planning_mem_reservation: 1g
+      flip_planning_solver_engine: hand
+      flip_planning_keycloak_enabled: "{{ prod_planning_keycloak_db_password is defined }}"
+      flip_planning_keycloak_db_password: "{{ prod_planning_keycloak_db_password | default('') }}"
+      flip_planning_keycloak_admin_password: "{{ prod_planning_keycloak_admin_password | default('') }}"
+      flip_planning_oidc_enabled: false
+      flip_planning_oidc_client_secret: "{{ prod_planning_oidc_client_secret | default('') }}"
   tasks:
     - name: Assert the copied entry is the one of flip.yml
       vars:
@@ -41,10 +61,14 @@
           {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0].roles
              | selectattr('role', 'equalto', 'flip_planning') | selectattr('vars', 'defined')
              | map(attribute='vars') | selectattr('flip_planning_service', 'defined') | list }}
+        side_effect_playbook_prod_vars: >-
+          {{ ((lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)[0].roles
+             | selectattr('role', 'equalto', 'flip_planning') | first).vars }}
       ansible.builtin.assert:
         that:
           - side_effect_raw_vars.side_effect_demo_vars in side_effect_playbook_vars
-        fail_msg: "L'entrée demo_planning recopiée ici diverge de ansible/flip.yml : la recopier (sans les tags)."
+          - side_effect_raw_vars.side_effect_prod_vars == side_effect_playbook_prod_vars
+        fail_msg: "Les entrées flip_planning / demo_planning recopiées ici divergent de ansible/flip.yml : les recopier (sans les tags)."
 
 # Sans le set_fact du converge : demo_planning_enabled vient de host_vars/flip
 # (false), l'état de l'hôte. Les secrets et l'URL de push, eux, ne viennent pas
@@ -103,6 +127,57 @@
           dc@demo_planning devrait être arrêtée et désactivée, son compose et
           son .env gardés, sa configuration borgmatic retirée, la production
           en service : {{ flip_planning_paused_units.results | map(attribute='status.ActiveState') | list }}
+
+# L'ordre réel de flip : la production d'abord, la démo en pause (host_vars)
+# après elle. Les handlers tournent en fin de play avec les paramètres de la
+# DERNIÈRE application du rôle : une notification qui lirait l'interrupteur de
+# la démo ferait taire le redémarrage de la production (defaults/main.yml,
+# flip_planning_restart_handlers). Un .env de production dérangé à la main
+# donne le changement ; le gabarit le remet tel que le converge l'a écrit.
+- name: Restart production even when the paused demo is applied after it
+  hosts: all
+  vars_files: *flip_vars_files
+  pre_tasks:
+    - name: Load the fake secrets as the playbooks load secrets/ansible.sops.yaml
+      ansible.builtin.import_tasks: ../_shared/tasks/load_fake_secrets.yml
+
+    - name: Load the healthcheck URLs as flip.yml does from the Terraform state
+      ansible.builtin.set_fact:
+        prod_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
+        demo_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
+
+    - name: Read when dc@flip_planning last started
+      ansible.builtin.systemd:
+        name: dc@flip_planning
+        scope: user
+      register: flip_planning_prod_before
+
+    - name: Change the production .env behind the role's back
+      ansible.builtin.lineinfile:
+        path: /opt/apps/flip_planning/.env
+        line: "# side_effect molecule"
+  roles:
+    - role: flip_planning
+      vars: *prod_vars
+    - role: flip_planning
+      vars: *demo_vars
+  post_tasks:
+    - name: Read when dc@flip_planning last started, after the run
+      ansible.builtin.systemd:
+        name: dc@flip_planning
+        scope: user
+      register: flip_planning_prod_after
+
+    - name: Assert production restarted
+      ansible.builtin.assert:
+        that:
+          - flip_planning_prod_after.status.ActiveState == 'active'
+          - flip_planning_prod_after.status.ActiveEnterTimestampMonotonic | int
+            > flip_planning_prod_before.status.ActiveEnterTimestampMonotonic | int
+        fail_msg: >-
+          dc@flip_planning n'a pas redémarré après le changement de son .env,
+          la démo en pause appliquée après elle : la notification lit
+          l'interrupteur d'une autre instance.
 
 - name: Resume the demo
   hosts: all

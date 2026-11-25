@@ -52,8 +52,11 @@ Les personnes ne sont pas dans Tofu.
 5. **Comptes** : console `https://flip-planning.sylvain.cloud/auth/admin/master/console/`
    (derrière le mur Pangolin), realm `planning` › Users : adresse, **Email
    verified** coché (l'application ne rattache que sur une adresse vérifiée),
-   mot de passe temporaire. Remplacer le bootstrap admin du master par un
-   compte permanent (Keycloak le demande).
+   mot de passe temporaire. Ajouter un compte permanent dans le realm master
+   si l'on veut, mais **garder le bootstrap `admin`** et son mot de passe de
+   SOPS : le provider de ce module s'y connecte (`keycloak_admin_user`,
+   `prod_planning_keycloak_admin_password`), le supprimer ou en changer le mot
+   de passe dans la console casse le `tofu plan` suivant.
 6. **Dans l'application, AVANT de brancher OIDC** : créer son propre compte
    administrateur (Paramètres › Comptes, la même adresse que dans Keycloak).
    Le compte `admin` de secours se ferme derrière un fournisseur.
