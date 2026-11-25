@@ -81,7 +81,18 @@ locals {
   # dollars ne comptent que les modèles qu'il retrouve ailleurs, en
   # approximation. Les tokens sont donc le vrai plafond : 1,4 M, soit 5,6 $ tout
   # en sortie du modèle le plus cher constaté (Kimi-K2.6, ~4 $ le million).
-  ai_infomaniak_budget_usd    = 5.8 # 5 € en dollars, unité imposée par Pangolin
+  ai_infomaniak_budget_usd = 5.8 # 5 € en dollars, unité imposée par Pangolin
+
+  # Modèles d'Infomaniak que les jokers d'OpenRouter (`mistralai/*`,
+  # `google/*`, plus précis que `*`) enverraient chez OpenRouter : une clé
+  # exacte les ramène chez Infomaniak (une clé exacte bat tout motif ; la
+  # casse compte, les noms OpenRouter sont en minuscules). Liste lue le
+  # 2026-11-25 dans le 400 d'Infomaniak pour un modèle inconnu.
+  ai_infomaniak_exact_models = toset([
+    "mistralai/Mistral-Small-4-119B-2603",
+    "mistralai/Ministral-3-14B-Instruct-2512",
+    "google/gemma-4-31B-it",
+  ])
   ai_infomaniak_budget_tokens = 1400000
 
   # Liste d'autorisation du fournisseur : seuls ces modèles passent.
@@ -316,6 +327,16 @@ resource "pangolin_ai_model" "infomaniak" {
   provider_id = pangolin_ai_provider.infomaniak[each.key].id
   model_key   = "*"
   name        = "Tous les modèles (Infomaniak)"
+  list_type   = "allow"
+  enabled     = true
+}
+
+resource "pangolin_ai_model" "infomaniak_exact" {
+  for_each = length(local.ai_infomaniak) > 0 ? local.ai_infomaniak_exact_models : toset([])
+
+  provider_id = pangolin_ai_provider.infomaniak["ia"].id
+  model_key   = each.value
+  name        = "${each.value} (Infomaniak)"
   list_type   = "allow"
   enabled     = true
 }

@@ -42,6 +42,16 @@ openwebui_ai_models:
   - claude-haiku-5-5
   - claude-sonnet-5-5
   - claude-opus-5-5
+  # Infomaniak AI Tools (Suisse, prompts non gardés), par la même passerelle ;
+  # plafond partagé de 5 € par mois sur tout le fournisseur (ai_gateway.tf).
+  - mistralai/Mistral-Small-4-119B-2603
+  - mistralai/Ministral-3-14B-Instruct-2512
+  - google/gemma-4-31B-it
+  - Qwen/Qwen3.5-397B-A17B-FP8
+  - Qwen/Qwen3.5-122B-A10B-FP8
+  - Qwen/Qwen3.8-27B-FP8
+  - moonshotai/Kimi-K2.6
+  - swiss-ai/Apertus-v1.5-70B
 openwebui_default_model: claude-sonnet-5-5
 # Titres des conversations : le plus petit modèle (chaque appel compte dans le
 # plafond en tokens de la clé).

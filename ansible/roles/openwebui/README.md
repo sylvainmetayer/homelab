@@ -24,8 +24,11 @@ recherche de version).
   `ENABLE_OPENAI_API=false`, aucune connexion IA, l'appli démarre quand même.
   Une rotation de la clé (`tofu apply -replace`, voir `ai_gateway.tf`) : relancer
   `docker.yml --tags openwebui`.
-- Modèles `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`
-  (`openwebui_ai_models`) : déclarés à la main dans `OPENAI_API_CONFIGS`
+- Modèles `claude-haiku-5-5`, `claude-sonnet-5-5`, `claude-opus-5-5`, et
+  depuis le 2026-11-25 ceux d'Infomaniak AI Tools (Mistral Small 4, Ministral 3,
+  Gemma 4, Qwen 3.5 et 3.8, Kimi K2.6, Apertus ; même clé, même passerelle,
+  plafond de 5 € par mois partagé sur tout Infomaniak, runbook
+  `passerelle-ia.md`) (`openwebui_ai_models`) : déclarés à la main dans `OPENAI_API_CONFIGS`
   (`model_ids`, dans `compose.yaml`: un JSON dans un `.env` dépend du lecteur).
   Open WebUI ne demande alors pas `/v1/models`, que la passerelle ne liste pas
   forcément. Modèle par défaut Sonnet ; titres des conversations par Haiku

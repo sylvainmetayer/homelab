@@ -4113,6 +4113,8 @@ run "ai_gateway_keys_are_scoped_and_capped" {
       && pangolin_ai_model.infomaniak["ia"].model_key == "*"
       && pangolin_ai_model.infomaniak["ia"].list_type == "allow"
       && pangolin_ai_model.infomaniak["ia"].provider_id == pangolin_ai_provider.infomaniak["ia"].id
+      && length(pangolin_ai_model.infomaniak_exact) == length(local.ai_infomaniak_exact_models)
+      && alltrue([for m in pangolin_ai_model.infomaniak_exact : m.list_type == "allow" && m.provider_id == pangolin_ai_provider.infomaniak["ia"].id && !strcontains(m.model_key, "*")])
       && pangolin_ai_model.infomaniak_no_claude["ia"].model_key == "claude*"
       && pangolin_ai_model.infomaniak_no_claude["ia"].list_type == "block"
       && pangolin_ai_model.infomaniak_no_claude["ia"].provider_id == pangolin_ai_provider.infomaniak["ia"].id

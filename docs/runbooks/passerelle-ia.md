@@ -78,15 +78,33 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
   -d '{"model":"<modèle>","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
 ```
 
-- La liste des modèles : `GET https://api.infomaniak.com/2/ai/<produit>/openai/v1/models`
-  avec le jeton Infomaniak, pas le `/v1/models` de la passerelle (tiré du
-  catalogue de Pangolin, sans les modèles d'Infomaniak).
-- Tous les modèles exposés sont autorisés (joker `*`). Pangolin prend le motif
-  le plus précis : `claude-*` reste chez Anthropic, `mistralai/*`, `openai/*`,
-  `google/*`, `*:free` chez OpenRouter, tout autre nom part chez Infomaniak
-  (404 de leur côté s'il ne le connaît pas), y compris une faute de frappe
-  d'une appli. Sauf `claude*`, bloqué chez Infomaniak : un ancien nom de
-  Claude reçoit un 403.
+- Modèles (liste du 2026-11-25, la casse compte) :
+
+  | Nom à envoyer | Modèle |
+  |---|---|
+  | `mistralai/Mistral-Small-4-119B-2603` (alias `mistral3`, `mistral24b`) | Mistral Small 4 |
+  | `mistralai/Ministral-3-14B-Instruct-2512` | Ministral 3 14B |
+  | `google/gemma-4-31B-it` | Gemma 4 31B |
+  | `Qwen/Qwen3.5-397B-A17B-FP8` | Qwen 3.5 397B |
+  | `Qwen/Qwen3.5-122B-A10B-FP8` | Qwen 3.5 122B |
+  | `Qwen/Qwen3.8-27B-FP8` (alias `qwen3`) | Qwen 3.8 27B |
+  | `moonshotai/Kimi-K2.6` | Kimi K2.6 |
+  | `swiss-ai/Apertus-v1.5-70B`, `swiss-ai/Apertus-70B-Instruct-2509` | Apertus (EPFL, ETH) |
+
+  La liste à jour : un appel avec un nom inconnu (ex. `"model":"x"`) ;
+  Infomaniak répond 400 « The selected model is invalid » et donne tous les
+  noms acceptés dans `context.values`. Le `/v1/models` de la passerelle ne les
+  montre pas (catalogue de Pangolin).
+- Routage : `claude-*` reste chez Anthropic (`claude*` bloqué chez
+  Infomaniak : 403), `openai/*` et `*:free` chez OpenRouter, tout le reste chez
+  Infomaniak (joker `*`), y compris une faute de frappe (400 d'Infomaniak).
+  Les trois noms en `mistralai/` et `google/` ci-dessus tomberaient sous les
+  jokers d'OpenRouter : ils sont déclarés en clés exactes chez Infomaniak
+  (`local.ai_infomaniak_exact_models`), qui gagnent. Un nouveau modèle
+  Infomaniak en `mistralai/`, `google/` ou `openai/` : l'y ajouter.
+- Dans une appli : URL de base `https://ia.sylvain.cloud/v1`, la clé de
+  l'appli, le nom du tableau. Open WebUI les propose déjà
+  (`openwebui_ai_models`, rôle `openwebui`).
 - Plafond : 5 € par mois (30 jours glissants) sur le fournisseur entier,
   toutes clés confondues, bloquant (429 au-delà) : 1,4 M tokens et 5,8 $.
   Pangolin ne connaît pas les prix d'Infomaniak : c'est le plafond en tokens
