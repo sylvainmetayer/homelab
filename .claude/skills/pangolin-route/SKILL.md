@@ -123,20 +123,20 @@ automatic, see the `borgmatic-backup` skill.
 ### Multi-target / sub-path routing
 
 If a second component of the same app needs to live under a sub-path of the
-same resource (e.g. pgAdmin under `/db`, see `website_flip_planning.tf`), give
+same resource (e.g. Mailpit under `/mail`, see `website_flip_planning.tf`), give
 the catch-all target `path = "/"` and `priority = 1`, and add the component
 under `sub_targets`, keyed by a suffix (its address becomes
 `pangolin_target.website["<service>_<suffix>"]`):
 
 ```hcl
     sub_targets = {
-      pgadmin = {
+      mailpit = {
         site_id  = pangolin_site.flip.id
-        ip       = "<service>-pgadmin"
-        port     = 80
-        path     = "/db"
+        ip       = "<service>-mailpit"
+        port     = 8025
+        path     = "/mail"
         priority = 2
-        hc_path  = "/db/misc/ping"
+        hc_path  = "/mail/livez"
       }
     }
 ```
