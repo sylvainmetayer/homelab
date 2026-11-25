@@ -61,11 +61,11 @@ Si toutes les applis du homelab tombent : [pangolin-injoignable.md](pangolin-inj
    ```bash
    systemctl --user status dc@newt
    docker logs --tail 100 newt
-   systemctl --user status dc@flip_planning dc@demo_planning dc@demo_planning_kc dc@exemple_planning dc@promptoramix dc@openpost
+   systemctl --user status dc@flip_planning dc@demo_planning dc@promptoramix dc@openpost
    ```
 
-   `dc@demo_planning_kc` est arrêtée et désactivée exprès : le banc Keycloak
-   est en pause ([app-en-pause.md](app-en-pause.md)).
+   `dc@demo_planning` est arrêtée et désactivée exprès : la démo est en
+   pause ([app-en-pause.md](app-en-pause.md)).
 
    Newt de flip : identifiants lus dans le state `pangolin_config`
    (`flip_newt_id` / `flip_newt_secret`), pas dans SOPS.

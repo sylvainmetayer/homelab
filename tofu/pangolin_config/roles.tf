@@ -22,7 +22,6 @@ locals {
     "papra",
     "flip-planning",
     "demo-planning",
-    "demo-planning-kc",
     "dawarich",
     "trek",
     "karakeep",

@@ -280,7 +280,6 @@ override_data {
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
-        {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
@@ -293,7 +292,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": false}
-      ], "pagination": {"total": 17, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 16, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -530,11 +529,6 @@ override_resource {
 override_resource {
   target = pangolin_resource.website["demo_planning"]
   values = { id = 81, full_domain = "demo-planning.sylvain.dev" }
-}
-
-override_resource {
-  target = pangolin_resource.website["demo_planning_kc"]
-  values = { id = 82, full_domain = "demo-planning-kc.sylvain.dev" }
 }
 
 override_resource {
@@ -834,11 +828,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.cron_betisier_reset
   values = { push_token = "push-cron-betisier-reset" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.cron_exemple_planning_reset
-  values = { push_token = "push-cron-exemple-planning-reset" }
 }
 
 override_resource {
@@ -1323,7 +1312,7 @@ run "every_probed_target_declares_scheme_mode_and_port" {
 
   # local.website_targets fusionne par merge() les clés des applications et les
   # "<app>_<suffixe>" de leurs sub_targets : une collision (un sub_target `kc`
-  # de demo_planning contre l'application demo_planning_kc) écraserait une
+  # d'une application contre une autre application `<app>_kc`) écraserait une
   # cible sans un mot. Aucune clé perdue : autant de cibles que déclarées.
   assert {
     condition = length(local.website_targets) == sum(concat([0], [
@@ -1387,8 +1376,8 @@ run "catch_all_target_has_lowest_priority" {
   # Garde-fou du test lui-même : sans ressource multi-chemins, l'assertion
   # ci-dessus serait vraie par construction.
   assert {
-    condition     = length([for website in values(local.websites) : website if length(lookup(website, "sub_targets", {})) > 0]) >= 3
-    error_message = "Les trois environnements de Flip Planning routent par chemin : ce run doit en voir au moins trois."
+    condition     = length([for website in values(local.websites) : website if length(lookup(website, "sub_targets", {})) > 0]) >= 2
+    error_message = "Les deux environnements de Flip Planning routent par chemin : ce run doit en voir au moins deux."
   }
 }
 
@@ -1619,12 +1608,13 @@ run "path_bypasses_open_exactly_the_reviewed_paths" {
       "Dawarich /site.webmanifest",
       "Dawarich /favicon.ico",
       "Demo Planning /mcp/*",
-      "Demo Planning KC /auth/*",
       "Enclosed /0*",
       "Enclosed /assets/*",
       "Enclosed /api/notes/0*",
       "Enclosed /api/notes/0*/exists",
       "Flip Planning /mcp/*",
+      "Flip Planning /auth/realms/planning/*",
+      "Flip Planning /auth/resources/*",
       "HealthLog /api/withings/webhook/**",
       "Karakeep /public/lists/*",
       "Karakeep /_next/static/*",
@@ -1800,65 +1790,11 @@ run "backslash_guard_covers_every_path_rule" {
     condition = alltrue([
       for rule in concat(
         [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml],
-        values(pangolin_resource_rule.exemple_planning_drop),
         [pangolin_resource_rule.promptoramix_drop],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
     ])
     error_message = "La priorité 1 est réservée au DROP antislash : une règle par chemin à égalité avec lui serait évaluée dans un ordre arbitraire."
-  }
-}
-
-# La vitrine publique (website_exemple_planning.tf) n'a ni SSO ni mot de passe
-# admin secret : ses DROP sont tout ce qui sépare un visiteur du MCP, de
-# l'import SQL (utilisateur Postgres superutilisateur), du calcul synchrone et
-# de l'envoi de Mailpit. Liste fermée, toutes devant les règles pays (une DROP
-# derrière un PASS ne serait jamais lue) et derrière le garde antislash, et
-# aucun ACCEPT de chemin sur la ressource qui passerait avant elles.
-run "public_showcase_drops_what_its_shared_admin_must_not_reach" {
-  command = plan
-
-  assert {
-    condition     = pangolin_resource.website["exemple_planning"].sso == false
-    error_message = "La vitrine est sans SSO par conception : c'est ce qui rend ses DROP nécessaires."
-  }
-
-  assert {
-    condition = { for key, rule in pangolin_resource_rule.exemple_planning_drop : key => rule.value } == {
-      mcp          = "/mcp*/*"
-      database     = "/api*/database*/*"
-      solve_sync   = "/api*/solve*"
-      mailpit_send = "/mail/api/v1/send"
-      debug        = "/api*/debug*/*"
-      link_check   = "/mail/api/v1/message/*/link-check"
-    }
-    error_message = "Les DROP de la vitrine ont changé : MCP, import/export SQL, calcul synchrone, Débogage, envoi et vérification de liens de Mailpit, ni plus ni moins (les webhooks sont coupés dans l'application)."
-  }
-
-  # Les cibles visent les conteneurs par nom sur le réseau newt : le préfixe
-  # que flip.yml donne à la vitrine.
-  assert {
-    condition = (
-      length(regexall("flip_planning_container_prefix: exemple-planning\\n", file("${path.module}/../../ansible/flip.yml"))) == 1
-      && pangolin_target.website["exemple_planning"].ip == "exemple-planning"
-      && pangolin_target.website["exemple_planning_mailpit"].ip == "exemple-planning-mailpit"
-      && pangolin_target.website["exemple_planning_assets"].ip == "exemple-planning-assets"
-    )
-    error_message = "Les cibles de la vitrine doivent suivre flip_planning_container_prefix de son entrée dans ansible/flip.yml (exemple-planning)."
-  }
-
-  assert {
-    condition = alltrue([
-      for rule in pangolin_resource_rule.exemple_planning_drop :
-      rule.action == "DROP" && rule.match == "PATH" && rule.enabled == true
-      && rule.priority > 1 && rule.priority < 10
-    ])
-    error_message = "Les règles de la vitrine sont des DROP PATH actives, entre le garde antislash (1) et les règles pays (10)."
-  }
-
-  assert {
-    condition     = !contains(keys(local.path_bypasses), "Exemple Planning")
-    error_message = "La vitrine ne doit avoir aucun ACCEPT de chemin : il passerait avant ses DROP ou à côté d'eux."
   }
 }
 
@@ -2049,13 +1985,14 @@ run "path_bypasses_follow_their_image" {
 
   # Toute ressource ouverte par chemin est gardée, ou écartée ici avec sa
   # raison : nos propres images (planning-equipes, promptoramix), dont les
-  # chemins suivent le code que nous écrivons, et le banc Keycloak, qui ouvre
-  # tout /auth/* (website_demo_planning_kc.tf) et n'a donc aucune route à
-  # relire.
+  # chemins suivent le code que nous écrivons. Flip Planning y compte aussi
+  # pour son Keycloak (website_flip_planning.tf) : l'image officielle, mais
+  # deux préfixes fixes de son realm `planning` et de ses ressources
+  # statiques, que sa version n'y change pas.
   assert {
     condition = setunion(
       keys(jsondecode(file("${path.module}/path_bypass_images.json"))),
-      ["Demo Planning", "Demo Planning KC", "Flip Planning", "Promptoramix"],
+      ["Demo Planning", "Flip Planning", "Promptoramix"],
     ) == toset(keys(local.path_bypasses))
     error_message = "Une ressource de local.path_bypasses n'a pas d'entrée dans path_bypass_images.json (ou une entrée n'y correspond à aucune) : sa version relue ne serait pas gardée."
   }
@@ -2101,8 +2038,8 @@ run "php_lockdown_closes_every_public_php_path" {
   }
 
   # Monica, FreshRSS (rss) et BookStack (wiki). Leur SSO, lui, est tenu par
-  # every_public_resource_applies_its_rules (seules Betisier, Promptoramix
-  # et Exemple Planning s'en passent).
+  # every_public_resource_applies_its_rules (seules Betisier et Promptoramix
+  # s'en passent).
   assert {
     condition = length([
       for key, rule in pangolin_resource_rule.path_bypass : key
@@ -2118,8 +2055,7 @@ run "php_lockdown_closes_every_public_php_path" {
 # apply_rules = false laisse les règles pays en place mais Pangolin ne les
 # évalue pas : NAS et Proxmox ont ainsi répondu de partout, derrière le seul
 # SSO, pendant que rules.tf affichait leurs règles. Toute ressource publique
-# applique donc les siennes, et seules Betisier, Promptoramix et la vitrine
-# Exemple Planning se passent du SSO. Nextcloud l'a rejoint : ses clients et
+# applique donc les siennes, et seules Betisier et Promptoramix se passent du SSO. Nextcloud l'a rejoint : ses clients et
 # ses liens de partage passent par des chemins ouverts (website_nextcloud.tf),
 # plus par une ressource entière sans SSO.
 run "every_public_resource_applies_its_rules" {
@@ -2135,16 +2071,13 @@ run "every_public_resource_applies_its_rules" {
   # est entrée par une décision explicite, validée par l'utilisateur : appelée
   # par les serveurs du tournoi Linkx (fonctions Supabase), pas par un
   # navigateur, elle ne peut pas passer de SSO et vérifie la signature HMAC de
-  # chaque requête (website_promptoramix.tf). Exemple Planning aussi : la
-  # vitrine publique de Planning Équipes, dont la page produit affiche le mot
-  # de passe ; ce que cet admin partagé ne doit pas atteindre est coupé par ses
-  # DROP (website_exemple_planning.tf, pinned plus bas).
+  # chaque requête (website_promptoramix.tf).
   assert {
     condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
-      toset(["Betisier", "Exemple Planning", "Promptoramix"]),
+      toset(["Betisier", "Promptoramix"]),
       [for key in local.php_lockdown_sso : local.websites[key].name],
     )
-    error_message = "Les ressources sans SSO doivent être exactement Betisier, Exemple Planning et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
+    error_message = "Les ressources sans SSO doivent être exactement Betisier et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -2263,7 +2196,7 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning", "demo_planning_kc", "exemple_planning"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning"]
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
   }
 
@@ -2285,30 +2218,6 @@ run "every_resource_declares_the_pinned_attributes" {
   assert {
     condition     = lookup(yamldecode(file("${path.module}/../../ansible/host_vars/flip/variables.yaml")), "openpost_enabled", true) == pangolin_resource.website["openpost"].enabled
     error_message = "openpost_enabled (ansible/host_vars/flip/variables.yaml) et enabled de l'entrée openpost (website_openpost.tf) doivent être égaux."
-  }
-
-  # Même chose pour le banc Keycloak, dont l'interrupteur est un paramètre de
-  # rôle de son entrée de flip.yml (le rôle y est appliqué quatre fois).
-  assert {
-    condition = [
-      for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
-      lookup(entry.vars, "flip_planning_enabled", true)
-      if entry.role == "flip_planning" && try(entry.vars.flip_planning_service, "") == "demo_planning_kc"
-    ] == [pangolin_resource.website["demo_planning_kc"].enabled]
-    error_message = "flip_planning_enabled de l'entrée demo_planning_kc d'ansible/flip.yml et enabled de l'entrée demo_planning_kc (website_demo_planning_kc.tf) doivent être égaux."
-  }
-
-  # Et pour la vitrine, dont le moniteur du reset suit : son timer est arrêté.
-  assert {
-    condition = (
-      [
-        for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
-        lookup(entry.vars, "flip_planning_enabled", true)
-        if entry.role == "flip_planning" && try(entry.vars.flip_planning_service, "") == "exemple_planning"
-      ] == [pangolin_resource.website["exemple_planning"].enabled]
-      && uptimekuma_monitor_push.cron_exemple_planning_reset.active == pangolin_resource.website["exemple_planning"].enabled
-    )
-    error_message = "flip_planning_enabled de l'entrée exemple_planning d'ansible/flip.yml, enabled de l'entrée exemple_planning (website_exemple_planning.tf) et active du moniteur de son reset doivent être égaux."
   }
 }
 
@@ -2348,8 +2257,8 @@ run "maintenance_page_and_inverted_keyword_monitors" {
   # jeton de sonde (sans expiration, dans un moniteur chez PikaPods) ouvrirait
   # le mur SSO ; leur panne se lit sur la santé de la cible Pangolin.
   assert {
-    condition     = toset(keys(uptimekuma_monitor_http_keyword.healthcheck)) == setsubtract(toset(keys(local.websites)), ["demo_planning_kc", "immich_kiosk", "homepage"])
-    error_message = "Chaque application a son healthcheck, sauf demo_planning_kc, immich_kiosk et homepage."
+    condition     = toset(keys(uptimekuma_monitor_http_keyword.healthcheck)) == setsubtract(toset(keys(local.websites)), ["immich_kiosk", "homepage"])
+    error_message = "Chaque application a son healthcheck, sauf immich_kiosk et homepage."
   }
 
   assert {
@@ -2425,7 +2334,7 @@ run "one_role_per_app_slug" {
 
   assert {
     condition = alltrue([
-      for slug in ["flip-planning", "demo-planning", "demo-planning-kc"] :
+      for slug in ["flip-planning", "demo-planning"] :
       contains(keys(pangolin_role.apps), slug)
     ])
     error_message = "Chaque environnement de Flip Planning a son propre rôle : un rôle partagé ouvrirait la production aux testeurs de la démo."
@@ -2444,10 +2353,10 @@ run "one_role_per_app_slug" {
   }
 
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
-  # Betisier, Exemple Planning et Promptoramix (sans SSO).
+  # Betisier et Promptoramix (sans SSO).
   assert {
-    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "exemple_planning", "promptoramix"])
-    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier, Exemple Planning et Promptoramix, sans SSO, à aucun."
+    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
+    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier et Promptoramix, sans SSO, à aucun."
   }
 
   # Chaque entrée prend le rôle de son propre slug (sa clé en kebab-case) : un
@@ -2577,11 +2486,10 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_ci_key_audit_url        = output.uptime_cron_ci_key_audit_url
         uptime_cron_log_alerts_url          = output.uptime_cron_log_alerts_url
         uptime_cron_dav_copy_url            = output.uptime_cron_dav_copy_url
-        # flip.yml (production, démo, vitrine)
-        uptime_backup_flip_planning_url        = output.uptime_backup_flip_planning_url
-        uptime_backup_demo_planning_url        = output.uptime_backup_demo_planning_url
-        uptime_cron_exemple_planning_reset_url = output.uptime_cron_exemple_planning_reset_url
-        uptime_backup_openpost_url             = output.uptime_backup_openpost_url
+        # flip.yml (production, démo)
+        uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
+        uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url
+        uptime_backup_openpost_url      = output.uptime_backup_openpost_url
         # pi.yml, lxc.yml
         uptime_backup_immich_url = output.uptime_backup_immich_url
         uptime_cron_dns_pi_url   = output.uptime_cron_dns_pi_url
@@ -3018,7 +2926,7 @@ run "demo_and_production_planning_share_nothing" {
     condition = alltrue([
       for key, t in pangolin_target.website :
       t.site_id == pangolin_site.flip.id
-      if contains(["flip_planning", "demo_planning", "demo_planning_kc"], local.website_targets[key].website)
+      if contains(["flip_planning", "demo_planning"], local.website_targets[key].website)
     ])
     error_message = "Une cible de Flip Planning n'est pas sur le site flip."
   }
@@ -3030,8 +2938,9 @@ run "demo_and_production_planning_share_nothing" {
         pangolin_target.website["flip_planning_pgadmin"].ip,
         pangolin_target.website["flip_planning_mailpit"].ip,
         pangolin_target.website["flip_planning_assets"].ip,
+        pangolin_target.website["flip_planning_keycloak"].ip,
         ]) == toset([
-        "flip-planning", "flip-planning-pgadmin", "flip-planning-mailpit", "flip-planning-assets",
+        "flip-planning", "flip-planning-pgadmin", "flip-planning-mailpit", "flip-planning-assets", "flip-planning-keycloak",
       ])
       && toset([
         pangolin_target.website["demo_planning"].ip,
@@ -3203,19 +3112,6 @@ run "monitors_are_filed_and_alert" {
       && uptimekuma_monitor_push.cron_betisier_reset.interval < 60 * 60 * 24 * 3
     )
     error_message = "Reset Betisier : rangé avec les healthchecks, notifié sur Telegram et ntfy, timer quotidien et intervalle de deux à trois jours."
-  }
-
-  # Le reset de la vitrine aussi (exemple_planning-reset.timer, rôle
-  # flip_planning) : même règle.
-  assert {
-    condition = (
-      uptimekuma_monitor_push.cron_exemple_planning_reset.parent == uptimekuma_monitor_group.self_hosted.id
-      && toset(uptimekuma_monitor_push.cron_exemple_planning_reset.notification_ids) == toset(local.alert_notification_ids)
-      && length(regexall("flip_planning_reset_on_calendar: \"\\*-\\*-\\* [0-9:]+ Europe/Paris\"", file("${path.module}/../../ansible/roles/flip_planning/defaults/main.yml"))) == 1
-      && uptimekuma_monitor_push.cron_exemple_planning_reset.interval > 60 * 60 * 24 * 2
-      && uptimekuma_monitor_push.cron_exemple_planning_reset.interval < 60 * 60 * 24 * 3
-    )
-    error_message = "Reset Exemple Planning : rangé avec les healthchecks, notifié sur Telegram et ntfy, timer quotidien et intervalle de deux à trois jours."
   }
 
   # Le NAS pousse une fois par jour (nas-proxy-cert-check.timer, rôle

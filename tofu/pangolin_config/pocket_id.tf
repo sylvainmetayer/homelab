@@ -938,7 +938,6 @@ resource "pocketid_group" "pangolin_role" {
     ntfy               = "ntfy"
     bentopdf           = "BentoPDF"
     pairdrop           = "PairDrop"
-    "demo-planning-kc" = "Demo Planning KC"
     mediamanager       = "MediaManager"
     mediamanager-admin = "MediaManager admin"
     "victoria-logs"    = "VictoriaLogs"

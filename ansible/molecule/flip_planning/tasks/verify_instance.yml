@@ -11,12 +11,12 @@
   ansible.builtin.include_tasks: ../../_shared/tasks/verify_compose_services.yml
   vars:
     verify_compose_service: "{{ flip_instance.service }}"
-    verify_compose_databases:
-      - postgres
-    verify_compose_healthy_dependencies:
-      - { service: app, dependency: postgres }
-    verify_compose_internal_networks:
-      - "{{ flip_instance.prefix }}"
+    verify_compose_databases: "{{ ['postgres'] + (['keycloak-db'] if flip_instance.keycloak else []) }}"
+    verify_compose_healthy_dependencies: >-
+      {{ [{'service': 'app', 'dependency': 'postgres'}]
+         + ([{'service': 'keycloak', 'dependency': 'keycloak-db'}] if flip_instance.keycloak else []) }}
+    verify_compose_internal_networks: >-
+      {{ [flip_instance.prefix] + ([flip_instance.prefix ~ '-keycloak'] if flip_instance.keycloak else []) }}
 
 # --- compose : nommage dérivé de flip_planning_service / _container_prefix ---
 
@@ -101,8 +101,8 @@
       - ("\nHORLOGE_SIMULEE_AUTORISEE=true\n") in env_content
       # Sous-réseau du réseau newt lu au déploiement : jamais vide.
       - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_subnet ~ "\n") in env_content
-      # Sans Keycloak, la porte de secours reste ouverte.
-      - ("\nADMIN_SECOURS_ENABLED=true\n") in env_content
+      # Sans fournisseur OIDC, la porte de secours `admin` reste ouverte.
+      - ("\nOIDC_ENABLED=false\n") in env_content
     fail_msg: "Le .env de {{ flip_instance.service }} ne porte pas les valeurs de l'instance"
 
 - name: Assert the demo carries no production credential

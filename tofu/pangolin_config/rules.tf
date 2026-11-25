@@ -41,9 +41,7 @@ locals {
   #            - trek_mcp, beszel_agent_connect, victoria_logs_insert and
   #              rss_opml, the four PASS, the only standalone path rules: they skip the
   #              country rules but keep the authentication;
-  #            - exemple_planning_drop, the DROPs of the public showcase
-  #              (website_exemple_planning.tf), and promptoramix_drop, its
-  #              catch-all DROP behind the two ACCEPTs;
+  #            - promptoramix_drop, the catch-all DROP behind its two ACCEPTs;
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, immich_kiosk_home_ip,
   #              dawarich_home_ip, trek_home_ip). Behind the country PASS they were never reached
   #              from the home connection, which is French.
@@ -235,20 +233,19 @@ resource "pangolin_resource_rule" "block_country" {
 # ---------------------------------------------------------------------------
 locals {
   path_bypasses = {
-    "Dawarich"         = local.dawarich_share_paths
-    "Demo Planning"    = local.demo_planning_mcp_paths
-    "Demo Planning KC" = local.demo_planning_kc_keycloak_paths
-    "Enclosed"         = local.enclosed_read_paths
-    "Flip Planning"    = local.flip_planning_mcp_paths
-    "HealthLog"        = local.healthlog_withings_webhook_paths
-    "Karakeep"         = local.karakeep_public_paths
-    "Monica CRM"       = local.monica_dav_paths
-    "nextcloud"        = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
-    "ntfy"             = local.ntfy_client_paths
-    "OpenPost"         = local.openpost_media_paths
-    "Promptoramix"     = local.promptoramix_public_paths
-    "TREK"             = merge(local.trek_mcp_public_paths, local.trek_share_paths)
-    "Wishlist"         = local.wishlist_public_paths
+    "Dawarich"      = local.dawarich_share_paths
+    "Demo Planning" = local.demo_planning_mcp_paths
+    "Enclosed"      = local.enclosed_read_paths
+    "Flip Planning" = merge(local.flip_planning_mcp_paths, local.flip_planning_keycloak_paths)
+    "HealthLog"     = local.healthlog_withings_webhook_paths
+    "Karakeep"      = local.karakeep_public_paths
+    "Monica CRM"    = local.monica_dav_paths
+    "nextcloud"     = merge(local.nextcloud_client_paths, local.nextcloud_share_paths)
+    "ntfy"          = local.ntfy_client_paths
+    "OpenPost"      = local.openpost_media_paths
+    "Promptoramix"  = local.promptoramix_public_paths
+    "TREK"          = merge(local.trek_mcp_public_paths, local.trek_share_paths)
+    "Wishlist"      = local.wishlist_public_paths
   }
 
   path_bypass_rules = merge([
@@ -268,14 +265,12 @@ locals {
   # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf),
   # VictoriaLogs' (pangolin_resource_rule.victoria_logs_insert,
   # website_victoria_logs.tf) and FreshRSS's OPML export
-  # (pangolin_resource_rule.rss_opml, website_rss.tf), and the showcase's DROPs
-  # (pangolin_resource_rule.exemple_planning_drop, website_exemple_planning.tf),
-  # the only path rules that are not ACCEPTs.
+  # (pangolin_resource_rule.rss_opml, website_rss.tf), the only path rules that
+  # are not ACCEPTs.
   # Listed by hand for the same reason as local.declared_extra_rules below, so
   # that the guard stays even if TREK's ACCEPTs go away.
   standalone_path_rule_resources = [
     "Beszel",
-    "Exemple Planning",
     "RSS",
     "TREK",
     "VictoriaLogs",
@@ -538,7 +533,6 @@ locals {
       pangolin_resource_rule.victoria_logs_insert,
     ],
     values(pangolin_resource_rule.backslash_guard),
-    values(pangolin_resource_rule.exemple_planning_drop),
     values(pangolin_resource_rule.path_bypass),
   )
 

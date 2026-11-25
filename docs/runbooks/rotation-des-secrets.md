@@ -513,8 +513,8 @@ Clé ou jeton qu'un rôle écrit dans le compose ou le `.env` d'une appli
 
 1. Créer la nouvelle valeur là où elle est émise : `openssl rand` pour un
    secret partagé que le homelab invente ; le service tiers sinon (MaxMind :
-   compte, License keys ; Keycloak : `tofu/keycloak_demo_planning_kc`, qui
-   produit les secrets OIDC ; Linkx : le secret partagé se change des deux
+   compte, License keys ; Keycloak : `openssl rand`, puis
+   `tofu/keycloak_planning`, qui lit le secret OIDC dans SOPS ; Linkx : le secret partagé se change des deux
    côtés en même temps).
 2. `sops set`, puis le playbook de l'hôte limité au rôle :
    `ansible-playbook <playbook> --tags <rôle>` (`--check --diff` d'abord,

@@ -60,12 +60,6 @@ services:
         condition: service_healthy
     networks:
       - {{ flip_planning_container_prefix }}
-{% if flip_planning_keycloak_enabled %}
-      # Keycloak's admin API, for the account provisioning, on a dedicated
-      # internal network rather than over `newt`: that one exists for
-      # Pangolin's tunnel, and this traffic never leaves the host.
-      - {{ flip_planning_container_prefix }}-keycloak
-{% endif %}
       - {{ flip_planning_newt_network }}
 
   postgres:
@@ -152,20 +146,23 @@ services:
   # page's own stylesheets — from the root, and the browser fetches them where
   # Pangolin routes the application. The issuer bites hardest: Quarkus refuses
   # a token whose issuer is not the authority it discovered.
+  #
+  # The application reaches it through the public URL too (issuer discovery,
+  # JWKS), never over a docker network: hence no shared network with the app.
   keycloak:
-    mem_limit: 1g
-    mem_reservation: 512m
+    mem_limit: {{ flip_planning_keycloak_mem_limit }}
+    # No mem_reservation, and first in line for the OOM killer: on flip the
+    # solver has the priority, and losing a login page for a restart is cheaper
+    # than losing a computation.
+    oom_score_adj: 500
     container_name: {{ flip_planning_container_prefix }}-keycloak
     security_opt:
       - no-new-privileges:true
-    image: "{{ flip_planning_keycloak_image }}"
+    image: "quay.io/keycloak/keycloak:26.8.2@sha256:7e66a96e4739239070aeaf72e4c5decf0f7f682cfc725b9f7ea2b336eaba38b3"
     restart: unless-stopped
-    pull_policy: {{ flip_planning_image_pull_policy }}
-    # `start`, not `start --optimized` as in the application's own compose
-    # file: the image is pre-built for PostgreSQL, and the relative path is a
-    # BUILD option — `--optimized` would refuse a value that differs from the
-    # build. Plain `start` re-augments with /auth at every start (a few
-    # seconds), keeping the image's extension and theme.
+    # `start`, not `start --optimized`: the official image is not built for
+    # PostgreSQL nor for /auth, both BUILD options. Plain `start` re-augments
+    # at every start (some seconds of CPU), no image of ours to maintain.
     command: ["start"]
     environment:
       KC_DB: postgres
@@ -180,9 +177,11 @@ services:
       KC_HTTP_ENABLED: "true"
       KC_PROXY_HEADERS: xforwarded
       KC_HEALTH_ENABLED: "true"
+      # Half of the container for the heap (the image's default is 70 %): the
+      # rest is metaspace, threads and the re-augmentation at start.
+      JAVA_OPTS_KC_HEAP: "-XX:MaxRAMPercentage=50 -XX:InitialRAMPercentage=10 -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30"
       KC_BOOTSTRAP_ADMIN_USERNAME: {{ flip_planning_keycloak_admin_user }}
       KC_BOOTSTRAP_ADMIN_PASSWORD: {{ flip_planning_keycloak_admin_password }}
-      KEYCLOAK_BRAND_ACCENT: "{{ flip_planning_keycloak_brand_accent }}"
       TZ: Europe/Paris
     depends_on:
       keycloak-db:
@@ -194,16 +193,15 @@ services:
       interval: 15s
       timeout: 5s
       retries: 20
-      start_period: 90s
+      start_period: 120s
     networks:
       - {{ flip_planning_container_prefix }}-keycloak
-      # Mailpit, for the invitations, codes and resets the realm sends.
-      - {{ flip_planning_container_prefix }}
       - {{ flip_planning_newt_network }}
 
   keycloak-db:
-    mem_limit: 512m
-    mem_reservation: 128m
+    # A realm of a handful of accounts: an idle PostgreSQL holds ~40 MiB here.
+    mem_limit: 256m
+    mem_reservation: 64m
     stop_grace_period: 60s
     container_name: {{ flip_planning_container_prefix }}-keycloak-db
     security_opt:
@@ -267,12 +265,12 @@ services:
 
 networks:
   # No route to the Internet through it: every other member (app, mailpit,
-  # keycloak, pgadmin) keeps its own through newt, postgres needs none.
+  # pgadmin) keeps its own through newt, postgres needs none.
   {{ flip_planning_container_prefix }}:
     internal: true
 {% if flip_planning_keycloak_enabled %}
-  # No route to the Internet through it: the application and Keycloak keep
-  # theirs through newt, keycloak-db (its only other member) needs none.
+  # No route to the Internet through it: Keycloak keeps its own through newt,
+  # keycloak-db (its only other member) needs none.
   {{ flip_planning_container_prefix }}-keycloak:
     internal: true
 {% endif %}

@@ -156,7 +156,7 @@ class RealTree(unittest.TestCase):
         refs = {entry["ref"].split("@")[0].rsplit(":", 1)[0] for entry in entries}
         for expected in ("ghcr.io/immich-app/immich-server", "docker.io/fosrl/pangolin",
                          "docker.io/henrygd/beszel-agent", "ghcr.io/sylvainmetayer/planning-equipes",
-                         "ghcr.io/sylvainmetayer/planning-equipes-keycloak"):
+                         "quay.io/keycloak/keycloak"):
             with self.subTest(image=expected):
                 self.assertIn(expected, refs)
 

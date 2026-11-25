@@ -87,7 +87,7 @@ de chaque exclusion, sur une entrée qu'aucun rôle ne sauvegarde et sur une
 exclusion périmée. Exclus aujourd'hui : `mediamanager` (à l'essai), `ugos_config`
 (fichiers texte d'UGOS, rôle `nas`). Une sauvegarde
 dont l'interrupteur `<x>_backup_enabled` vaut `false` n'est pas exigée (`kdrive`,
-`demo_planning_kc`, `exemple_planning`) ; passée à `true`, elle le redevient.
+`demo_planning`) ; passée à `true`, elle le redevient.
 
 - `host` : hôte de `backup_storage_box_hosts`, dossier `backup/<host>` ;
 - `repo` : dossier du dépôt sous celui de l'hôte, et `borgmatic_app_name`

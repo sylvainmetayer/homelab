@@ -142,7 +142,7 @@ Hetzner est le seul accès hors réseau.
 ```bash
 cd ansible
 mise run ssh_flip
-systemctl --user list-units 'dc@*' --state=failed   # vide (demo_planning_kc est arrêtée exprès)
+systemctl --user list-units 'dc@*' --state=failed   # vide (demo_planning est arrêtée exprès)
 curl -sSI https://deb.debian.org | head -1          # la sortie par Pangolin marche
 ```
 

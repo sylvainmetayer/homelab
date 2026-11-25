@@ -89,12 +89,6 @@ Kuma) est déclaré dans `tofu/pangolin_config/`, une entrée de
 Quelques ressources s'écartent du modèle « SSO partout », chacune relue dans
 son `website_<app>.tf` :
 
-- **`exemple-planning.sylvain.dev`** (flip, en pause depuis novembre 2026,
-  voir `docs/runbooks/app-en-pause.md`) : la vitrine publique de Planning
-  Équipes, sans SSO (règles pays maintenues, DROP sur ce que le mot de passe
-  administrateur affiché ne doit pas ouvrir), données fictives restaurées
-  chaque nuit depuis `ansible/roles/flip_planning/files/exemple/` ; pas de
-  sauvegarde Borg.
 - **`pwpush.sylvain.cloud`** (Enclosed, VM docker) : notes chiffrées à
   usage unique pour remettre un jeton renouvelé ; la lecture d'une note
   (`local.enclosed_read_paths`) est ouverte sans SSO de tout pays, la
@@ -206,7 +200,7 @@ gérés dans Pangolin. Procédure et secours :
 | Hôte | Où | Créé par | Configuré par | Ce qui tourne |
 |---|---|---|---|---|
 | `pangolin` | Hetzner Cloud (nbg1), IP publique | `tofu/pangolin` | `ansible/pangolin.yaml` | pile Pangolin (`pangolin.service`, unité **système**, root), NAT du réseau privé (`nat-gateway.service`), ufw + fail2ban, CrowdSec (HTTPS), Pocket ID (`id.sylvain.cloud`, fournisseur d'identité, voir plus haut), ntfy (`ntfy.sylvain.cloud`, notifications, [ADR 0037](adr/0037-ntfy-sur-la-vm-pangolin.md)) |
-| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod ; en pause, conteneurs arrêtés et données gardées : la démo, la démo Keycloak et la vitrine publique `exemple-planning`), Promptoramix, OpenPost |
+| `flip` | Hetzner Cloud (fsn1), **sans IP publique** | `tofu/pangolin/flip.tf` | `ansible/flip.yml` | Flip Planning (prod ; en pause, conteneurs arrêtés et données gardées : la démo), Promptoramix, OpenPost |
 | `docker` | VM Proxmox 100 (3 cœurs, 12 Gio, sur le SSD M.2 SATA de l'hôte) | `tofu/proxmox` | `ansible/docker.yml` | toutes les autres applis |
 | `pi` | Raspberry Pi, réseau local | à la main | `ansible/pi.yml` | Immich (avec Immich Swipe, Kiosk, Power Tools et Selfie Timelapse), Blocky (DNS, conteneur) ; gardé hors de Proxmox pour isoler Immich ([ADR 0020](adr/0020-garder-le-raspberry-pi-pour-immich.md)) |
 | LXC newt | conteneur Proxmox 200 | `tofu/proxmox` | `ansible/lxc.yml`, à la main seulement (rôles `security`, `newt_service`, `beszel_agent`, `log_agent`, `update_notify` et `blocky`, identifiants lus dans l'état `pangolin_config`) | le Newt du site `proxmox-lxc` : ressources privées du réseau local ; Blocky (DNS, binaire) |

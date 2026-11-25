@@ -42,7 +42,6 @@
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_flip_planning_url.value | default('') }}"
         demo_planning_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_demo_planning_url.value | default('') }}"
-        exemple_planning_reset_healthcheck_url: "{{ terraform_outputs.uptime_cron_exemple_planning_reset_url.value | default('') }}"
         update_notify_healthcheck_url: "{{ terraform_outputs.uptime_cron_flip_updates_url.value | default('') }}"
         openpost_backup_healthcheck_url: "{{ terraform_outputs.uptime_backup_openpost_url.value | default('') }}"
         newt_client_id: "{{ terraform_outputs.flip_newt_id.value | default('') }}"
@@ -112,6 +111,21 @@
         # The direct engine: on the bench of the versioned scenarios it reaches
         # feasibility wherever Timefold does, sooner, with a better medium.
         flip_planning_solver_engine: hand
+        # Keycloak under /auth, issuer
+        # https://flip-planning.sylvain.cloud/auth/realms/planning. It
+        # rehearses a client's path — Keycloak accounts today, their directory
+        # federated tomorrow, their ADFS directly later. Deployed once its
+        # secrets exist in secrets/ansible.sops.yaml (nothing happens before).
+        # Bring-up order and memory budget: tofu/keycloak_planning/README.md.
+        flip_planning_keycloak_enabled: "{{ prod_planning_keycloak_db_password is defined }}"
+        flip_planning_keycloak_db_password: "{{ prod_planning_keycloak_db_password | default('') }}"
+        flip_planning_keycloak_admin_password: "{{ prod_planning_keycloak_admin_password | default('') }}"
+        # A switch of its own, never derived from the secret: turning it on
+        # closes the `admin` break-glass door, so only once the realm exists AND
+        # Sylvain holds his own administrator account in the application
+        # (Paramètres › Comptes).
+        flip_planning_oidc_enabled: false
+        flip_planning_oidc_client_secret: "{{ prod_planning_oidc_client_secret | default('') }}"
     # Demo environment: the same role, a second time, with its own compose
     # project directory, systemd unit, containers, docker network, database and
     # Borg repository. Only what cannot be shared is overridden here — the
@@ -164,148 +178,6 @@
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
-    # Third instance, demo-planning-kc.sylvain.dev: the pull request
-    # that makes Keycloak mandatory (planning-equipes#72), on a real domain in
-    # HTTPS — what passkeys need, and what the local stack cannot give — with
-    # its own Keycloak under /auth and the application's themed account
-    # console. Both images follow the PR's `pr-72` tag, published by the app
-    # repo's image workflows while the PR carries the `publier-image` label.
-    #
-    # Skipped until its secrets exist (the `when`), so a full run of this
-    # playbook before they are in secrets/ansible.sops.yaml changes nothing. Brought up
-    # in two passes, both automatic: Keycloak and the application first,
-    # break-glass door open; then, once terraform/keycloak of the app repo has
-    # created the realm and its two client secrets are in sops, the next run
-    # turns OIDC on by itself (flip_planning_oidc_enabled below).
-    #
-    # No backup and no Uptime Kuma push monitor: a test bench.
-    #
-    # PAUSED since October 2026 (docs/runbooks/app-en-pause.md): dc@ stopped
-    # and disabled, nothing restarted by a deploy, compose and data kept. Moves
-    # with `enabled = false` in tofu/pangolin_config/website_demo_planning_kc.tf
-    # (resource disabled; pinned by its invariants test). Here, a role
-    # parameter: in host_vars it would pause every instance. Unpausing it
-    # needs room first if the public showcase (exemple_planning below) comes
-    # back too: flip has no memory for both.
-    - role: flip_planning
-      tags: demo_planning_kc,app
-      when: demo_planning_kc_db_password is defined
-      vars:
-        flip_planning_enabled: false
-        flip_planning_service: demo_planning_kc
-        flip_planning_container_prefix: demo-planning-kc
-        flip_planning_domain: demo-planning-kc.sylvain.dev
-        flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:pr-72"
-        flip_planning_sentry_environment: demo-kc
-        flip_planning_branding_product_name: "Flip Planning — Keycloak"
-        flip_planning_cloudflare_web_analytics_token: ""
-        flip_planning_horloge_simulee_autorisee: true
-        flip_planning_keycloak_enabled: true
-        flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
-        # pr-72 moves with every push to the PR: pull it at each start, the
-        # dc@ unit does not.
-        flip_planning_image_pull_policy: always
-        flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
-        flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
-        flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"
-        flip_planning_oidc_client_secret: "{{ demo_planning_kc_oidc_client_secret | default('') }}"
-        flip_planning_oidc_provisioning_client_secret: "{{ demo_planning_kc_oidc_provisioning_client_secret | default('') }}"
-        # A test bench: the break-glass door stays open next to Keycloak, the
-        # way back in when a realm change goes wrong.
-        flip_planning_admin_secours_enabled: true
-        flip_planning_db_password: "{{ demo_planning_kc_db_password }}"
-        flip_planning_pgadmin_password: "{{ demo_planning_kc_pgadmin_password }}"
-        flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
-        flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
-        flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
-        flip_planning_backup_enabled: false
-    # Public showcase, exemple-planning.sylvain.dev: the instance the product's
-    # web page used to link to, open without Pangolin SSO and with its admin
-    # password printed on that page — hence "demo" below, in plain text on
-    # purpose.
-    #
-    # PAUSED since November 2026 (docs/runbooks/app-en-pause.md): the web page
-    # now shows the application in images. dc@ and the reset timer stopped and
-    # disabled, nothing restarted by a deploy, compose and reference dump kept.
-    # Moves with `enabled = false` in
-    # tofu/pangolin_config/website_exemple_planning.tf (pinned by its
-    # invariants test).
-    #
-    # It runs the release channel, like production, so that what a prospect
-    # sees is what a deployment runs; and every night it goes back to a
-    # pre-solved reference database (files/exemple/, see
-    # flip_planning_reset_dump in the role defaults and files/exemple/README.md
-    # for how that dump is made). The solver stays usable, but under a 60 s
-    # operator ceiling (one job at a time through the application's queue,
-    # never more than a minute of CPU each) and the application's hourly quota
-    # (below; images up to 1.4.0 ignore it, the release channel is past it).
-    #
-    # Being public, it is the instance that must not look like the festival's:
-    # no branding image, no client palette, a fictional organisation. What the
-    # visitors must not reach — /mcp, the SQL dump routes, the synchronous
-    # solve, the Débogage endpoints, Mailpit's send API and link check — is
-    # dropped by Pangolin
-    # (tofu/pangolin_config/website_exemple_planning.tf); outgoing webhooks are
-    # off in the application, and pgAdmin is off. What stays open to anyone is
-    # what an administrator edits (editions, mentions légales…): defaced until
-    # the next nightly reset at worst.
-    #
-    # Skipped until its secrets exist in secrets/ansible.sops.yaml
-    # (flip_planning_deploy: a `when:` here would also skip the restart
-    # handlers of every instance above, see the role defaults). It takes the
-    # memory the paused Keycloak bench above gave back: flip has no room for
-    # both.
-    - role: flip_planning
-      tags: exemple_planning,app
-      vars:
-        flip_planning_enabled: false
-        flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
-        flip_planning_service: exemple_planning
-        flip_planning_container_prefix: exemple-planning
-        flip_planning_domain: exemple-planning.sylvain.dev
-        flip_planning_image: "{{ flip_planning_image_release }}"
-        flip_planning_sentry_environment: exemple
-        flip_planning_branding_product_name: "Planning Équipes — Exemple"
-        flip_planning_branding_organisation: "Association fictive"
-        flip_planning_branding_client_palette: false
-        flip_planning_cloudflare_web_analytics_token: ""
-        # The reference database freezes the date on a day of its event, so
-        # that Aujourd'hui and the wall display have a day to show.
-        flip_planning_horloge_simulee_autorisee: true
-        # Fictional data only, and nobody's personal data to declare.
-        flip_planning_legal_demo_instance: true
-        # Public without SSO: on newt-public, not on `newt` where it would
-        # reach Flip Planning and the others (README of the newt role).
-        flip_planning_newt_network: "{{ 'newt-public' if newt_public_network_enabled | default(false) else 'newt' }}"
-        flip_planning_pgadmin_enabled: false
-        flip_planning_admin_password: "demo"
-        flip_planning_db_password: "{{ exemple_planning_db_password }}"
-        flip_planning_session_encryption_key: "{{ exemple_planning_session_encryption_key }}"
-        # No MCP client is meant to reach it; Pangolin drops /mcp as well.
-        flip_planning_mcp_api_key: ""
-        flip_planning_mcp_pangolin_access_token_id: ""
-        flip_planning_mcp_pangolin_access_token: ""
-        flip_planning_webhooks_enabled: false
-        # Ceiling = default: the application refuses a ceiling below the
-        # default, and the plateau limit has to come down with them.
-        flip_planning_solver_seconds_limit: 60
-        flip_planning_solver_unimproved_seconds_limit: 20
-        flip_planning_solver_seconds_limit_max: 60
-        flip_planning_reset_dump: exemple/exemple-planning.dump
-        flip_planning_reset_healthcheck_url: "{{ exemple_planning_reset_healthcheck_url }}"
-        flip_planning_backup_enabled: false
-        # It must never starve production on this 2 vCPU / 4 GiB host: a low
-        # CPU weight (it loses to the default 1024 whenever another instance
-        # computes, and costs nothing while the host is idle), less memory than
-        # the others — its problem is a fifth of the festival's, 1.5 GiB still
-        # leaves the JVM ~400 MiB outside the heap — and 12 solves an hour for
-        # all visitors together, so that at worst it computes 12 minutes in 60.
-        flip_planning_cpu_shares: 256
-        flip_planning_mem_limit: 1536m
-        flip_planning_solver_max_solves_per_hour: 12
-        # One running, two waiting: twenty clicks are not twenty minutes of
-        # solving queued up behind each other.
-        flip_planning_solver_max_queued_jobs: 2
     # Promptoramix, the AI bot of the Marmelab Linkx tournament: a single
     # container, no database, one volume for its move log (./journal, fetched
     # by hand between rounds to feed the opening book), hence no backup and no

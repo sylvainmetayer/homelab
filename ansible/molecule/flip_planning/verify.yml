@@ -1,6 +1,7 @@
 ---
 # Deux instances du même rôle sur un même hôte : chacune doit être complète
-# (verify_instance.yml) et ne rien partager avec l'autre (fin de ce fichier).
+# (verify_instance.yml) et ne rien partager avec l'autre ; puis le Keycloak de
+# la production (fin de ce fichier).
 - name: Verify
   hosts: all
   # Les defaults du rôle d'abord (images des deux canaux) : les fichiers
@@ -28,6 +29,7 @@
         analytics_token: "{{ flip_planning_cloudflare_web_analytics_token }}"
         assets: [flip-logo.png, flip-strip.png, flip-woopy-loader.png, flip-woopy.png, flip.png]
         logo_url: /assets/flip.png
+        keycloak: true
       - service: demo_planning
         prefix: demo-planning
         domain: demo-planning.sylvain.dev
@@ -44,6 +46,7 @@
         analytics_token: ""
         assets: []
         logo_url: ""
+        keycloak: false
   tasks:
     - name: Read the newt network definition
       ansible.builtin.command: docker network inspect newt
@@ -95,225 +98,57 @@
           - flip_planning_push_urls['demo_planning'] != flip_planning_push_urls['flip_planning']
         fail_msg: "La démo pousse sur le moniteur Uptime Kuma de la production : {{ flip_planning_push_urls['demo_planning'] }}"
 
-    # Troisième instance de flip.yml (banc Keycloak) : déployée comme les
-    # autres, sans rien partager avec elles, mais en pause (unité arrêtée et
-    # désactivée, side_effect.yml l'y a remise). Ses contrôles de contenu
-    # restent ceux de verify_instance.yml pour les deux premières.
-    - name: Verify the Keycloak test bench deployment
-      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
-      vars:
-        verify_app_service: demo_planning_kc
-        verify_app_unit_started: false
-
-    - name: Assert the Keycloak test bench is paused
-      ansible.builtin.import_tasks: tasks/assert_kc_paused.yml
-
-    - name: Verify the supporting services of demo_planning_kc
-      ansible.builtin.include_tasks: ../_shared/tasks/verify_compose_services.yml
-      vars:
-        verify_compose_service: demo_planning_kc
-        verify_compose_databases:
-          - postgres
-          - keycloak-db
-        verify_compose_healthy_dependencies:
-          - { service: app, dependency: postgres }
-          - { service: keycloak, dependency: keycloak-db }
-        verify_compose_internal_networks:
-          - demo-planning-kc
-          - demo-planning-kc-keycloak
-
-    - name: Read the effective compose model of demo_planning_kc
+    # Keycloak de la production (docs/oidc.md de l'application, OIDC éteint) :
+    # image officielle épinglée, deux conteneurs, un réseau interne à part que
+    # l'application ne rejoint pas (elle joint le realm par l'URL publique), et
+    # rien de tout cela dans la démo.
+    - name: Read the effective compose models of production and demo
       ansible.builtin.command: docker compose config --format json
       args:
-        chdir: /opt/apps/demo_planning_kc
-      register: flip_planning_kc_compose_raw
+        chdir: "/opt/apps/{{ item }}"
+      loop: [flip_planning, demo_planning]
+      register: flip_planning_compose_files
       changed_when: false
 
-    - name: Assert the Keycloak test bench shares nothing with the two other instances
-      vars:
-        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
-        flip_planning_kc_containers: >-
-          {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.container_name') | list }}
-      ansible.builtin.assert:
-        that:
-          - flip_planning_kc_containers | intersect(flip_planning_containers['flip_planning']) | length == 0
-          - flip_planning_kc_containers | intersect(flip_planning_containers['demo_planning']) | length == 0
-          - flip_planning_kc_containers | select('match', '^demo-planning-kc') | list | length == flip_planning_kc_containers | length
-          - flip_planning_kc_compose.networks['demo-planning-kc'].name not in (flip_planning_private_networks.values() | list)
-        fail_msg: "Conteneurs ou réseau partagés par demo_planning_kc : {{ flip_planning_kc_containers }}"
-
-    # Hors de verify_instance.yml, le banc Keycloak : sans jeton MCP Pangolin
-    # lui non plus (#763), seule la prod en a un.
-    - name: Read the environment file of demo_planning_kc
-      ansible.builtin.slurp:
-        src: /opt/apps/demo_planning_kc/.env
-      register: flip_planning_kc_env_raw
-
-    - name: Assert the Keycloak test bench carries no Pangolin MCP access token
-      vars:
-        env_content: "{{ flip_planning_kc_env_raw.content | b64decode }}"
-      ansible.builtin.assert:
-        that:
-          - ("\nPLANNING_MCP_PANGOLIN_ACCESS_TOKEN_ID=\n") in env_content
-          - ("\nPLANNING_MCP_PANGOLIN_ACCESS_TOKEN=\n") in env_content
-        fail_msg: "demo_planning_kc a un jeton MCP Pangolin : seule la production en a un (#763)"
-
-    # Seule instance sur un tag mobile (pr-72) : dc@ ne tire que les images
-    # absentes, c'est `pull_policy: always` qui lui fait reprendre le dernier
-    # push à chaque démarrage. flip.yml lu tel quel : converge.yml n'en est
-    # qu'une copie, qui ne verrait pas l'override disparaître du playbook.
-    - name: Assert the Keycloak test bench follows its moving tag
-      vars:
-        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
-        flip_planning_kc_playbook_vars: >-
-          {{ (lookup('ansible.builtin.file', playbook_dir ~ '/../../flip.yml') | from_yaml)
-             | map(attribute='roles', default=[]) | flatten | selectattr('vars', 'defined') | map(attribute='vars')
-             | selectattr('flip_planning_service', 'defined')
-             | selectattr('flip_planning_service', 'equalto', 'demo_planning_kc') | list }}
-      ansible.builtin.assert:
-        that:
-          - flip_planning_kc_compose.services.app.pull_policy == 'always'
-          - flip_planning_kc_compose.services.keycloak.pull_policy == 'always'
-          - flip_planning_kc_playbook_vars | length == 1
-          - flip_planning_kc_playbook_vars[0].flip_planning_image_pull_policy | default('') == 'always'
-        fail_msg: >-
-          pull_policy du banc Keycloak :
-          {{ flip_planning_kc_compose.services | dict2items | map(attribute='value.pull_policy', default='-') | list }}
-
-    # Le banc Keycloak rend les sept services du modèle : tous sous
-    # no-new-privileges, et pgAdmin reste sur le port 80 de la cible Pangolin
-    # (son entrypoint passerait sinon sur 8080 sous cette option).
-    - name: Assert every Flip Planning service runs under no-new-privileges
-      vars:
-        flip_planning_kc_compose: "{{ flip_planning_kc_compose_raw.stdout | from_json }}"
-        flip_planning_kc_unhardened: >-
-          {{ flip_planning_kc_compose.services | dict2items
-             | rejectattr('value.security_opt', 'defined') | map(attribute='key') | list
-             + (flip_planning_kc_compose.services | dict2items | selectattr('value.security_opt', 'defined')
-                | rejectattr('value.security_opt', 'contains', 'no-new-privileges:true') | map(attribute='key') | list) }}
-      ansible.builtin.assert:
-        that:
-          - flip_planning_kc_compose.services | length == 7
-          - flip_planning_kc_unhardened == []
-          - flip_planning_kc_compose.services.pgadmin.environment.PGADMIN_LISTEN_PORT == '80'
-        fail_msg: "Services sans no-new-privileges : {{ flip_planning_kc_unhardened }}"
-
-    # Quatrième instance de flip.yml : la vitrine publique, sans SSO, remise à
-    # zéro chaque nuit. Ce qui la distingue des autres est ce qui la protège :
-    # pas de pgAdmin, webhooks coupés, plafonds et quota du solveur, poids CPU
-    # bas, pas de sauvegarde ; et le reset (script, dump, timer) est en place.
-    - name: Verify the public showcase deployment
-      ansible.builtin.include_tasks: ../_shared/tasks/verify_app.yml
-      vars:
-        verify_app_service: exemple_planning
-        verify_app_borgmatic_config: ""
-        verify_app_unit_started: false
-
-    - name: Read the effective compose model of exemple_planning
-      ansible.builtin.command: docker compose config --format json
-      args:
-        chdir: /opt/apps/exemple_planning
-      register: flip_planning_showcase_compose_raw
-      changed_when: false
-
-    - name: Read the .env files of the showcase and of production
+    - name: Read the environment files of production and demo
       ansible.builtin.slurp:
         src: "/opt/apps/{{ item }}/.env"
-      loop: [exemple_planning, flip_planning]
+      loop: [flip_planning, demo_planning]
       register: flip_planning_env_files
       no_log: true
 
-    - name: Stat the reset files of exemple_planning
-      ansible.builtin.stat:
-        path: "{{ item }}"
-      loop:
-        - /opt/apps/exemple_planning/reset.sh
-        - /opt/apps/exemple_planning/seed/exemple-planning.dump
-        - /opt/apps/flip_planning/reset.sh
-        - /etc/borgmatic.d/exemple_planning.yaml
-        - /home/sylvain/.config/systemd/user/flip_planning-reset.timer
-        - /home/sylvain/.config/systemd/user/demo_planning-reset.timer
-        - /home/sylvain/.config/systemd/user/demo_planning_kc-reset.timer
-      register: flip_planning_reset_files
-      become: true
-
-    - name: Stat the reset push URL of exemple_planning
-      ansible.builtin.stat:
-        path: /opt/apps/exemple_planning/reset-push.curl
-      register: flip_planning_reset_push
-
-    - name: Read the reset unit of exemple_planning
-      ansible.builtin.slurp:
-        src: /home/sylvain/.config/systemd/user/exemple_planning-reset.service
-      register: flip_planning_reset_unit
-
-    - name: Check the syntax of the showcase reset script
-      ansible.builtin.command: bash -n /opt/apps/exemple_planning/reset.sh
-      changed_when: false
-
-    - name: Read the reset timer of exemple_planning
-      ansible.builtin.systemd:
-        name: exemple_planning-reset.timer
-        scope: user
-      register: flip_planning_reset_timer
-
-    - name: Assert the showcase is locked down and reset, production untouched
+    - name: Assert the production Keycloak is in place and isolated
       vars:
-        showcase_compose: "{{ flip_planning_showcase_compose_raw.stdout | from_json }}"
-        showcase_env: "{{ (flip_planning_env_files.results[0].content | b64decode).splitlines() }}"
-        showcase_env_text: "{{ '\n' ~ (flip_planning_env_files.results[0].content | b64decode) }}"
-        prod_env: "{{ (flip_planning_env_files.results[1].content | b64decode).splitlines() }}"
-        reset_unit: "{{ (flip_planning_reset_unit.content | b64decode).splitlines() }}"
-        reset_push_line: >-
-          ExecStartPost=/usr/local/bin/uptime-push --strict --agent exemple_planning-reset
-          /opt/apps/exemple_planning/reset-push.curl up
-        showcase_containers: "{{ showcase_compose.services | dict2items | map(attribute='value.container_name') | list }}"
+        prod_compose: "{{ flip_planning_compose_files.results[0].stdout | from_json }}"
+        prod_env_text: "{{ '\n' ~ (flip_planning_env_files.results[0].content | b64decode) }}"
+        demo_compose: "{{ flip_planning_compose_files.results[1].stdout | from_json }}"
+        demo_env_text: "{{ '\n' ~ (flip_planning_env_files.results[1].content | b64decode) }}"
       ansible.builtin.assert:
         that:
-          - "'pgadmin' not in showcase_compose.services"
-          - showcase_compose.services.app.cpu_shares == 256
-          - "'WEBHOOKS_ENABLED=false' in showcase_env"
-          - "'SOLVER_MAX_SOLVES_PER_HOUR=12' in showcase_env"
-          - "'SOLVER_MAX_QUEUED_JOBS=2' in showcase_env"
-          - "'SOLVER_SECONDS_LIMIT_MAX=60' in showcase_env"
-          - "'LEGAL_DEMO_INSTANCE=true' in showcase_env"
-          - "'BRANDING_ORGANISATION=Association fictive' in showcase_env"
-          - showcase_env | select('match', '^BRANDING_(ACCENT_COLOR|PDF_(HEADLINE|MUTED|ACCENT|HIGHLIGHT|PILL))=') | list | length == 0
-          - prod_env | select('match', '^BRANDING_PDF_ACCENT=') | list | length == 1
-          - "'WEBHOOKS_ENABLED=true' in prod_env"
-          - prod_env | select('match', '^SOLVER_MAX_') | list | length == 0
-          - "'LEGAL_DEMO_INSTANCE=false' in prod_env"
-          - flip_planning_reset_files.results[0].stat.exists
-          - flip_planning_reset_files.results[0].stat.mode == '0700'
-          - flip_planning_reset_files.results[1].stat.exists
-          - flip_planning_reset_files.results[1].stat.mode == '0600'
-          - not flip_planning_reset_files.results[2].stat.exists
-          - flip_planning_reset_files.results[3:] | selectattr('stat.exists') | list | length == 0
-          - flip_planning_reset_push.stat.exists
-          - flip_planning_reset_push.stat.mode == '0600'
-          - reset_push_line in reset_unit
-          - "'Requires=dc@exemple_planning.service' in reset_unit"
-          - "'After=dc@exemple_planning.service' in reset_unit"
-          - "'Restart=on-failure' in reset_unit"
-          - reset_unit | select('match', '^TimeoutStartSec=') | list | length == 1
-          # En pause : un timer actif relancerait dc@ (Requires=) chaque nuit.
-          - flip_planning_reset_timer.status.UnitFileState != 'enabled'
-          - flip_planning_reset_timer.status.ActiveState == 'inactive'
-          - "'03:30:00 Europe/Paris' in flip_planning_reset_timer.status.TimersCalendar"
-          - showcase_containers | select('match', '^exemple-planning') | list | length == showcase_containers | length
-          # Sans SSO : sur newt-public, jamais sur `newt` ; la base sur aucun des deux.
-          - showcase_compose.networks['newt-public'].external
-          - "'newt' not in showcase_compose.networks"
-          - "'newt-public' in showcase_compose.services.app.networks"
-          - "'newt-public' in showcase_compose.services.mailpit.networks"
-          - "'newt-public' in showcase_compose.services.assets.networks"
-          - "'newt' not in showcase_compose.services.app.networks"
-          - "'newt-public' not in showcase_compose.services.postgres.networks"
-          # Proxys de confiance : le sous-réseau de newt-public, pas celui de newt
-          # (lu une fois pour les instances précédentes).
-          - flip_planning_newt_public_subnet != flip_planning_newt_subnet
-          - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_public_subnet ~ "\n") in showcase_env_text
-          - showcase_containers | intersect(flip_planning_containers['flip_planning'] + flip_planning_containers['demo_planning']) | length == 0
+          - prod_compose.services.keycloak.container_name == 'flip-planning-keycloak'
+          - prod_compose.services['keycloak-db'].container_name == 'flip-planning-keycloak-db'
+          - prod_compose.services.keycloak.image is match('^quay\.io/keycloak/keycloak:[0-9.]+@sha256:[0-9a-f]{64}$')
+          # Son propre réseau interne ; Keycloak sort par newt, sa base nulle part ailleurs.
+          - prod_compose.networks['flip-planning-keycloak'].internal
+          - prod_compose.networks['flip-planning-keycloak'].name not in flip_planning_private_networks.values() | list
+          - prod_compose.services['keycloak-db'].networks.keys() | list == ['flip-planning-keycloak']
+          - prod_compose.services.keycloak.networks.keys() | sort | list == ['flip-planning-keycloak', 'newt']
+          - "'flip-planning-keycloak' not in prod_compose.services.app.networks"
+          - "'flip-planning' not in prod_compose.services.keycloak.networks"
+          - prod_compose.services | length == 7
+          - prod_compose.services.pgadmin.environment.PGADMIN_LISTEN_PORT == '80'
+          # Mots de passe de Keycloak : dans le compose de la prod, nulle part dans celui de la démo.
+          - prod_planning_keycloak_db_password in flip_planning_compose_files.results[0].stdout
+          - prod_planning_keycloak_admin_password in flip_planning_compose_files.results[0].stdout
+          - prod_planning_keycloak_db_password not in flip_planning_compose_files.results[1].stdout
+          - prod_planning_keycloak_admin_password not in flip_planning_compose_files.results[1].stdout
+          - "'keycloak' not in demo_compose.services"
+          - "'keycloak-db' not in demo_compose.services"
+          # OIDC éteint : rien d'autre qu'OIDC_ENABLED, et le secret client reste dehors.
+          - ("\nOIDC_ENABLED=false\n") in prod_env_text
+          - prod_env_text is not search('\n(OIDC_(AUTH_SERVER_URL|CLIENT_ID|CLIENT_SECRET|MCP_AUDIENCE)|ADMIN_(LOCAL_)?SECOURS)')
+          - prod_planning_oidc_client_secret not in prod_env_text
+          - ("\nOIDC_ENABLED=false\n") in demo_env_text
         fail_msg: >-
-          Vitrine : compose, .env, reset ou timer inattendus
-          (timer : {{ flip_planning_reset_timer.status.TimersCalendar | default('absent') }}).
+          Keycloak de la production inattendu : services
+          {{ (flip_planning_compose_files.results[0].stdout | from_json).services.keys() | list }}

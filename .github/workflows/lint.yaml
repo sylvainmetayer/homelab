@@ -251,7 +251,7 @@ jobs:
             tofu/keepass_backup
             tofu/site
             tofu/1y
-            tofu/keycloak_demo_planning_kc
+            tofu/keycloak_planning
             tofu/planning
           )
 

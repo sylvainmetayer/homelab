@@ -17,15 +17,14 @@
 #     demo_planning's, which a test reads; when debugging, `tofu console`
 #     then `local.healthcheck_access_tokens["<app>"]`.
 #
-# The key is the former resource name (e.g. `demo_planning_kc`). Renaming
+# The key is the former resource name (e.g. `demo_planning`). Renaming
 # one without a moved block recreates its access token, which breaks the
 # monitor headers and the `*_access_token` outputs, and its push monitor,
 # whose push URL every backup job reads from this state.
 #
 # Entry fields - only name, subdomain, domain_id and homepage are required:
 #
-#   sso          default true. false only for Betisier, Exemple Planning and
-#                Promptoramix, pinned by the
+#   sso          default true. false only for Betisier and Promptoramix, pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false pauses the app
@@ -37,7 +36,7 @@
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
 #                Absent: no binding (Betisier and Promptoramix have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
-#                false (demo_planning_kc, immich_kiosk, homepage): neither; the
+#                false (immich_kiosk, homepage): neither; the
 #                target probe (hc_*) and check.target_health still show a failure.
 #   monitor_path default "": path the inverted-keyword monitor appends to the
 #                resource URL. For an app whose root answers no 2xx GET
@@ -66,10 +65,8 @@ locals {
     betisier                = local.betisier_website
     dawarich                = local.dawarich_website
     demo_planning           = local.demo_planning_website
-    demo_planning_kc        = local.demo_planning_kc_website
     docs                    = local.docs_website
     enclosed                = local.enclosed_website
-    exemple_planning        = local.exemple_planning_website
     flip_planning           = local.flip_planning_website
     grocy                   = local.grocy_website
     healthlog               = local.healthlog_website

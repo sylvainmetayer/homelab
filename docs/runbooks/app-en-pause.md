@@ -3,13 +3,12 @@
 Une appli qu'on n'utilise plus pour l'instant, sans vouloir la supprimer
 (pour la supprimer : skill `remove-app`). En pause, rien n'est détruit :
 compose, données, volumes, dépôt borg et ses archives, ressource Pangolin,
-jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Trois apps
-sont en pause : la démo de Flip Planning (`demo_planning_enabled: false` dans
+jetons et moniteurs restent ; plus rien ne tourne ni n'alerte. Une seule app
+est en pause : la démo de Flip Planning (`demo_planning_enabled: false` dans
 `host_vars/flip`, lu par son entrée de `flip.yml`, depuis le 2026-11-11 : sa
-mémoire avait été libérée pour l'essai de Postiz, retiré depuis ; laissée en pause), le banc Keycloak de Flip Planning
-(`demo_planning_kc`, voir [plus bas](#le-banc-keycloak-de-flip-planning)) depuis
-octobre 2026, la vitrine publique (`exemple_planning`, voir
-[plus bas](#la-vitrine-publique-de-flip-planning)) depuis novembre 2026. Paperless-ngx a été en pause d'octobre à novembre 2026, puis
+mémoire avait été libérée pour l'essai de Postiz, retiré depuis ; laissée en
+pause). Le banc Keycloak et la vitrine publique de Flip Planning l'ont été
+jusqu'à leur retrait (novembre 2026). Paperless-ngx a été en pause d'octobre à novembre 2026, puis
 supprimé (remplacé par Papra) : les exemples ci-dessous disent `<app>` et
 supposent la voie `host_vars` (Paperless, Postiz le 2026-11-11, retiré depuis ; la démo de Flip
 Planning la suit par une variable propre, `demo_planning_enabled`, que son
@@ -21,7 +20,7 @@ entrée de `flip.yml` passe à `flip_planning_enabled`).
 |---|---|---|
 | `ansible/host_vars/docker/variables.yaml` | `<app>_enabled: false` | `dc@<app>` arrêtée et désactivée, aucun handler de redémarrage ; `/etc/borgmatic.d/<app>.yaml` retiré. Le compose reste templaté |
 | `tofu/pangolin_config/website_<app>.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, moniteurs « Healthcheck » et « Backup » en pause, sonde Pangolin de ses cibles coupée (`hc_enabled`, `websites.tf`) |
-| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"<app>"` dans la liste des apps en pause (`["demo_planning", "demo_planning_kc", "exemple_planning"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
+| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"<app>"` dans la liste des apps en pause (`["demo_planning"]` aujourd'hui) | la liste est écrite en toutes lettres : une pause est une décision |
 | `.github/restore-test/apps.json` | `"paused": true` | le test de restauration du 1er et du 15 saute l'app ; un run manuel qui la nomme restaure sa dernière archive sans en exiger l'âge |
 
 Hors de ces quatre endroits, `renovate.json` porte une règle « Paused apps »
@@ -91,65 +90,6 @@ tant que la ressource est encore active ; une fois désactivée, il l'ignore
    lendemain. Le test de restauration suivant exige une archive de moins de
    28 h : ne pas reprendre la veille d'un 1er ou d'un 15 sans lancer
    `sudo /root/.local/bin/borgmatic --config /etc/borgmatic.d/<app>.yaml create` à la main.
-
-## Le banc Keycloak de Flip Planning
-
-`demo-planning-kc.sylvain.dev` est la troisième application du rôle
-`flip_planning` dans `ansible/flip.yml` : l'interrupteur n'est pas dans
-`host_vars/flip` (il mettrait en pause la production et la démo avec), mais
-dans les `vars:` de son entrée, `flip_planning_enabled: false` (jamais un
-`set_fact` ni une clé SOPS de ce nom, qui battraient les `vars:` de chaque
-instance). Les mêmes quatre endroits, adaptés :
-
-| Où | Pause | Effet |
-|---|---|---|
-| `ansible/flip.yml`, entrée `demo_planning_kc` | `flip_planning_enabled: false` | `dc@demo_planning_kc` arrêtée et désactivée, aucune notification de redémarrage, configuration borgmatic retirée (il n'en a pas : `flip_planning_backup_enabled: false`). Compose, `.env`, volumes gardés |
-| `tofu/pangolin_config/website_demo_planning_kc.tf` | `enabled = false` dans l'entrée | ressource Pangolin désactivée, sonde Pangolin de ses trois cibles coupée (`hc_enabled`), lien retiré de la sortie `homepage_links` (Homepage le perd au prochain `docker.yml --tags homepage`) ; ni healthcheck ni moniteur « Backup » à mettre en pause, il n'en a pas |
-| `tofu/pangolin_config/tests/invariants.tftest.hcl` | `"demo_planning_kc"` dans la liste des apps en pause | et `flip_planning_enabled` de l'entrée de `flip.yml` doit être égal à `enabled` |
-| `.github/restore-test/apps.json` | rien | pas d'entrée : le banc n'est pas sauvegardé |
-
-Le rôle s'applique quatre fois dans le même play : un `when` sur le handler
-« Restart demo_planning_kc » lirait les paramètres de la dernière application
-du rôle, pas forcément les siens. Les tâches notifient donc
-`flip_planning_restart_handlers`, vide quand l'instance est en pause.
-
-Au merge, `deploy-docker-app` rejoue le rôle (`ansible/roles/**` et
-`flip.yml` changent) : unité désactivée, la production et la démo ne
-redémarrent que si leur compose a changé. `tofu apply` dans
-`tofu/pangolin_config` : la ressource et la sonde de ses trois cibles
-changent, en place. Pour
-reprendre : `flip_planning_enabled: false` retiré de `flip.yml`,
-`enabled = false` retiré de l'entrée, la liste des apps en pause mise à jour,
-et le scénario Molecule `flip_planning` dans la même PR : la copie de
-l'entrée dans `converge.yml`, `side_effect.yml` (il part d'un banc en pause et
-le vérifie) et `verify.yml` (`assert_kc_paused.yml`,
-`verify_app_unit_started: false`) supposent la pause et font échouer les tests
-sinon ; puis `tofu apply` et merge (le rôle redémarre l'unité). Le banc suit le tag
-mobile `pr-72` (`pull_policy: always`) : à la reprise, l'image doit encore
-exister sur ghcr.io.
-
-## La vitrine publique de Flip Planning
-
-`exemple-planning.sylvain.dev` suit le même modèle que le banc Keycloak :
-`flip_planning_enabled: false` sur son entrée de `flip.yml` et dans la copie de
-`molecule/flip_planning/converge.yml`, `enabled = false` dans
-`website_exemple_planning.tf`, `"exemple_planning"` dans la liste des apps en
-pause. Pas d'entrée dans `apps.json` : elle n'est pas sauvegardée. Deux choses
-en plus :
-
-- le timer `exemple_planning-reset.timer` est arrêté et désactivé par le rôle.
-  C'est lui qui compte : `reset.service` a `Requires=dc@exemple_planning` et son
-  script lance `docker compose up`, il rallumerait la vitrine chaque nuit ;
-- le moniteur « Reset Exemple Planning » se met en pause avec l'entrée, avec son
-  moniteur « Healthcheck ».
-
-La version de l'image suit le canal release et n'a rien à couper côté Renovate.
-Pour reprendre : retirer les deux interrupteurs et l'application de la liste,
-réaligner `verify.yml` (`verify_app_unit_started`, l'état du timer), vérifier
-qu'il reste de la mémoire sur flip (pas assez pour la vitrine et le banc
-Keycloak ensemble), `tofu apply`, puis merge : le rôle redémarre l'unité et le
-timer, le reset part à 3 h 30. Remettre aussi un lien sur la page du produit,
-s'il le faut.
 
 ## Une autre appli
 
