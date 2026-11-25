@@ -415,15 +415,6 @@ flip_planning_newt_network: "newt"
 # the role itself (set_fact), left empty here.
 flip_planning_proxy_subnets: {}
 
-# pgAdmin, exposed on the /db sub-path of flip_planning_domain
-flip_planning_pgadmin_enabled: true
-flip_planning_pgadmin_path: "/db"
-flip_planning_pgadmin_email: "admin@sylvain.cloud"
-# Sensitive: passed per instance by flip.yml (prod_planning_pgadmin_password /
-# demo_planning_pgadmin_password); never a flip_planning_* key in secrets/ansible.sops.yaml,
-# which would beat that override.
-flip_planning_pgadmin_password: ""
-
 # Borgmatic backup configuration
 flip_planning_backup_enabled: true
 flip_planning_backup_borgmatic_target: "{{ backup_storage_box_url }}/{{ flip_planning_service }}"

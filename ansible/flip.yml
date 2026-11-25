@@ -99,7 +99,6 @@
         # Own credentials, like the demo's: a secrets/ansible.sops.yaml key named after
         # a variable an instance overrides would beat that override (below).
         flip_planning_db_password: "{{ prod_planning_db_password }}"
-        flip_planning_pgadmin_password: "{{ prod_planning_pgadmin_password }}"
         flip_planning_admin_password: "{{ prod_planning_admin_password }}"
         flip_planning_session_encryption_key: "{{ prod_planning_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ prod_planning_mcp_api_key }}"
@@ -170,7 +169,6 @@
         # festival runs.
         flip_planning_solver_engine: hand
         flip_planning_db_password: "{{ demo_planning_db_password }}"
-        flip_planning_pgadmin_password: "{{ demo_planning_pgadmin_password }}"
         flip_planning_admin_password: "{{ demo_planning_admin_password }}"
         flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
         flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"

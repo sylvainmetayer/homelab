@@ -13,11 +13,12 @@ variable "keycloak_admin_user" {
 variable "dcr_trusted_hosts" {
   description = <<-EOT
     Hôtes sur lesquels un client MCP enregistré dynamiquement (anonyme) peut
-    déclarer ses URI de redirection. Vide : enregistrement fermé (défaut de
-    Keycloak). Ouvrir : README.md, « Enregistrement dynamique ».
+    déclarer ses URI de redirection : Claude (web) et Le Chat. Vide :
+    enregistrement fermé (défaut de Keycloak). README.md, « Enregistrement
+    dynamique ».
   EOT
   type        = list(string)
-  default     = []
+  default     = ["claude.ai", "claude.com", "chat.mistral.ai"]
 
   validation {
     condition     = alltrue([for host in var.dcr_trusted_hosts : can(regex("^[a-z0-9.-]+$", host)) && !startswith(host, "*")])

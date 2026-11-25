@@ -22,7 +22,9 @@ aujourd'hui, fédération de son annuaire demain, bascule sur son ADFS ensuite).
 - L'audience MCP : client `planning-mcp` (n'émet rien), scope
   `planning-mcp-audience` et son mappeur, posé dans les scopes par défaut du
   realm pour que les clients MCP enregistrés ensuite l'aient.
-- L'enregistrement dynamique des clients MCP, fermé par défaut (plus bas).
+- L'enregistrement dynamique des clients MCP, ouvert depuis le 25/11/2026 aux
+  seuls Claude (web) et Le Chat (plus bas) ; aucun scope optionnel (ni
+  `offline_access`).
 
 Le provider passe par Internet : l'API d'administration et le realm master sont
 derrière le SSO Pangolin de Flip Planning (seuls `/auth/realms/planning/*` et
@@ -74,10 +76,10 @@ secours reviennent) ; Keycloak se retire en ôtant ses deux secrets de SOPS puis
 
 Claude sur le web et Le Chat enregistrent leur client eux-mêmes, sans jeton,
 depuis leurs serveurs. Keycloak crée avec le realm des politiques « anonymous »
-dont **Trusted Hosts à liste vide**, qui refuse tout : c'est l'état par défaut ici.
+dont **Trusted Hosts à liste vide**, qui refuse tout. Ouvert le 25/11/2026 (décision
+de Sylvain) avec le réglage ci-dessous ; `dcr_trusted_hosts = []` le referme.
 
-Réglage proposé, pour ouvrir (`dcr_trusted_hosts`, dans un `terraform.tfvars`
-non versionné ou en défaut de la variable) :
+Réglage (`dcr_trusted_hosts`, défaut de la variable) :
 
 ```hcl
 dcr_trusted_hosts = ["claude.ai", "claude.com", "chat.mistral.ai"]
@@ -109,8 +111,9 @@ mise exec -- tofu -chdir=tofu/keycloak_planning import -var 'dcr_trusted_hosts=[
   'keycloak_realm_client_registration_policy.max_clients[0]' 'planning/<id Max Clients Limit>'
 ```
 
-Format `realm/id` à confirmer contre la doc du provider au premier import ; le
-plan qui suit doit montrer des mises à jour en place, jamais une création. Les
+Importées le 25/11/2026 (format `realm/id`). Sur un realm recréé, refaire ces
+deux imports avant l'apply : le plan doit montrer des mises à jour en place,
+jamais une création. Les
 chemins Pangolin couvrent déjà l'endpoint
 `/auth/realms/planning/clients-registrations/openid-connect`.
 
@@ -128,8 +131,7 @@ pendant un calcul, plus 2 Gio de swap.
 Limite 768 Mio (1,4 × le pic, sous les 2 × de la doctrine, faute de place) et
 `oom_score_adj: 500` sans `mem_reservation` : sous la pression, c'est Keycloak
 qui est récupéré ou tué en premier, jamais le calcul. À remesurer après une
-semaine (`docs/conventions/resource-limits.md`). Marge de plus si besoin :
-pgAdmin (~250 Mio) peut s'éteindre (`flip_planning_pgadmin_enabled`).
+semaine (`docs/conventions/resource-limits.md`). pgAdmin (~250 Mio) a été retiré le 25/11/2026 pour la marge.
 
 ## Tests
 
