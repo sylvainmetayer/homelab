@@ -82,7 +82,8 @@
           - openwebui_env.SCARF_NO_ANALYTICS == 'true'
           - openwebui_env.DO_NOT_TRACK == 'true'
           - openwebui_models.keys() | list == ['0']
-          - openwebui_models['0'].model_ids == ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5']
+          - openwebui_models['0'].model_ids[:3] == ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5']
+          - "'Qwen/Qwen3.5-397B-A17B-FP8' in openwebui_models['0'].model_ids"
           - openwebui_env.DEFAULT_MODELS in openwebui_models['0'].model_ids
           - openwebui_env.TASK_MODEL_EXTERNAL in openwebui_models['0'].model_ids
         fail_msg: "Configuration IA d'Open WebUI inattendue : {{ openwebui_compose.services.openwebui.environment | default({}) }}"
