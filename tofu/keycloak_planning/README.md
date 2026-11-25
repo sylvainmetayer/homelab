@@ -103,11 +103,13 @@ provider (`config` en `map(string)`) ne sait pas écrire (« a##b » devient un
 seul hôte, qui refuse tout). Pour la changer, depuis le dépôt :
 
 ```bash
-cd ansible && mise exec -- ansible flip -m shell -a 'docker exec flip-planning-keycloak bash -c "export HOME=/tmp; /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user \$KC_BOOTSTRAP_ADMIN_USERNAME --password \"\$KC_BOOTSTRAP_ADMIN_PASSWORD\" && /opt/keycloak/bin/kcadm.sh update components/<id Trusted Hosts> -r planning -s '"'"'config.trusted-hosts=[\"claude.ai\",\"claude.com\",\"chat.mistral.ai\"]'"'"'; rm -rf /tmp/.keycloak"'
+cd ansible && mise exec -- ansible flip -m shell -a 'docker exec flip-planning-keycloak bash -c "export HOME=/tmp; /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user \$KC_BOOTSTRAP_ADMIN_USERNAME --password \"\$KC_BOOTSTRAP_ADMIN_PASSWORD\" && /opt/keycloak/bin/kcadm.sh update components/<id Trusted Hosts> -r planning -s '"'"'config.trusted-hosts=[\"claude.ai\",\"claude.com\",\"chat.mistral.ai\"]'"'"'; rc=\$?; rm -rf /tmp/.keycloak; exit \$rc"'
 ```
 
 L'id : console › realm `planning` › Clients › Client registration › Anonymous
-access policies › Trusted Hosts (dans l'URL). Fermer : liste vide. Sur un
+access policies › Trusted Hosts (dans l'URL). Fermer : liste vide (pas
+encore essayé ; à défaut, désactiver la politique dans la console ne ferme
+RIEN, il faut plutôt n'y laisser qu'un hôte inexistant). Sur un
 realm recréé, refaire cette commande, et `tofu import
 'keycloak_realm_client_registration_policy.max_clients' 'planning/<id Max Clients Limit>'`
 avant l'apply (le plan doit montrer une mise à jour en place, jamais une

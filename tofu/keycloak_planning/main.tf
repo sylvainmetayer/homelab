@@ -203,6 +203,7 @@ resource "keycloak_realm_client_registration_policy" "max_clients" {
   }
 }
 
+# moved et removed : utiles au seul apply du 25/11/2026, à retirer ensuite.
 moved {
   from = keycloak_realm_client_registration_policy.max_clients[0]
   to   = keycloak_realm_client_registration_policy.max_clients
