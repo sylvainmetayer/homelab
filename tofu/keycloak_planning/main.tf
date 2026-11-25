@@ -165,6 +165,16 @@ resource "keycloak_realm_default_client_scopes" "planning" {
   default_scopes = local.default_scopes
 }
 
+# Aucun scope optionnel : ni offline_access (un jeton de rafraîchissement hors
+# session, qu'un client MCP enregistré par n'importe qui garderait des mois),
+# ni address, phone, microprofile-jwt, organization, que rien ne lit ici. Un
+# client qui les demande à l'enregistrement est refusé par la politique
+# « Allowed Client Scopes » ; à l'autorisation, le scope est ignoré.
+resource "keycloak_realm_optional_client_scopes" "planning" {
+  realm_id        = keycloak_realm.planning.id
+  optional_scopes = []
+}
+
 # ----------------------------------- enregistrement dynamique (RFC 7591) --
 #
 # Claude sur le web et Le Chat enregistrent eux-mêmes leur client, sans jeton

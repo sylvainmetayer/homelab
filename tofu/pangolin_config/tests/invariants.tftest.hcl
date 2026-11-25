@@ -2935,20 +2935,18 @@ run "demo_and_production_planning_share_nothing" {
     condition = (
       toset([
         pangolin_target.website["flip_planning"].ip,
-        pangolin_target.website["flip_planning_pgadmin"].ip,
         pangolin_target.website["flip_planning_mailpit"].ip,
         pangolin_target.website["flip_planning_assets"].ip,
         pangolin_target.website["flip_planning_keycloak"].ip,
         ]) == toset([
-        "flip-planning", "flip-planning-pgadmin", "flip-planning-mailpit", "flip-planning-assets", "flip-planning-keycloak",
+        "flip-planning", "flip-planning-mailpit", "flip-planning-assets", "flip-planning-keycloak",
       ])
       && toset([
         pangolin_target.website["demo_planning"].ip,
-        pangolin_target.website["demo_planning_pgadmin"].ip,
         pangolin_target.website["demo_planning_mailpit"].ip,
         pangolin_target.website["demo_planning_assets"].ip,
         ]) == toset([
-        "demo-planning", "demo-planning-pgadmin", "demo-planning-mailpit", "demo-planning-assets",
+        "demo-planning", "demo-planning-mailpit", "demo-planning-assets",
       ])
     )
     error_message = "Une cible vise un conteneur de l'autre instance : les noms doivent suivre flip_planning_container_prefix de chaque environnement."

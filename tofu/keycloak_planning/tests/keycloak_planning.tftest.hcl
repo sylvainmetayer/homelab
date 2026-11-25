@@ -76,12 +76,30 @@ run "audience_mcp" {
   }
 }
 
-run "enregistrement_dynamique_ferme_par_defaut" {
+run "enregistrement_dynamique_ferme_si_vide" {
   command = plan
+
+  variables {
+    dcr_trusted_hosts = []
+  }
 
   assert {
     condition     = length(keycloak_realm_client_registration_policy.trusted_hosts) == 0 && length(keycloak_realm_client_registration_policy.max_clients) == 0
     error_message = "Sans hôte de confiance, Tofu ne touche pas aux politiques : la liste vide de Keycloak ferme l'enregistrement anonyme."
+  }
+}
+
+run "enregistrement_dynamique_ouvert_par_defaut_aux_assistants" {
+  command = plan
+
+  assert {
+    condition     = keycloak_realm_client_registration_policy.trusted_hosts[0].config["trusted-hosts"] == "claude.ai##claude.com##chat.mistral.ai"
+    error_message = "Par défaut, seuls Claude (web) et Le Chat peuvent enregistrer un client."
+  }
+
+  assert {
+    condition     = length(keycloak_realm_optional_client_scopes.planning.optional_scopes) == 0
+    error_message = "Aucun scope optionnel, offline_access compris : un client enregistré par n'importe qui ne doit pas obtenir de jeton hors session."
   }
 }
 

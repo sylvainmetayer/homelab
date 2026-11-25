@@ -227,45 +227,10 @@ services:
       - {{ flip_planning_container_prefix }}-keycloak
 {% endif %}
 
-{% if flip_planning_pgadmin_enabled %}
-
-  pgadmin:
-    mem_limit: 512m
-    container_name: {{ flip_planning_container_prefix }}-pgadmin
-    security_opt:
-      - no-new-privileges:true
-    # Uid 5050 dès le démarrage de l'image : aucune capacité à perdre (essayé
-    # en local, /misc/ping répond sur le port 80).
-    cap_drop:
-      - ALL
-    image: dpage/pgadmin4:9@sha256:3591b3d02910dcd817dec6fcaa681c278ba6966945283dd0ea0042731c330c83
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: {{ flip_planning_pgadmin_email }}
-      PGADMIN_DEFAULT_PASSWORD: {{ flip_planning_pgadmin_password }}
-      # Served behind Pangolin on a sub-path, pgAdmin must know its root
-      SCRIPT_NAME: {{ flip_planning_pgadmin_path }}
-      # Under no-new-privileges the entrypoint drops the file capability of
-      # its python and would move to 8080: Docker lets any user bind 80
-      # (ip_unprivileged_port_start=0), the port Pangolin's target expects.
-      PGADMIN_LISTEN_PORT: "80"
-      # Its postfix is started through sudo, which no-new-privileges blocks.
-      PGADMIN_DISABLE_POSTFIX: "true"
-      TZ: Europe/Paris
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
-    networks:
-      - {{ flip_planning_container_prefix }}
-      - {{ flip_planning_newt_network }}
-{% endif %}
 
 networks:
-  # No route to the Internet through it: every other member (app, mailpit,
-  # pgadmin) keeps its own through newt, postgres needs none.
+  # No route to the Internet through it: every other member (app, mailpit)
+  # keeps its own through newt, postgres needs none.
   {{ flip_planning_container_prefix }}:
     internal: true
 {% if flip_planning_keycloak_enabled %}
@@ -281,7 +246,4 @@ volumes:
   postgres_data:
 {% if flip_planning_keycloak_enabled %}
   keycloak_data:
-{% endif %}
-{% if flip_planning_pgadmin_enabled %}
-  pgadmin_data:
 {% endif %}

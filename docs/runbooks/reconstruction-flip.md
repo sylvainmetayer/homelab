@@ -107,7 +107,7 @@ Hetzner est le seul accès hors réseau.
      **la base seule** (`docker compose up -d postgres` dans
      `/opt/apps/<instance>` : `postgres` est le service du compose, son
      conteneur s'appelle `<prefixe>-db`), rejouer le dump PostgreSQL avec
-     `pg_restore` ; `compose.yaml` et `pgadmin` sont déjà reposés par
+     `pg_restore` ; `compose.yaml` est déjà reposé par
      l'étape 4, ne pas les recopier de l'archive ;
    - redémarrer l'appli, puis vérifier avec les animateurs et le planning réels.
    - **OpenPost** : remettre `data/` et la copie SQLite d'`openpost.db`

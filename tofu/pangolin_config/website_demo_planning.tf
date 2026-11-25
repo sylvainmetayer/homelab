@@ -25,7 +25,7 @@ locals {
       icon        = "mdi-calendar-account"
     }
 
-    # Catch-all target, must have a lower priority than the pgAdmin one.
+    # Catch-all target, must have a lower priority than the sub-path ones.
     target = {
       site_id  = pangolin_site.flip.id
       ip       = "demo-planning"
@@ -35,17 +35,6 @@ locals {
     }
 
     sub_targets = {
-      # pgAdmin on the /db sub-path of the same resource, hence the same SSO /
-      # role. SCRIPT_NAME=/db tells pgAdmin its root, so no path rewrite here.
-      pgadmin = {
-        site_id  = pangolin_site.flip.id
-        ip       = "demo-planning-pgadmin"
-        port     = 80
-        path     = "/db"
-        priority = 2
-        hc_path  = "/db/misc/ping"
-      }
-
       mailpit = {
         site_id  = pangolin_site.flip.id
         ip       = "demo-planning-mailpit"

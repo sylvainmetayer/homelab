@@ -14,7 +14,7 @@ locals {
       icon        = "mdi-calendar-account"
     }
 
-    # Catch-all target, must have a lower priority than the pgAdmin one.
+    # Catch-all target, must have a lower priority than the sub-path ones.
     target = {
       site_id  = pangolin_site.flip.id
       ip       = "flip-planning"
@@ -24,18 +24,6 @@ locals {
     }
 
     sub_targets = {
-      # pgAdmin is served on the /db sub-path of the same resource, so it is
-      # protected by the same SSO / role. pgAdmin is told about its root via
-      # SCRIPT_NAME=/db, hence no path rewrite here.
-      pgadmin = {
-        site_id  = pangolin_site.flip.id
-        ip       = "flip-planning-pgadmin"
-        port     = 80
-        path     = "/db"
-        priority = 2
-        hc_path  = "/db/misc/ping"
-      }
-
       mailpit = {
         site_id  = pangolin_site.flip.id
         ip       = "flip-planning-mailpit"
@@ -102,7 +90,7 @@ locals {
 # This opens /mcp to the internet as far as Pangolin is concerned; it does not
 # open the MCP server. The application still demands its own shared key
 # (PLANNING_MCP_API_KEY, header X-Api-Key) and answers 401 without it. The
-# exposure is limited to that prefix: the UI, pgAdmin (/db), Mailpit (/mail)
+# exposure is limited to that prefix: the UI, Mailpit (/mail)
 # and the assets keep both the SSO wall and the geo-filter.
 #
 # `/mcp/*` covers `/mcp` itself as well as everything under it - Pangolin's

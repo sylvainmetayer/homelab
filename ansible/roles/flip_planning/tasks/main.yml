@@ -9,7 +9,6 @@
 - name: Ensure app folders exist for {{ flip_planning_service }}
   loop:
     - "{{ flip_planning_base_path }}"
-    - "{{ flip_planning_base_path }}/pgadmin"
   ansible.builtin.file:
     mode: "0700"
     path: "{{ item }}"
@@ -70,17 +69,6 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: absent
-
-- name: Template pgAdmin servers configuration for {{ flip_planning_service }}
-  when: flip_planning_pgadmin_enabled
-  notify: "{{ flip_planning_restart_handlers }}"
-  ansible.builtin.template:
-    src: "templates/servers.json.j2"
-    dest: "{{ flip_planning_base_path }}/pgadmin/servers.json"
-    owner: "{{ ansible_facts['user_id'] }}"
-    group: "{{ ansible_facts['user_gid'] }}"
-    # Monté seul dans pgAdmin, qui tourne en uid 5050.
-    mode: "0644" # NOSONAR
 
 # The value the application compares its peer against. Read from docker rather
 # than pinned: the subnet is stable for the life of the network, but docker
@@ -204,7 +192,6 @@
     borgmatic_app_healthcheck_url: "{{ flip_planning_backup_healthcheck_url }}"
     borgmatic_app_source_directories:
       - "{{ flip_planning_base_path }}/compose.yaml"
-      - "{{ flip_planning_base_path }}/pgadmin"
     # Avec Keycloak, sa base aussi : le realm se reconstruit
     # (tofu/keycloak_planning), mais pas les comptes, mots de passe et
     # seconds facteurs qui ne vivent qu'ici.

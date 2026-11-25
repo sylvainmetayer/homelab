@@ -135,8 +135,8 @@
           - prod_compose.services.keycloak.networks.keys() | sort | list == ['flip-planning-keycloak', 'newt']
           - "'flip-planning-keycloak' not in prod_compose.services.app.networks"
           - "'flip-planning' not in prod_compose.services.keycloak.networks"
-          - prod_compose.services | length == 7
-          - prod_compose.services.pgadmin.environment.PGADMIN_LISTEN_PORT == '80'
+          - prod_compose.services | length == 6
+          - "'pgadmin' not in prod_compose.services"
           # Mots de passe de Keycloak : dans le compose de la prod, nulle part dans celui de la démo.
           - prod_planning_keycloak_db_password in flip_planning_compose_files.results[0].stdout
           - prod_planning_keycloak_admin_password in flip_planning_compose_files.results[0].stdout
