@@ -1,7 +1,7 @@
 # Passerelle IA (ia.sylvain.cloud)
 
 Procédure, pas un incident. La passerelle IA de Pangolin relaie les appels des
-applis vers Anthropic, une clé virtuelle par appli, chacune avec deux budgets (voir « Budgets »). Tout est en
+applis vers Anthropic (et OpenRouter, Infomaniak), une clé virtuelle par appli, chacune avec deux budgets (voir « Budgets »). Tout est en
 Tofu : `tofu/pangolin_config/ai_gateway.tf` (détail dans le README du module).
 
 ## Tester une clé
@@ -65,6 +65,33 @@ curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" 
   OpenRouter (constaté le 2026-11-24 sur les Gemma 4), pas la passerelle ;
   réessayer plus tard ou prendre un modèle payant.
 
+## Modèles d'Infomaniak
+
+Troisième fournisseur (2026-11-25) : Infomaniak AI Tools, modèles ouverts
+hébergés en Suisse, prompts non gardés. Format OpenAI seulement, avec le nom
+Infomaniak du modèle :
+
+```bash
+K=$(mise exec -- tofu -chdir=tofu/pangolin_config output -json ai_gateway_keys | jq -r .openrouter)
+curl https://ia.sylvain.cloud/v1/models -H "Authorization: Bearer $K"   # la liste
+curl https://ia.sylvain.cloud/v1/chat/completions -H "Authorization: Bearer $K" \
+  -H 'content-type: application/json' \
+  -d '{"model":"<modèle>","max_tokens":50,"messages":[{"role":"user","content":"Bonjour"}]}'
+```
+
+- Tous les modèles exposés sont autorisés (joker `*`). Pangolin prend le motif
+  le plus précis : `claude-*` reste chez Anthropic, `mistralai/*`, `openai/*`,
+  `google/*`, `*:free` chez OpenRouter, tout autre nom part chez Infomaniak
+  (404 de leur côté s'il ne le connaît pas).
+- Plafond : 5 € par mois (30 jours glissants) sur le fournisseur entier,
+  toutes clés confondues, bloquant (429 au-delà) : 1,5 M tokens et 5,8 $.
+  Pangolin ne connaît pas les prix d'Infomaniak : c'est le plafond en tokens
+  qui bloque vraiment. Les montants : `local.ai_infomaniak_budget_*`.
+- Couper : `local.ai_infomaniak_enabled = false`, plan, apply.
+- Clés SOPS : `pangolin_ai_infomaniak_api_key` (jeton de l'API, manager
+  Infomaniak, portée AI Tools) et `pangolin_ai_infomaniak_product_id` (GET
+  `https://api.infomaniak.com/1/ai` avec ce jeton, champ `product_id`).
+
 ## Brancher une appli
 
 1. Une entrée dans `local.ai_keys` (`ai_gateway.tf`) : description.
@@ -102,6 +129,8 @@ mise exec -- tofu -chdir=tofu/pangolin_config apply -replace='pangolin_virtual_a
   [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-anthropic-passerelle-ia).
 - La clé OpenRouter (`pangolin_ai_openrouter_api_key`) :
   [rotation-des-secrets.md](rotation-des-secrets.md#cle-api-openrouter-passerelle-ia).
+- Le jeton Infomaniak (`pangolin_ai_infomaniak_api_key`) :
+  [rotation-des-secrets.md](rotation-des-secrets.md#jeton-api-infomaniak-passerelle-ia).
 
 ## Budgets
 
