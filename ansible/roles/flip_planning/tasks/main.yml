@@ -130,25 +130,18 @@
     quiet: true
     that:
       - not flip_planning_keycloak_enabled
-        or (flip_planning_keycloak_image | length > 0
-            and flip_planning_keycloak_db_password | length > 0
+        or (flip_planning_keycloak_db_password | length > 0
             and flip_planning_keycloak_admin_password | length > 0)
       - not flip_planning_oidc_enabled
         or (flip_planning_oidc_auth_server_url | length > 0
             and flip_planning_oidc_client_secret | length >= 32)
-      - not (flip_planning_oidc_enabled and flip_planning_oidc_provisioning_enabled)
-        or (flip_planning_oidc_provisioning_server_url | length > 0
-            and flip_planning_oidc_provisioning_client_secret | length > 0)
     fail_msg: >-
       Incomplete Keycloak configuration for {{ flip_planning_service }}.
-      flip_planning_keycloak_enabled needs flip_planning_keycloak_image (the
-      application repo's Keycloak image, same version as the application) and
-      the two Keycloak passwords. flip_planning_oidc_enabled needs the realm's
-      PUBLIC url and a client secret of at least 32 characters — shorter,
-      Quarkus draws the key that encrypts the PKCE verifier at random on every
-      start — and, with provisioning, its server url and service-account
-      secret. The secrets belong in secrets/ansible.sops.yaml; terraform/keycloak of
-      the application repo prints the two client secrets.
+      flip_planning_keycloak_enabled needs the two Keycloak passwords.
+      flip_planning_oidc_enabled needs the realm's PUBLIC url and a client
+      secret of at least 32 characters (the application refuses to start
+      below that). The secrets belong in secrets/ansible.sops.yaml
+      (tofu/keycloak_planning/README.md).
 
 - name: Template compose configuration for {{ flip_planning_service }}
   diff: false
@@ -191,89 +184,6 @@
     - "{{ borgmatic_config_dir }}/{{ flip_planning_service }}.yaml"
     - "{{ borgmatic_config_dir }}/uptime-kuma/{{ flip_planning_service }}.curl"
 
-# Nightly reset to a reference database — see flip_planning_reset_dump in
-# defaults/main.yml. Placed after the unit is started: the first restore needs
-# the postgres container up. While the instance is paused the timer is stopped
-# and disabled and nothing notifies the reset: reset.service Requires= dc@ and
-# its script runs `docker compose up`, so either would start the paused
-# instance again (the same reason flip_planning_restart_handlers is empty then).
-- name: Configure the nightly reset of {{ flip_planning_service }}
-  when: flip_planning_reset_dump | length > 0
-  block:
-    # An instance that resets every night has nothing to back up, and its
-    # archives would only fill a Borg repository with the same dump.
-    - name: Refuse a nightly reset on a backed-up instance ({{ flip_planning_service }})
-      ansible.builtin.assert:
-        that:
-          - not flip_planning_backup_enabled
-        fail_msg: >-
-          {{ flip_planning_service }} sets flip_planning_reset_dump, which drops
-          its database every night, and flip_planning_backup_enabled. Turn the
-          backup off: a reset instance holds nothing worth keeping, and an
-          instance whose data matters must not be reset.
-
-    - name: Ensure the seed folder exists for {{ flip_planning_service }}
-      ansible.builtin.file:
-        path: "{{ flip_planning_base_path }}/seed"
-        state: directory
-        mode: "0700"
-        owner: "{{ ansible_facts['user_id'] }}"
-        group: "{{ ansible_facts['user_gid'] }}"
-
-    - name: Copy the reference dump of {{ flip_planning_service }}
-      notify: "{{ ['Reset ' ~ flip_planning_service] if flip_planning_enabled | bool else [] }}"
-      ansible.builtin.copy:
-        src: "{{ flip_planning_reset_dump }}"
-        dest: "{{ flip_planning_base_path }}/seed/{{ flip_planning_reset_dump | basename }}"
-        owner: "{{ ansible_facts['user_id'] }}"
-        group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0600"
-
-    - name: Template the reset script of {{ flip_planning_service }}
-      notify: "{{ ['Reset ' ~ flip_planning_service] if flip_planning_enabled | bool else [] }}"
-      ansible.builtin.template:
-        src: "templates/reset.sh.j2"
-        dest: "{{ flip_planning_base_path }}/reset.sh"
-        owner: "{{ ansible_facts['user_id'] }}"
-        group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0700"
-
-    # URL push du moniteur « Reset … » (jeton), lue par curl -K. Vide : le
-    # service ne pousse rien, le fichier part.
-    - name: Write the push URL of the reset of {{ flip_planning_service }}
-      when: flip_planning_reset_healthcheck_url | length > 0
-      diff: false
-      no_log: true
-      ansible.builtin.copy:
-        content: "url = {{ flip_planning_reset_healthcheck_url | to_json }}\n"
-        dest: "{{ flip_planning_reset_push_config }}"
-        owner: "{{ ansible_facts['user_id'] }}"
-        group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0600"
-
-    - name: Remove the push URL of the reset of {{ flip_planning_service }}
-      when: flip_planning_reset_healthcheck_url | length == 0
-      ansible.builtin.file:
-        path: "{{ flip_planning_reset_push_config }}"
-        state: absent
-
-    - name: Template the reset units of {{ flip_planning_service }}
-      loop: [service, timer]
-      ansible.builtin.template:
-        src: "templates/reset.{{ item }}.j2"
-        dest: "{{ ansible_facts['user_dir'] }}/.config/systemd/user/{{ flip_planning_service }}-reset.{{ item }}"
-        owner: "{{ ansible_facts['user_id'] }}"
-        group: "{{ ansible_facts['user_gid'] }}"
-        mode: "0644"
-
-    - name: Set the nightly reset timer state, stopped while paused, for {{ flip_planning_service }}
-      ansible.builtin.systemd:
-        name: "{{ flip_planning_service }}-reset.timer"
-        scope: user
-        state: "{{ 'started' if flip_planning_enabled | bool else 'stopped' }}"
-        enabled: "{{ flip_planning_enabled | bool }}"
-        daemon_reload: true
-
 # Borgmatic backup configuration (rôle borgmatic, tasks/app.yml)
 - name: Configure borgmatic backup for {{ flip_planning_service }}
   when: flip_planning_enabled | bool and flip_planning_backup_enabled | bool
@@ -295,11 +205,9 @@
     borgmatic_app_source_directories:
       - "{{ flip_planning_base_path }}/compose.yaml"
       - "{{ flip_planning_base_path }}/pgadmin"
-    # Avec Keycloak, sa base aussi : le realm se reconstruit (c'est le rôle de
-    # terraform/keycloak du dépôt de l'application), mais pas ce qui ne vit
-    # qu'ici et qu'il ne crée volontairement pas : les mots de passe choisis,
-    # les passkeys et secrets TOTP enrôlés. La perdre, c'est faire réenrôler
-    # chaque animateur.
+    # Avec Keycloak, sa base aussi : le realm se reconstruit
+    # (tofu/keycloak_planning), mais pas les comptes, mots de passe et
+    # seconds facteurs qui ne vivent qu'ici.
     borgmatic_app_postgresql_databases: >-
       {{
         [{'container': flip_planning_container_prefix ~ '-db',

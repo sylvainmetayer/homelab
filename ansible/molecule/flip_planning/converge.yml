@@ -1,12 +1,12 @@
 ---
-# Reproduit flip.yml pour Flip Planning : le rôle appliqué quatre fois sur le
-# même hôte (production, démo, banc Keycloak, vitrine publique), avec les
-# paramètres de rôle du playbook. Les entrées sont recopiées, mais la première
-# tâche compare la copie à flip.yml : une instance ajoutée, retirée ou modifiée
-# là-bas fait échouer le scénario au lieu de laisser tester un instantané
-# périmé. Le banc Keycloak y est en pause (flip_planning_enabled: false) :
-# l'idempotence porte sur cet état, side_effect.yml le reprend puis le remet en
-# pause.
+# Reproduit flip.yml pour Flip Planning : le rôle appliqué deux fois sur le
+# même hôte (production, démo), avec les paramètres de rôle du playbook. Les
+# entrées sont recopiées, mais la première tâche compare la copie à flip.yml :
+# une instance ajoutée, retirée ou modifiée là-bas fait échouer le scénario au
+# lieu de laisser tester un instantané périmé. La production y porte son
+# Keycloak (fausses clés prod_planning_keycloak_*), OIDC éteint ; la démo est
+# en pause sur l'hôte, mais gardée en service ici (set_fact ci-dessous) :
+# side_effect.yml la met en pause puis la reprend.
 - name: Converge
   hosts: all
   vars_files:
@@ -101,7 +101,6 @@
       ansible.builtin.set_fact:
         prod_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/prod_planning_backup"
         demo_planning_backup_healthcheck_url: "https://uptime.example.invalid/api/push/demo_planning_backup"
-        exemple_planning_reset_healthcheck_url: "https://uptime.example.invalid/api/push/exemple_planning_reset"
   roles:
     - role: docker_service
     - role: flip_planning
@@ -119,6 +118,11 @@
         flip_planning_backup_healthcheck_url: "{{ prod_planning_backup_healthcheck_url }}"
         flip_planning_mem_reservation: 1g
         flip_planning_solver_engine: hand
+        flip_planning_keycloak_enabled: "{{ prod_planning_keycloak_db_password is defined }}"
+        flip_planning_keycloak_db_password: "{{ prod_planning_keycloak_db_password | default('') }}"
+        flip_planning_keycloak_admin_password: "{{ prod_planning_keycloak_admin_password | default('') }}"
+        flip_planning_oidc_enabled: false
+        flip_planning_oidc_client_secret: "{{ prod_planning_oidc_client_secret | default('') }}"
     - role: flip_planning
       vars:
         flip_planning_enabled: "{{ demo_planning_enabled }}"
@@ -140,66 +144,3 @@
         flip_planning_backup_borgmatic_target: "{{ demo_planning_backup_borgmatic_target }}"
         flip_planning_backup_encryption_passphrase: "{{ demo_planning_backup_encryption_passphrase }}"
         flip_planning_backup_healthcheck_url: "{{ demo_planning_backup_healthcheck_url }}"
-    - role: flip_planning
-      when: demo_planning_kc_db_password is defined
-      vars:
-        flip_planning_enabled: false
-        flip_planning_service: demo_planning_kc
-        flip_planning_container_prefix: demo-planning-kc
-        flip_planning_domain: demo-planning-kc.sylvain.dev
-        flip_planning_image: "ghcr.io/sylvainmetayer/planning-equipes:pr-72"
-        flip_planning_sentry_environment: demo-kc
-        flip_planning_branding_product_name: "Flip Planning — Keycloak"
-        flip_planning_cloudflare_web_analytics_token: ""
-        flip_planning_horloge_simulee_autorisee: true
-        flip_planning_keycloak_enabled: true
-        flip_planning_keycloak_image: "ghcr.io/sylvainmetayer/planning-equipes-keycloak:pr-72"
-        flip_planning_image_pull_policy: always
-        flip_planning_keycloak_db_password: "{{ demo_planning_kc_keycloak_db_password }}"
-        flip_planning_keycloak_admin_password: "{{ demo_planning_kc_keycloak_admin_password }}"
-        flip_planning_oidc_enabled: "{{ (demo_planning_kc_oidc_client_secret | default('')) | length > 0 }}"
-        flip_planning_oidc_client_secret: "{{ demo_planning_kc_oidc_client_secret | default('') }}"
-        flip_planning_oidc_provisioning_client_secret: "{{ demo_planning_kc_oidc_provisioning_client_secret | default('') }}"
-        flip_planning_admin_secours_enabled: true
-        flip_planning_db_password: "{{ demo_planning_kc_db_password }}"
-        flip_planning_pgadmin_password: "{{ demo_planning_kc_pgadmin_password }}"
-        flip_planning_admin_password: "{{ demo_planning_kc_admin_password }}"
-        flip_planning_session_encryption_key: "{{ demo_planning_kc_session_encryption_key }}"
-        flip_planning_mcp_api_key: "{{ demo_planning_kc_mcp_api_key }}"
-        flip_planning_backup_enabled: false
-    - role: flip_planning
-      vars:
-        flip_planning_enabled: false
-        flip_planning_deploy: "{{ exemple_planning_db_password is defined }}"
-        flip_planning_service: exemple_planning
-        flip_planning_container_prefix: exemple-planning
-        flip_planning_domain: exemple-planning.sylvain.dev
-        flip_planning_image: "{{ flip_planning_image_release }}"
-        flip_planning_sentry_environment: exemple
-        flip_planning_branding_product_name: "Planning Équipes — Exemple"
-        flip_planning_branding_organisation: "Association fictive"
-        flip_planning_branding_client_palette: false
-        flip_planning_cloudflare_web_analytics_token: ""
-        flip_planning_horloge_simulee_autorisee: true
-        flip_planning_legal_demo_instance: true
-        # Public without SSO: on newt-public, not on `newt` where it would
-        # reach Flip Planning and the others (README of the newt role).
-        flip_planning_newt_network: "{{ 'newt-public' if newt_public_network_enabled | default(false) else 'newt' }}"
-        flip_planning_pgadmin_enabled: false
-        flip_planning_admin_password: "demo"
-        flip_planning_db_password: "{{ exemple_planning_db_password }}"
-        flip_planning_session_encryption_key: "{{ exemple_planning_session_encryption_key }}"
-        flip_planning_mcp_api_key: ""
-        flip_planning_mcp_pangolin_access_token_id: ""
-        flip_planning_mcp_pangolin_access_token: ""
-        flip_planning_webhooks_enabled: false
-        flip_planning_solver_seconds_limit: 60
-        flip_planning_solver_unimproved_seconds_limit: 20
-        flip_planning_solver_seconds_limit_max: 60
-        flip_planning_reset_dump: exemple/exemple-planning.dump
-        flip_planning_reset_healthcheck_url: "{{ exemple_planning_reset_healthcheck_url }}"
-        flip_planning_backup_enabled: false
-        flip_planning_cpu_shares: 256
-        flip_planning_mem_limit: 1536m
-        flip_planning_solver_max_solves_per_hour: 12
-        flip_planning_solver_max_queued_jobs: 2

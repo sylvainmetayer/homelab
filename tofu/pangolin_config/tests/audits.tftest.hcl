@@ -176,8 +176,13 @@ override_resource {
 }
 
 override_resource {
-  target = pangolin_resource_rule.path_bypass["Demo Planning KC /auth/*"]
+  target = pangolin_resource_rule.path_bypass["Flip Planning /auth/realms/planning/*"]
   values = { id = 2003 }
+}
+
+override_resource {
+  target = pangolin_resource_rule.path_bypass["Flip Planning /auth/resources/*"]
+  values = { id = 2015 }
 }
 
 override_resource {
@@ -346,7 +351,6 @@ override_data {
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
-        {"resourceId": 82, "niceId": "demo-planning-kc", "name": "Demo Planning KC", "fullDomain": "demo-planning-kc.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
@@ -358,7 +362,7 @@ override_data {
         {"resourceId": 33, "niceId": "wiki", "name": "Wiki (Bookstack)", "fullDomain": "wiki.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 63, "niceId": "wishlist", "name": "Wishlist", "fullDomain": "cadeaux.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 90, "niceId": "test-manuel", "name": "Test manuel", "fullDomain": "test.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": false}
-      ], "pagination": {"total": 16, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 15, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Resources retrieved successfully", "status": 200}
     EOT
   }
@@ -390,7 +394,7 @@ override_data {
 
 # GET /v1/resource/{id}/rules, même réponse pour chaque ressource couverte.
 # Elle contient les identifiants de TOUTES les règles déclarées, y compris les
-# règles spécifiques (2001 à 2013) : si l'une d'elles disparaît de
+# règles spécifiques (2001 à 2015) : si l'une d'elles disparaît de
 # local.declared_extra_rules, le run nominal échoue.
 override_data {
   target = data.http.pangolin_rules
@@ -400,7 +404,8 @@ override_data {
       {"data": {"rules": [
         {"ruleId": 2001, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 2, "enabled": true},
         {"ruleId": 2002, "action": "ACCEPT", "match": "PATH", "value": "/mcp/*", "priority": 2, "enabled": true},
-        {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/*", "priority": 2, "enabled": true},
+        {"ruleId": 2003, "action": "ACCEPT", "match": "PATH", "value": "/auth/realms/planning/*", "priority": 2, "enabled": true},
+        {"ruleId": 2015, "action": "ACCEPT", "match": "PATH", "value": "/auth/resources/*", "priority": 2, "enabled": true},
         {"ruleId": 1010, "action": "PASS", "match": "COUNTRY", "value": "FR", "priority": 10, "enabled": true},
         {"ruleId": 2004, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 9, "enabled": true},
         {"ruleId": 2005, "action": "ACCEPT", "match": "IP", "value": "203.0.113.10", "priority": 9, "enabled": true},
@@ -413,7 +418,7 @@ override_data {
         {"ruleId": 2010, "action": "ACCEPT", "match": "PATH", "value": "/oauth/token", "priority": 2, "enabled": true},
         {"ruleId": 2011, "action": "ACCEPT", "match": "PATH", "value": "/share/*", "priority": 4, "enabled": true},
         {"ruleId": 1099, "action": "DROP", "match": "COUNTRY", "value": "ALL", "priority": 99, "enabled": true}
-      ], "pagination": {"total": 15, "pageSize": 1000, "page": 1}},
+      ], "pagination": {"total": 16, "pageSize": 1000, "page": 1}},
       "success": true, "error": false, "message": "Rules retrieved successfully", "status": 200}
     EOT
   }
@@ -658,8 +663,8 @@ run "audits_pass_on_realistic_api_responses" {
   }
 
   assert {
-    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 15
-    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (15 règles chacune dans la réponse simulée)."
+    condition     = terraform_data.rule_inventory.output == length(local.managed_resources) * 16
+    error_message = "rule_inventory doit lire les règles de toutes les ressources couvertes (16 règles chacune dans la réponse simulée)."
   }
 
   assert {
@@ -675,7 +680,7 @@ run "audits_pass_on_realistic_api_responses" {
     condition = (
       terraform_data.access_inventory.output == 11
       && length(local.live_site_resource_names) == 15
-      && length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings) + length(local.live_site_resource_client_bindings) == 34
+      && length(local.live_resource_role_bindings) + length(local.live_site_resource_role_bindings) + length(local.live_site_resource_client_bindings) == 33
       && length(local.stale_inventory_exceptions) == 0
     )
     error_message = "access_inventory doit lire les 6 jetons, les 4 rôles, les 15 ressources privées et les 34 liaisons de la réponse simulée, et toutes les exceptions y être vivantes."

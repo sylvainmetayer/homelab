@@ -65,6 +65,19 @@ locals {
         priority = 4
         hc_path  = "/assets/flip.png"
       }
+
+      # Keycloak, on /auth (KC_HTTP_RELATIVE_PATH). Its health endpoints live on
+      # the management port (9000), which that prefix applies to as well:
+      # /auth/health/ready, not /health/ready.
+      keycloak = {
+        site_id  = pangolin_site.flip.id
+        ip       = "flip-planning-keycloak"
+        port     = 8080
+        path     = "/auth"
+        priority = 5
+        hc_port  = 9000
+        hc_path  = "/auth/health/ready"
+      }
     }
   }
 }
@@ -100,6 +113,44 @@ locals {
 locals {
   flip_planning_mcp_paths = {
     "/mcp/*" = 2
+  }
+}
+
+# Keycloak, on /auth of the same resource: the identity provider of the
+# application (realm `planning`, issuer
+# https://flip-planning.sylvain.cloud/auth/realms/planning).
+#
+# The resource is `sso = true`: Pangolin demands its own login before anything
+# reaches the origin. For an identity provider that is a deadlock, and not only
+# for the browser: the application fetches the realm's discovery document and
+# signing keys at startup, through this public URL and with no session of any
+# kind. Behind the SSO those come back as Pangolin's HTML login page instead of
+# JSON, discovery fails and the APPLICATION DOES NOT START. Hosted MCP clients
+# (Claude on the web...) run the OAuth flow against the realm from outside FR
+# and DE, with dynamic client registration, so they need it too.
+#
+# ACCEPT lifts it - Pangolin evaluates rules before SSO, and an ACCEPT returns
+# "allowed" without running any auth method. Priority 2, in the band evaluated
+# BEFORE the country rules (rules.tf): those only PASS, and the flip server
+# calls from behind Pangolin's own NAT, a source the country rules cannot be
+# trusted to PASS, while the MCP clients come from anywhere.
+#
+# Only what a sign-in needs, nothing of the administration:
+#   /auth/realms/planning/*  discovery, JWKS, authorization, token, dynamic
+#                            client registration, login pages. Keycloak's own
+#                            login and client policies are the guard there.
+#   /auth/resources/*        the stylesheets and scripts of the login page.
+# NOT opened: /auth/realms/master/* and /auth/admin/*, so the admin console and
+# the master realm stay behind the Pangolin SSO + PIN and the geo-filter.
+#
+# `/auth/realms/planning/*` covers the prefix itself as well as everything
+# under it (a trailing `*` segment matches zero segments, see
+# local.flip_planning_mcp_paths above). Turned into a rule by
+# local.path_bypasses (rules.tf).
+locals {
+  flip_planning_keycloak_paths = {
+    "/auth/realms/planning/*" = 2
+    "/auth/resources/*"       = 2
   }
 }
 

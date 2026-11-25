@@ -12,8 +12,7 @@ locals {
       icon        = "mdi-emoticon-lol-outline"
     }
 
-    # One of the public resources without the SSO wall (with Promptoramix and
-    # Exemple Planning), so no role either: the application is its own and only
+    # One of the public resources without the SSO wall (with Promptoramix), so no role either: the application is its own and only
     # guard.
     sso    = false
     backup = true

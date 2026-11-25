@@ -7,12 +7,8 @@ Adding an app: the `new-app` skill (`.claude/skills/new-app/SKILL.md`), which ho
 
 ## Running a second environment of an app
 
-`flip_planning` is applied four times by `flip.yml`: production
-(`flip-planning.sylvain.cloud`), the demo (`demo-planning.sylvain.dev`), the
-Keycloak demo (`demo-planning-kc.sylvain.dev`, `demo_planning_kc`) and the
-public showcase (`exemple-planning.sylvain.dev`, `exemple_planning`: no SSO,
-its database reset every night from a reference dump,
-`flip_planning_reset_dump`). There is one role, not two — duplicating a role
+`flip_planning` is applied twice by `flip.yml`: production
+(`flip-planning.sylvain.cloud`) and the demo (`demo-planning.sylvain.dev`). There is one role, not two — duplicating a role
 per environment is what leaves the copy behind on the next change.
 
 What makes a role instantiable is that everything two instances cannot share on
@@ -83,7 +79,7 @@ is paused). Renovate's « Paused apps » rules also disable the role's files and
 its `path_bypass_images.json` entry (`enabled: false`, no update PR) while it is paused. `flip_planning` has the switch so far; each
 Molecule `side_effect.yml` goes through both states. For a role applied more
 than once (`flip_planning`), the switch is a role parameter of the instance's
-`roles:` entry (`flip_planning_enabled: false` on `demo_planning_kc` in
+`roles:` entry (`flip_planning_enabled: false` on `demo_planning` in
 `flip.yml`), never `host_vars`, and the restart is withheld at notify time
 (`flip_planning_restart_handlers`), not by a handler `when`: handlers run with
 the parameters of the role's last application in the play.

@@ -211,9 +211,9 @@ class Tofu(unittest.TestCase):
             self.assertEqual(selected(["tofu/m/main.tf"], tree), ([], []))
 
     def test_vendored_submodule_selects_its_root_module(self):
-        self.assertIn("tofu/keycloak_demo_planning_kc", REAL.modules)
-        self.assertEqual(selected(["tofu/keycloak_demo_planning_kc/modules/realm/main.tf"]),
-                         ([], ["tofu/keycloak_demo_planning_kc"]))
+        self.assertIn("tofu/keycloak_planning", REAL.modules)
+        self.assertEqual(selected(["tofu/keycloak_planning/main.tf"]),
+                         ([], ["tofu/keycloak_planning"]))
 
     def test_mise_toml_runs_every_module(self):
         self.assertEqual(selected(["mise.toml"]), ([], REAL.modules))

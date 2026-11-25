@@ -2,6 +2,6 @@
 
 Moved from `AGENTS.md` (agent-facing notes, kept in English); the index there links here.
 
-Applied four times by `flip.yml` (the fourth, `exemple_planning`, is the public showcase reset every night: `flip_planning_reset_dump` in `defaults/main.yml`, `files/exemple/README.md`); the pattern that makes a role instantiable, and its four rules, are in `docs/conventions/app-lifecycle.md` (« Running a second environment of an app »). Pausing one instance: same file and `docs/runbooks/app-en-pause.md`.
+Applied twice by `flip.yml` (production `flip_planning`, and `demo_planning`, paused); the pattern that makes a role instantiable, and its four rules, are in `docs/conventions/app-lifecycle.md` (« Running a second environment of an app »). Pausing one instance: same file and `docs/runbooks/app-en-pause.md`.
 
-- **`exemple_planning`** (public sans SSO, en pause) est sur `newt-public` et non `newt` : `flip_planning_newt_network` dans son entrée de rôle (`flip.yml`), d'après `newt_public_network_enabled` (README du rôle `newt`). Le sous-réseau des proxys de confiance est lu par réseau (`flip_planning_proxy_subnets`), pas une fois pour toutes les instances.
+- **Keycloak of production** (`flip_planning_keycloak_enabled`, under `/auth`, official image pinned in `templates/compose.yaml`): realm, bring-up order and memory budget in `tofu/keycloak_planning/README.md`. The application's OIDC switch (`flip_planning_oidc_enabled`) is separate: it closes the `admin` break-glass door.
