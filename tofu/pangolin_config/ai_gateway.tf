@@ -57,12 +57,12 @@
 # l'interface passerait inaperçu au plan.
 # ---------------------------------------------------------------------------
 
-# Interrupteur d'Infomaniak, en variable pour que les tests l'allument : à
-# passer à true (le défaut, ici) une fois les deux clés SOPS posées.
+# Interrupteur d'Infomaniak, en variable pour que les tests le basculent ;
+# allumé depuis le 2026-11-25, clés SOPS posées.
 variable "ai_infomaniak_enabled" {
   description = "Branche Infomaniak AI Tools sur la passerelle IA (clés SOPS pangolin_ai_infomaniak_*)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 locals {
