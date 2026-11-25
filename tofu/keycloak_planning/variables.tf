@@ -10,22 +10,6 @@ variable "keycloak_admin_user" {
   default     = "admin"
 }
 
-variable "dcr_trusted_hosts" {
-  description = <<-EOT
-    Hôtes sur lesquels un client MCP enregistré dynamiquement (anonyme) peut
-    déclarer ses URI de redirection : Claude (web) et Le Chat. Vide :
-    enregistrement fermé (défaut de Keycloak). README.md, « Enregistrement
-    dynamique ».
-  EOT
-  type        = list(string)
-  default     = ["claude.ai", "claude.com", "chat.mistral.ai"]
-
-  validation {
-    condition     = alltrue([for host in var.dcr_trusted_hosts : can(regex("^[a-z0-9.-]+$", host)) && !startswith(host, "*")])
-    error_message = "Des noms d'hôte nus, sans schéma, sans chemin ni joker."
-  }
-}
-
 # Passphrase du chiffrement du state (encryption.tf), fournie par
 # TF_VAR_state_encryption_passphrase : clé de secrets/secrets.sops.yaml, que
 # mise charge dans l'environnement. Les tests en donnent une factice.

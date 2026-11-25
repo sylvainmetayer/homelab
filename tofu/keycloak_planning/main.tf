@@ -178,44 +178,21 @@ resource "keycloak_realm_optional_client_scopes" "planning" {
 # ----------------------------------- enregistrement dynamique (RFC 7591) --
 #
 # Claude sur le web et Le Chat enregistrent eux-mêmes leur client, sans jeton
-# (anonyme), depuis leurs serveurs. Keycloak pose à la création du realm des
-# politiques « anonymous » dont « Trusted Hosts » à liste VIDE, qui refuse
-# tout : l'enregistrement est fermé tant que var.dcr_trusted_hosts est vide.
-#
-# Ouvert, le réglage est :
-#   - Trusted Hosts : seules les URI de redirection (redirect_uris) sur ces
-#     hôtes passent (client-uris-must-match), quel que soit l'appelant
-#     (host-sending-registration-request-must-match faux : les serveurs des
-#     assistants n'ont pas d'adresse stable à nommer). Un client enregistré ne
-#     peut donc renvoyer un code que chez l'assistant, jamais chez un tiers.
-#   - Consent Required, Allowed Client Scopes, Allowed Protocol Mapper Types,
-#     Full Scope Disabled : les politiques par défaut de Keycloak, laissées en
-#     place (écran de consentement, pas de scope ni de mappeur arbitraire).
-#   - Max Clients : 20 au lieu de 200.
-# Un client enregistré n'ouvre rien seul : il faut encore une personne qui se
-# connecte au realm ET un compte actif portant un droit dans l'application.
-#
-# Les deux politiques existent déjà (créées avec le realm) : Tofu les PREND en
-# main par `tofu import` (README.md), un second composant du même type
-# s'ajouterait au premier, et la liste vide de celui-ci refuserait toujours.
-resource "keycloak_realm_client_registration_policy" "trusted_hosts" {
-  count = length(var.dcr_trusted_hosts) > 0 ? 1 : 0
+# (anonyme), depuis leurs serveurs. Le réglage (README.md, « Enregistrement
+# dynamique ») tient dans deux politiques « anonymous » que Keycloak crée avec
+# le realm, Tofu en tenant une seule :
+#   - Trusted Hosts : HORS de Tofu. Ses hôtes sont une valeur multiple, que le
+#     provider (config en map(string)) ne sait pas écrire : « a##b » y devient
+#     un seul hôte, qui ne correspond à rien (constaté le 25/11/2026). Posée
+#     par kcadm.sh, commande dans le README.
+#   - Max Clients Limit : 20 au lieu de 200, ici.
+# Restent telles que Keycloak les pose : Consent Required, Allowed Client
+# Scopes (scopes du realm seulement : aucun optionnel, plus haut), Allowed
+# Protocol Mapper Types, Full Scope Disabled.
 
-  realm_id    = keycloak_realm.planning.id
-  name        = "Trusted Hosts"
-  provider_id = "trusted-hosts"
-  sub_type    = "anonymous"
-
-  config = {
-    "trusted-hosts"                                = join("##", var.dcr_trusted_hosts)
-    "host-sending-registration-request-must-match" = "false"
-    "client-uris-must-match"                       = "true"
-  }
-}
-
+# Importée le 25/11/2026 (`tofu import … planning/<id>`, README.md) : elle
+# existe dès la création du realm, une seconde s'ajouterait à la première.
 resource "keycloak_realm_client_registration_policy" "max_clients" {
-  count = length(var.dcr_trusted_hosts) > 0 ? 1 : 0
-
   realm_id    = keycloak_realm.planning.id
   name        = "Max Clients Limit"
   provider_id = "max-clients"
@@ -223,5 +200,19 @@ resource "keycloak_realm_client_registration_policy" "max_clients" {
 
   config = {
     "max-clients" = "20"
+  }
+}
+
+moved {
+  from = keycloak_realm_client_registration_policy.max_clients[0]
+  to   = keycloak_realm_client_registration_policy.max_clients
+}
+
+# Sortie de Tofu sans la détruire : elle porte les hôtes de confiance.
+removed {
+  from = keycloak_realm_client_registration_policy.trusted_hosts
+
+  lifecycle {
+    destroy = false
   }
 }

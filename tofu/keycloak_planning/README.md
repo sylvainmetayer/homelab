@@ -23,8 +23,8 @@ aujourd'hui, fédération de son annuaire demain, bascule sur son ADFS ensuite).
   `planning-mcp-audience` et son mappeur, posé dans les scopes par défaut du
   realm pour que les clients MCP enregistrés ensuite l'aient.
 - L'enregistrement dynamique des clients MCP, ouvert depuis le 25/11/2026 aux
-  seuls Claude (web) et Le Chat (plus bas) ; aucun scope optionnel (ni
-  `offline_access`).
+  seuls Claude (web) et Le Chat (plus bas, hôtes de confiance hors Tofu) ;
+  aucun scope optionnel (ni `offline_access`).
 
 Le provider passe par Internet : l'API d'administration et le realm master sont
 derrière le SSO Pangolin de Flip Planning (seuls `/auth/realms/planning/*` et
@@ -75,47 +75,43 @@ secours reviennent) ; Keycloak se retire en ôtant ses deux secrets de SOPS puis
 ## Enregistrement dynamique (clients MCP hébergés)
 
 Claude sur le web et Le Chat enregistrent leur client eux-mêmes, sans jeton,
-depuis leurs serveurs. Keycloak crée avec le realm des politiques « anonymous »
-dont **Trusted Hosts à liste vide**, qui refuse tout. Ouvert le 25/11/2026 (décision
-de Sylvain) avec le réglage ci-dessous ; `dcr_trusted_hosts = []` le referme.
+depuis leurs serveurs. Ouvert le 25/11/2026 (décision de Sylvain) :
 
-Réglage (`dcr_trusted_hosts`, défaut de la variable) :
+- **Trusted Hosts** (anonymous) : seuls `claude.ai`, `claude.com` et
+  `chat.mistral.ai` ; **toutes** les URI de redirection d'un client doivent y
+  être (`client-uris-must-match`), d'où qu'il appelle
+  (`host-sending-registration-request-must-match` faux : les serveurs des
+  assistants n'ont pas d'adresse stable). Un code ne repart que chez
+  l'assistant.
+- **Max Clients Limit** : 20 (au lieu de 200), dans Tofu.
+- Gardées telles que Keycloak les pose : écran de consentement, scopes du realm
+  seulement (aucun optionnel : `offline_access` refusé), types de mappeurs
+  bornés, Full Scope Disabled.
+- Un client enregistré n'ouvre rien seul : il faut une personne qui se
+  connecte au realm ET un compte actif avec un droit dans l'application.
 
-```hcl
-dcr_trusted_hosts = ["claude.ai", "claude.com", "chat.mistral.ai"]
-```
+Vérifié le 25/11/2026 contre le vrai endpoint
+(`/auth/realms/planning/clients-registrations/openid-connect`) :
+- 201 pour `claude.ai`, `claude.com` et `chat.mistral.ai` ;
+- 403 pour une URI hors liste, pour une bonne URI accompagnée d'une hors liste,
+  pour `claude.ai.evil.example`, et pour `scope=offline_access` ;
+- le client créé a `planning-mcp-audience` dans ses scopes par défaut et le
+  consentement exigé. Les clients de test ont été supprimés.
 
-- seuls les clients dont **toutes** les URI de redirection sont sur ces hôtes
-  passent (`client-uris-must-match`), d'où qu'ils appellent (les serveurs des
-  assistants n'ont pas d'adresse stable : `host-sending-registration-request-must-match`
-  faux) ; un code ne repart donc que chez l'assistant ;
-- 20 clients au plus (au lieu de 200) ;
-- gardées telles que Keycloak les pose : écran de consentement, scopes par
-  défaut seulement, types de mappeurs limités, Full Scope Disabled ;
-- un client enregistré n'ouvre rien seul : il faut une personne qui se
-  connecte au realm ET un compte actif avec un droit dans l'application
-  (`docs/mcp.md`).
-
-Les deux politiques existent déjà (vérifié sur un Keycloak 26.8.2 neuf :
-« Trusted Hosts » et « Max Clients Limit », sous-type anonymous) : Tofu doit les
-**prendre en main** avant l'apply, sinon il en crée une seconde et la liste
-vide de la première refuse toujours. Identifiants dans la console (realm
-`planning` › Clients › Client registration › Anonymous access policies, l'id
-est dans l'URL de la politique), puis (pas de bloc `import` : il fait paniquer
-`tofu test`) :
+**Trusted Hosts est hors de Tofu** : ses hôtes sont une valeur multiple que le
+provider (`config` en `map(string)`) ne sait pas écrire (« a##b » devient un
+seul hôte, qui refuse tout). Pour la changer, depuis le dépôt :
 
 ```bash
-mise exec -- tofu -chdir=tofu/keycloak_planning import -var 'dcr_trusted_hosts=["claude.ai"]' \
-  'keycloak_realm_client_registration_policy.trusted_hosts[0]' 'planning/<id Trusted Hosts>'
-mise exec -- tofu -chdir=tofu/keycloak_planning import -var 'dcr_trusted_hosts=["claude.ai"]' \
-  'keycloak_realm_client_registration_policy.max_clients[0]' 'planning/<id Max Clients Limit>'
+cd ansible && mise exec -- ansible flip -m shell -a 'docker exec flip-planning-keycloak bash -c "export HOME=/tmp; /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user \$KC_BOOTSTRAP_ADMIN_USERNAME --password \"\$KC_BOOTSTRAP_ADMIN_PASSWORD\" && /opt/keycloak/bin/kcadm.sh update components/<id Trusted Hosts> -r planning -s '"'"'config.trusted-hosts=[\"claude.ai\",\"claude.com\",\"chat.mistral.ai\"]'"'"'; rm -rf /tmp/.keycloak"'
 ```
 
-Importées le 25/11/2026 (format `realm/id`). Sur un realm recréé, refaire ces
-deux imports avant l'apply : le plan doit montrer des mises à jour en place,
-jamais une création. Les
-chemins Pangolin couvrent déjà l'endpoint
-`/auth/realms/planning/clients-registrations/openid-connect`.
+L'id : console › realm `planning` › Clients › Client registration › Anonymous
+access policies › Trusted Hosts (dans l'URL). Fermer : liste vide. Sur un
+realm recréé, refaire cette commande, et `tofu import
+'keycloak_realm_client_registration_policy.max_clients' 'planning/<id Max Clients Limit>'`
+avant l'apply (le plan doit montrer une mise à jour en place, jamais une
+création ; pas de bloc `import`, il fait paniquer `tofu test`).
 
 ## Mémoire
 
