@@ -160,10 +160,12 @@ resource "pangolin_resource" "website" {
   maintenance_title        = local.maintenance.title
   maintenance_message      = local.maintenance.message
 
-  # `headers` et `response_headers` restent absents : ils ne sont pas computed,
-  # le fork les relit et l'absence vaut « aucun ». Un en-tête ajouté dans l'UI se
-  # voit au plan et le prochain apply le retire. Traefik pose les en-têtes de
-  # sécurité pour tout le monde (security-headers@file).
+  # `headers` reste absent et `response_headers` vaut null sauf entrée qui le
+  # déclare : ils ne sont pas computed, le fork les relit et l'absence vaut
+  # « aucun ». Un en-tête ajouté dans l'UI se voit au plan et le prochain apply
+  # le retire. Traefik pose les en-têtes de sécurité pour tout le monde
+  # (security-headers@file).
+  response_headers = lookup(each.value, "response_headers", null)
 }
 
 resource "pangolin_resource_role" "website" {
