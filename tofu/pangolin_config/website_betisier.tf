@@ -17,6 +17,11 @@ locals {
     sso    = false
     backup = true
 
+    # Démo de TP remise à zéro chaque nuit, avec ce que les visiteurs saisissent :
+    # rien à indexer. L'appli PHP ne pose pas de balise robots, Pangolin le fait
+    # (Search Console : index.php?page=N « explorée, non indexée »).
+    response_headers = [{ name = "X-Robots-Tag", value = "noindex, nofollow" }]
+
     target = {
       site_id = pangolin_site.proxmox_docker.id
       ip      = "betisier"
