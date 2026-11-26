@@ -100,8 +100,8 @@ dans la maison. Toutes les applis de ce tableau y sont, sauf mention.
 
 ### NAS Ugreen (UGOS, RAID 1)
 
-Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), `sdc` (USB, revenu le 26/11 après son décrochage du 05/11), voir `host_vars/nas` ;
-par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passage le lundi 16/11, relevé du 18/11) : les mêmes trois, `sdc` ajouté le 26/11 (`nas.yml`).
+Disques surveillés par l'agent Beszel : `sda`, `sdb` (SATA), voir `host_vars/nas` (`sdc`, USB, laissé hors de l'agent : un décrochage l'empêcherait de démarrer) ;
+par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passage le lundi 16/11, relevé du 18/11) : `sda` et `sdb` ; `sdc`, vu de retour le 26/11, ajouté à `nas.yml` (#1647), suivi une fois `nas.yml --tags smart_check` lancé à la main.
 
 | Donnée | Étage | Copies | Survit à la maison | Reprise (est.) | Test | Non protégé |
 |---|---|---|---|---|---|---|
