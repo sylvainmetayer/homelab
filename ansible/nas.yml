@@ -128,9 +128,10 @@
     # sur une HAUSSE. smartctl est celui d'UGOS, rien n'est installé ; script
     # et état sur le disque du NAS, pas dans /usr/local (overlay).
     # sdc (USB, défaillant, gardé sans y compter) a quitté le bus le
-    # 05/11/2026 (timeouts puis « USB disconnect ») et il est revenu au
-    # redémarrage du NAS (vu le 26/11) : listé de nouveau, il sonne une fois,
-    # puis s'il s'aggrave. S'il décroche encore, le retirer : un disque absent
+    # 05/11/2026 (timeouts puis « USB disconnect ») et il a été vu de retour
+    # le 26/11 : listé de nouveau, en -d sat comme le donne `smartctl --scan`
+    # (sans type, smart_check ne passe pas de -d). Il sonne une fois, puis
+    # s'il s'aggrave. S'il décroche encore, le retirer : un disque absent
     # pousserait « down » chaque semaine.
     - role: smart_check
       tags: smart_check,monitoring
@@ -140,4 +141,4 @@
         smart_check_devices:
           - { path: /dev/sda }
           - { path: /dev/sdb }
-          - { path: /dev/sdc }
+          - { path: /dev/sdc, type: sat }
