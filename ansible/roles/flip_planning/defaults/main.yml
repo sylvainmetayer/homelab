@@ -66,7 +66,7 @@ flip_planning_domain: flip-planning.sylvain.cloud
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
 flip_planning_image_release: "ghcr.io/sylvainmetayer/planning-equipes:3.5.0@sha256:15fcf3be8ea62863578d9b44ec95ebe43dec4f883273cf1dca68ea40d4f771a7"
 # renovate: datasource=docker depName=ghcr.io/sylvainmetayer/planning-equipes
-flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:6475b6885a4e2ac3e2a92a9470e8e4ed4cbbd6af7e9ab0551d43c28a74f406fd"
+flip_planning_image_main: "ghcr.io/sylvainmetayer/planning-equipes:main@sha256:ddc7d80f04a37d43b79eed39d324e4ef61ae1dc9fa72238cb7486864a66a4d38"
 # The image this instance runs; the demo overrides it with the main channel.
 flip_planning_image: "{{ flip_planning_image_release }}"
 # When compose pulls this instance's images (application and Keycloak). The
