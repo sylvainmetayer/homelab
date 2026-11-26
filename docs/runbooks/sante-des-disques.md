@@ -14,7 +14,7 @@ vérifier ».
 
 | Hôte | Disques lus par l'agent Beszel | Déclaré dans |
 |---|---|---|
-| `nas` | `sda` et `sdb` (WD40EFZZ, la paire du RAID 1) ; `sdc` (WD30EZRX en USB) retiré depuis son décrochage du 05/11 | `host_vars/nas` |
+| `nas` | `sda` et `sdb` (WD40EFZZ, la paire du RAID 1), `sdc` (WD30EZRX en USB, décroché le 05/11, revenu le 26/11) | `host_vars/nas` |
 | `pve` | `sda`, le SSD M.2 SATA qui porte l'hôte, `local-lvm` et donc **tout** le disque de la VM docker | `pve.yml` |
 | `pi` | le NVMe derrière un pont USB : peut ne rien remonter | `host_vars/pi` |
 
@@ -144,15 +144,15 @@ docker) avant d'agrandir quoi que ce soit.
 Le rôle `smart_check` ([README](../../ansible/roles/smart_check/README.md))
 comble ce que Beszel ne fait pas. Chaque lundi à 07:30, `smart-check.timer` lit
 chaque disque par `smartctl -j` sur `pve` (`sda`), le Pi (le NVMe, `-d
-sntrealtek`) et le NAS (`sda`, `sdb` ; `sdc`, qui a quitté le bus USB le
-05/11/2026, y sera ajouté une fois rebranché), applique **les seuils du tableau
+sntrealtek`) et le NAS (`sda`, `sdb`, `sdc` ; ce dernier a quitté le bus USB
+le 05/11/2026 et il est revenu le 26/11), applique **les seuils du tableau
 du contrôle trimestriel ci-dessus**, publie sur ntfy (topic `scripts`) et
 pousse le moniteur Uptime Kuma « S.M.A.R.T. <hôte> ».
 
 - **Elle sonne sur une hausse**, pas à chaque passage : chaque constat garde le
   plus haut niveau déjà annoncé, par numéro de série (le chemin au NAS, dont le
-  `smartctl` n'en donne pas). `sdc` (défaillant, gardé sans y compter), une
-  fois ajouté, sonnera une fois au premier passage, puis seulement si un
+  `smartctl` n'en donne pas). `sdc` (défaillant, gardé sans y compter)
+  sonnera une fois au premier passage, puis seulement si un
   compteur grossit. Ce qui reste en cours se lit dans le message du moniteur
   (« N constat(s) : … »). Une alerte annoncée et ignorée ne revient donc pas :
   le contrôle trimestriel reste la relecture de fond.
