@@ -54,14 +54,16 @@ uptime_push_bin: "{{ docker_base_path }}/uptime-push"
 # --- Agent Beszel (rôle beszel_agent, nas.yml) ---
 # Sous dc@beszel_agent, unité système comme toutes les applis du NAS
 # (docker_service_scope ci-dessus), dans docker_base_path.
-# Les deux disques présents : sda et sdb (WD40EFZZ, SATA). sdc (WD30EZRX en
-# USB, `smartctl --scan` le voit en -d sat) a quitté le bus le 05/11 : tant
-# qu'il est listé, Docker refuse de créer le conteneur (« error gathering
-# device information … /dev/sdc »), et l'agent ne revient pas après une
-# recréation (vécu le 2026-11-11). À remettre une fois le disque rebranché.
+# Les trois disques : sda et sdb (WD40EFZZ, SATA), sdc (WD30EZRX en USB, que
+# `smartctl --scan` voit en -d sat : pas de type à forcer). sdc a quitté le bus
+# le 05/11 et il est revenu au redémarrage du NAS (vu le 26/11). S'il décroche
+# encore, le retirer d'ici avant tout déploiement : Docker refuse de créer le
+# conteneur avec un périphérique absent (« error gathering device information
+# … /dev/sdc », vécu le 2026-11-11).
 beszel_agent_smart_devices:
   - { path: /dev/sda }
   - { path: /dev/sdb }
+  - { path: /dev/sdc }
 beszel_agent_extra_filesystems:
   - { path: /volume1, name: volume1 }
 
