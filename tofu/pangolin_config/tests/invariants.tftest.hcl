@@ -3767,7 +3767,7 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
   # Chaque client a son logo, jamais servi par une appli derrière le mur.
   assert {
     condition = alltrue([
-      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools, pocketid_client.openpost] :
+      for client in [pocketid_client.homebox, pocketid_client.pangolin, pocketid_client.trek, pocketid_client.healthlog, pocketid_client.beszel, pocketid_client.dawarich, pocketid_client.immich, pocketid_client.wishlist, pocketid_client.karakeep, pocketid_client.papra, pocketid_client.yamtrack, pocketid_client.openwebui, pocketid_client.mediamanager, pocketid_client.nextcloud, pocketid_client.proxmox, pocketid_client.victoria_logs, pocketid_client.rss, pocketid_client.wiki, pocketid_client.actual, pocketid_client.jellyfin, pocketid_client.mediamanager_tools, pocketid_client.openpost, pocketid_client.flip_planning] :
       startswith(coalesce(client.logo_url, "absent"), "https://") && !strcontains(coalesce(client.logo_url, "absent"), "sylvain.cloud")
     ])
     error_message = "Chaque pocketid_client doit avoir un logo_url hors des applis du homelab (pocket_id.tf)."
@@ -3896,8 +3896,15 @@ run "pocket_id_stays_outside_the_sso_wall_and_maps_groups_to_roles" {
       && pocketid_client.openpost.callback_urls == tolist(["https://posts.sylvain.cloud/api/v1/auth/oidc/instance/callback"])
       && toset(pocketid_client.openpost.allowed_user_groups) == toset([pocketid_group.pangolin_role["openpost"].id])
       && strcontains(file("${path.module}/../../ansible/roles/openpost/defaults/main.yml"), "terraform_outputs.pocket_id_openpost_client_secret.value")
+      # Flip Planning : IdP fédéré du realm Keycloak, rappel = son endpoint
+      # broker (alias pocket-id), lu par tofu/keycloak_planning.
+      && pocketid_client.flip_planning.is_public == false
+      && pocketid_client.flip_planning.pkce_enabled == true
+      && pocketid_client.flip_planning.callback_urls == tolist(["https://flip-planning.sylvain.cloud/auth/realms/planning/broker/pocket-id/endpoint"])
+      && toset(pocketid_client.flip_planning.allowed_user_groups) == toset([pocketid_group.pangolin_role["flip-planning"].id])
+      && strcontains(file("${path.module}/../keycloak_planning/identity_provider.tf"), "outputs.pocket_id_flip_planning_client_secret")
     )
-    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin, Prowlarr/qBittorrent et OpenPost de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
+    error_message = "Les clients OIDC Homebox, Pangolin, TREK, HealthLog, Beszel, Dawarich, Immich, Wishlist, Karakeep, Papra, Yamtrack, Open WebUI, MediaManager, Nextcloud, Proxmox, VictoriaLogs, Jellyfin, Prowlarr/qBittorrent, OpenPost et Flip Planning de Pocket ID (pocket_id.tf) doivent rester confidentiels, avec PKCE, leurs groupes déclarés, et lus par leur rôle (Beszel : saisi à la main dans PocketBase)."
   }
   # Tuiles vitrine : chaque appli du mur (rôle, lien Homepage, active) a un
   # client, réel ou vitrine, jamais les deux ; une vitrine est publique,

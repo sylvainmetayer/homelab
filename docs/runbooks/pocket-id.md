@@ -188,6 +188,10 @@ conteneur ni routeur (`pangolin.yaml` la saute en le disant).
      rappel `/api/v1/auth/oidc/instance/callback`). Pas de liaison par
      e-mail : un compte existant lie son identité depuis son profil. Mot de
      passe local gardé (README du rôle).
+   - **Flip Planning** (groupe `flip-planning`, sur flip) : pas l'appli, le
+     realm Keycloak `planning` fédère Pocket ID (bouton « Pocket ID », IdP
+     `pocket-id` de `tofu/keycloak_planning`), secret passé de state à state.
+     Apply de `pangolin_config` d'abord ; README de `tofu/keycloak_planning`.
    - **MediaManager** (essai, NAS, groupe `mediamanager`) : rien à saisir, le
      rôle pose `[auth.openid_connect]` ; **déploiement à la main**
      (`nas.yml --tags mediamanager`, jamais par la CI). Pas de PKCE.

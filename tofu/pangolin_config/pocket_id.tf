@@ -101,7 +101,7 @@ output "uptime_backup_pocket_id_url" {
 # pouvoir toucher au compte administrateur. Sylvain s'ajoute au groupe
 # homebox dans l'interface (l'appartenance se règle sur l'utilisateur).
 resource "random_password" "pocket_id_client" {
-  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools", "openpost"])
+  for_each = toset(["pangolin", "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist", "karakeep", "papra", "yamtrack", "openwebui", "mediamanager", "nextcloud", "proxmox", "victoria-logs", "rss", "wiki", "actual", "jellyfin", "mediamanager-tools", "openpost", "flip-planning"])
 
   length  = 48
   special = false
@@ -376,6 +376,32 @@ resource "pocketid_client" "openpost" {
   logo_url            = "${local.pocket_id_mdi_base}/send-clock.svg"
   pkce_enabled        = true
   is_public           = false
+}
+
+# Flip Planning (prod, sur flip) : Pocket ID n'est pas le fournisseur de
+# l'appli mais un fournisseur FÉDÉRÉ du realm Keycloak `planning`
+# (tofu/keycloak_planning, identity provider `pocket-id`), pour répéter la
+# fédération de l'annuaire d'un client (son ADFS demain). L'émetteur que
+# l'appli lie aux comptes reste celui de Keycloak. Rappel : l'endpoint broker
+# de Keycloak, hors mur Pangolin (/auth/realms/planning/*). Keycloak envoie
+# PKCE (S256, extra_config de son IdP). Réservé au groupe flip-planning.
+resource "pocketid_client" "flip_planning" {
+  name                = "Flip Planning"
+  client_id           = "flip-planning"
+  client_secret       = random_password.pocket_id_client["flip-planning"].result
+  callback_urls       = ["https://flip-planning.sylvain.cloud/auth/realms/planning/broker/pocket-id/endpoint"]
+  allowed_user_groups = [pocketid_group.pangolin_role["flip-planning"].id]
+  launch_url          = "https://flip-planning.sylvain.cloud"
+  logo_url            = "${local.pocket_id_mdi_base}/calendar-account.svg"
+  pkce_enabled        = true
+  is_public           = false
+}
+
+# Lu par tofu/keycloak_planning (terraform_remote_state), jamais par Ansible.
+output "pocket_id_flip_planning_client_secret" {
+  description = "POCKET ID - secret du client OIDC de Flip Planning (IdP fédéré du realm Keycloak planning)"
+  value       = random_password.pocket_id_client["flip-planning"].result
+  sensitive   = true
 }
 
 # Papra (le foyer) : AUTH_PROVIDERS_CUSTOMS du rôle papra, fournisseur
@@ -778,6 +804,7 @@ locals {
   pocket_id_oidc_roles = toset([
     "homebox", "trek", "healthlog", "beszel", "dawarich", "immich", "wishlist",
     "karakeep", "papra", "yamtrack", "openwebui", "nextcloud", "victoria-logs", "rss", "wiki", "openpost",
+    "flip-planning",
   ])
 
   pocket_id_launchers = {
