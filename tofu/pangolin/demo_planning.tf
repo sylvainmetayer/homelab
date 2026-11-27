@@ -45,5 +45,5 @@ data "ovh_vps" "demo_planning" {
 # Read by ansible/inventory/hetzner.py (host demo-planning).
 output "demo_planning_ipv4" {
   description = "Public IPv4 of the demo VPS, empty until it is imported."
-  value       = var.demo_planning_vps != "" ? one([for ip in data.ovh_vps.demo_planning[0].ips : ip if can(regex("^[0-9.]+$", ip))]) : ""
+  value       = var.demo_planning_vps != "" ? try([for ip in data.ovh_vps.demo_planning[0].ips : ip if can(regex("^[0-9.]+$", ip))][0], "") : ""
 }

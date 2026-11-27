@@ -38,14 +38,14 @@ resource "pangolin_site" "proxmox_docker" {
 }
 
 # Hetzner server with no public IP, dedicated to Flip Planning (production,
-# ansible/flip.yml; the public demo has its own server below). Its newt credentials are read from this state by
+# ansible/flip.yml; the public demo has its own OVH VPS below). Its newt credentials are read from this state by
 # flip.yml (outputs below), not copied into secrets/secrets.sops.yaml.
 resource "pangolin_site" "flip" {
   name                  = "flip"
   docker_socket_enabled = true
 }
 
-# Hetzner server with no public IP, dedicated to the public Flip Planning demo
+# OVH VPS (public IP, SSH from Pangolin only), dedicated to the public Flip Planning demo
 # (ansible/demo-planning.yml). Its own site and Newt, so the demo's traffic and
 # its resets never touch flip. Credentials read from this state by
 # demo-planning.yml (outputs below), not copied into secrets/secrets.sops.yaml.

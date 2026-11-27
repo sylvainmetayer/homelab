@@ -1,5 +1,6 @@
 ---
-# VPS OVH "demo-planning" (inventory/hosts) : la démo publique de Flip
+# VPS OVH "demo-planning" (tofu/pangolin/demo_planning.tf, émis par
+# inventory/hetzner.py) : la démo publique de Flip
 # Planning, seule sur son hôte pour qu'un afflux de visiteurs ne prenne
 # rien à la production de flip. ADR 0038. Ouverte à tous les
 # pays sans SSO (tofu/pangolin_config/website_demo_planning.tf), servie par son
@@ -10,9 +11,9 @@
 # Jamais lancé par la CI : à la main, `ansible-playbook demo-planning.yml`.
 #
 # Ordre au premier déploiement :
-#   1. commander le VPS (Debian 13, clé keys/perso.pub), décommenter son entrée
-#      dans inventory/hosts, ajouter sa clé d'hôte (lue sur l'hôte) à
-#      known_hosts ;
+#   1. commander le VPS à la console (Debian 13, clé keys/perso.pub), l'importer
+#      dans tofu/pangolin (README, « The demo VPS ») : hetzner.py l'émet alors ;
+#      ajouter sa clé d'hôte (lue sur l'hôte) à known_hosts ;
 #   2. `ansible-playbook demo-planning.yml --tags bootstrap -e ansible_user=debian`
 #      (compte sylvain, l'utilisateur `debian` d'OVH reste) ;
 #   3. tofu/pangolin_config (site demo-planning, ressource, règle monde) ;

@@ -24,7 +24,7 @@
 #
 # Entry fields - only name, subdomain, domain_id and homepage are required:
 #
-#   sso          default true. false only for Betisier and Promptoramix, pinned by the
+#   sso          default true. false only for Betisier, Promptoramix and Demo Planning, pinned by the
 #                `every_public_resource_applies_its_rules` test. Overridden to
 #                true by local.php_lockdown_sso (php_lockdown.tf).
 #   enabled      default local.resource_pins.enabled. false pauses the app
@@ -34,7 +34,7 @@
 #                off its targets' Pangolin probes (hc_enabled). Nothing is
 #                destroyed: tokens, push URL and monitor history stay.
 #   role         slug of pangolin_role.apps (roles.tf) bound to the resource.
-#                Absent: no binding (Betisier and Promptoramix have no SSO).
+#                Absent: no binding (Betisier, Promptoramix and Demo Planning have no SSO).
 #   healthcheck  default true: an access token and an inverted-keyword monitor.
 #                false (immich_kiosk, homepage): neither; the
 #                target probe (hc_*) and check.target_health still show a failure.
