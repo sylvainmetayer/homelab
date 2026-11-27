@@ -1,54 +1,30 @@
 #!/bin/sh
 # {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
-# Remet la démo publique au dump de référence : arrêt de l'appli, restauration
-# de la base (dans une transaction : un échec laisse l'état d'avant), puis
-# redémarrage de l'appli, échec ou non. Coupure d'une vingtaine de secondes.
+# Remet la démo publique au dump de référence, comme le dit la doc de l'appli
+# (installer/instance-de-demo.md) : arrêt de l'appli, base supprimée puis
+# recréée (un `pg_restore --clean` laisserait une table plus récente que le
+# dump, qui ferait échouer la migration suivante), restauration, puis appli
+# recréée, échec ou non : ses journaux ne couvrent ainsi qu'une demi-heure.
 set -eu
 cd "{{ docker_base_path }}/{{ flip_planning_demo_service }}"
-app="{{ flip_planning_demo_container_prefix }}"
 db="{{ flip_planning_demo_container_prefix }}-db"
-tmpdump=""
-cid=""
+dump="{{ flip_planning_demo_reset_dir }}/reference.dump"
+user="{{ flip_planning_demo_db_user }}"
+name="{{ flip_planning_demo_db_name }}"
+[ -s "$dump" ] || { echo "demo-planning-reset : $dump absent, voir le README du rôle" >&2; exit 1; }
 stopped=0
 # Quelle que soit la sortie (échec d'une commande, arrêt par systemd après
-# TimeoutStartSec) : ni conteneur ni dump temporaire laissés, et l'appli n'est
-# jamais laissée arrêtée jusqu'à la remise suivante.
+# TimeoutStartSec) : l'appli n'est jamais laissée arrêtée jusqu'à la remise suivante.
 cleanup() {
-  [ -z "$cid" ] || docker rm -f "$cid" >/dev/null 2>&1 || true
-  [ -z "$tmpdump" ] || rm -f "$tmpdump"
-  [ "$stopped" -eq 0 ] || docker compose start app || true
+  [ "$stopped" -eq 0 ] || docker compose up --detach --force-recreate --no-deps app || true
 }
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
-{% if flip_planning_demo_dump_source == 'image' %}
-tmpdump=$(mktemp "{{ flip_planning_demo_reset_dir }}/dump.XXXXXX")
-dump=$tmpdump
-# Le dump de l'image en cours : toujours de la version de l'appli déployée
-# (un dump plus récent que l'image serait refusé au démarrage).
-image=$(docker inspect --format '{{ '{{' }}.Image{{ '}}' }}' "$app")
-cid=$(docker create "$image")
-docker cp "$cid:{{ flip_planning_demo_dump_image_path }}" "$dump"
-docker rm "$cid" >/dev/null
-cid=""
-{% else %}
-dump="{{ flip_planning_demo_reset_dir }}/reference.dump"
-{% endif %}
 
 stopped=1
 docker compose stop app
-# Plus aucune session : ni l'appli, ni une restauration d'une remise tuée
-# (tuer `docker exec` laisse tourner pg_restore dans le conteneur).
-docker exec "$db" psql -U "{{ flip_planning_demo_db_user }}" -d postgres -Atq -c \
-  "select pg_terminate_backend(pid) from pg_stat_activity where datname = '{{ flip_planning_demo_db_name }}' and pid <> pg_backend_pid()" >/dev/null
-status=0
-{% if flip_planning_demo_dump_format == 'custom' %}
-docker exec -i "$db" pg_restore -U "{{ flip_planning_demo_db_user }}" -d "{{ flip_planning_demo_db_name }}" \
-  --clean --if-exists --no-owner --role="{{ flip_planning_demo_db_user }}" --single-transaction --exit-on-error < "$dump" || status=$?
-{% else %}
-docker exec -i "$db" psql -U "{{ flip_planning_demo_db_user }}" -d "{{ flip_planning_demo_db_name }}" \
-  -v ON_ERROR_STOP=1 --single-transaction --quiet < "$dump" >/dev/null || status=$?
-{% endif %}
-docker compose start app
-stopped=0
-[ "$status" -eq 0 ] || echo "demo-planning-reset : restauration en échec ($status), base laissée en l'état" >&2
-exit "$status"
+# --force : coupe aussi une restauration d'une remise tuée (tuer `docker exec`
+# laisse tourner pg_restore dans le conteneur).
+docker exec "$db" dropdb -U "$user" --if-exists --force "$name"
+docker exec "$db" createdb -U "$user" -O "$user" "$name"
+docker exec -i "$db" pg_restore -U "$user" -d "$name" --no-owner --role="$user" --exit-on-error < "$dump"

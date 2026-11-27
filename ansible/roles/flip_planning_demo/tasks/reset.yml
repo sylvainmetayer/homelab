@@ -8,16 +8,6 @@
     mode: "0750"
   when: flip_planning_demo_reset_enabled | bool
 
-- name: Download the reference dump
-  ansible.builtin.get_url:
-    url: "{{ flip_planning_demo_dump_url }}"
-    dest: "{{ flip_planning_demo_reset_dir }}/reference.dump"
-    checksum: "sha256:{{ flip_planning_demo_dump_sha256 }}"
-    mode: "0440"
-  when:
-    - flip_planning_demo_reset_enabled | bool
-    - flip_planning_demo_dump_source == 'url'
-
 - name: Write the reset script
   ansible.builtin.template:
     src: demo-planning-reset.sh.j2

@@ -20,21 +20,32 @@ The host side of the public Flip Planning demo (`ansible/demo-planning.yml`, ADR
 
 `demo-planning-reset.timer` is a user unit of `sylvain`, like `dc@`. It fires every 30 min (`flip_planning_demo_reset_schedule`) and runs `{{ docker_base_path }}/demo_planning_reset/reset.sh`, which:
 
-1. gets the reference dump:
-   - `flip_planning_demo_dump_source: image` (the default) copies `flip_planning_demo_dump_image_path` out of the image of the running app, so the dump always matches the deployed version;
-   - `url` downloads it once with Ansible, checked against `flip_planning_demo_dump_sha256`;
-2. runs `docker compose stop app`;
-3. restores the database in a single transaction:
-   - `custom` format: `pg_restore --clean --if-exists --no-owner --role=festival`;
-   - `plain` format: `psql -v ON_ERROR_STOP=1`;
+1. runs `docker compose stop app`;
+2. drops and recreates the database (`dropdb --force`, `createdb -O festival`), then restores `reference.dump` into it (`pg_restore --no-owner --role=festival --exit-on-error`): the application's own procedure (`site/src/docs/installer/instance-de-demo.md`); a `pg_restore --clean` would keep a table a newer version added, and the next migration would fail;
+3. recreates the app container (`docker compose up --detach --force-recreate --no-deps app`), whether the restore succeeded or not, so its logs never cover more than half an hour. An `EXIT` trap does it too when the script is killed (systemd `TimeoutStartSec`) after the stop.
 
-   A failure leaves the database as it was.
-4. runs `docker compose start app`, whether the restore succeeded or not. An `EXIT` trap also starts it when the script is killed (systemd `TimeoutStartSec`) after the stop, and removes the temporary container and dump.
+A missing dump makes the script fail before stopping anything.
 
 The outage is about 20 s. Uptime Kuma's monitor (300 s interval, one retry at 60 s) tolerates it.
 
 - **To run it by hand:** `systemctl --user start demo-planning-reset`.
 - **To read what it did:** `journalctl --user -u demo-planning-reset`.
+
+### The reference dump
+
+Made once on the host by the application's `scripts/demo/generer-dump.sh` (a throwaway stack: PostgreSQL, Mailpit, the app; the showcase scenario, a solve, the published plan, the three local accounts `rh@`, `responsable@`, `lecteur@example.org`, and the fixed animateur space `/animateur/00000000-0000-4000-8000-0000000de305`). Neither in the image nor in this repo. Redo it when the showcase scenario changes; a dump made by an older version stays valid (the app migrates it at start-up).
+
+```bash
+sudo apt-get install -y jq
+git clone --depth 1 --branch v4.2.0 https://github.com/sylvainmetayer/planning-equipes.git /tmp/pe
+read -rs DEMO_PASSWORD && export DEMO_PASSWORD   # the password shown on /demo, 12 characters at least
+APP_IMAGE=ghcr.io/sylvainmetayer/planning-equipes:4.2.0 POSTGRES_IMAGE=postgres:19.0 \
+  /tmp/pe/scripts/demo/generer-dump.sh /opt/apps/demo_planning_reset/reference.dump
+unset DEMO_PASSWORD; rm -rf /tmp/pe
+systemctl --user start demo-planning-reset
+```
+
+Take the tag of the deployed image (`flip_planning_image_release`) and the PostgreSQL major of the role's `compose.yaml`. The password never goes into the repo nor into a variable of the playbook: it lives only in the dump, as a hash.
 
 ## Molecule
 

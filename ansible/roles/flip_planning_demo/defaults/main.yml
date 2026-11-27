@@ -30,16 +30,7 @@ flip_planning_demo_host_udp_ports: [53, 123]
 flip_planning_demo_reset_enabled: true
 # systemd OnCalendar : toutes les 30 min.
 flip_planning_demo_reset_schedule: "*:00/30"
-# D'où vient le dump de référence, préparé par l'application :
-# - `image` : copié de l'image de l'appli en cours (flip_planning_demo_dump_image_path),
-#   donc toujours de sa version ;
-# - `url` : téléchargé par Ansible (flip_planning_demo_dump_url, vérifié par
-#   flip_planning_demo_dump_sha256), à garder en phase avec l'image.
-flip_planning_demo_dump_source: image
-flip_planning_demo_dump_image_path: /app/demo/reference.dump
-flip_planning_demo_dump_url: ""
-flip_planning_demo_dump_sha256: ""
-# `custom` (pg_dump -Fc, pg_restore --clean --if-exists) ou `plain` (SQL fait
-# avec pg_dump --clean --if-exists, rejoué par psql).
-flip_planning_demo_dump_format: custom
+# Le dump de référence est {{ flip_planning_demo_reset_dir }}/reference.dump,
+# fabriqué une fois sur l'hôte par scripts/demo/generer-dump.sh de l'appli
+# (README du rôle) : ni dans l'image, ni dans ce dépôt.
 flip_planning_demo_reset_dir: "{{ docker_base_path }}/{{ flip_planning_demo_service }}_reset"

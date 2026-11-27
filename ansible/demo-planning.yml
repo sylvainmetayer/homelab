@@ -81,7 +81,8 @@
         flip_planning_service: demo_planning
         flip_planning_container_prefix: demo-planning
         flip_planning_domain: demo-planning.sylvain.dev
-        flip_planning_image: "{{ flip_planning_image_main }}"
+        # The production release: the demo shows what organisers install.
+        flip_planning_image: "{{ flip_planning_image_release }}"
         flip_planning_sentry_environment: demo
         # Its own Bugsink project (host_vars/demo-planning).
         flip_planning_sentry_dsn: "{{ demo_planning_sentry_dsn }}"

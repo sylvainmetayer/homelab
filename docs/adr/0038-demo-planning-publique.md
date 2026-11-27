@@ -20,7 +20,7 @@ Le rôle `flip_planning` s'y applique avec le mode démo de l'application (`DEMO
 
 **Ouverte à tous les pays, sans SSO, pour cette seule ressource** : une règle PASS sur `/*` en priorité 3 (`pangolin_resource_rule.demo_planning_worldwide`), devant les règles de pays. CrowdSec reste devant. Mailpit n'est pas exposé.
 
-**Remise à zéro toutes les 30 min** (rôle `flip_planning_demo`). Un timer user arrête l'appli, rejoue le dump de référence (`pg_restore --clean --if-exists`, dans une transaction), puis relance l'appli. Le dump est préparé par l'application et lu dans l'image en cours, donc toujours de sa version. La démo n'a ni sauvegarde, ni moniteur Backup.
+**Remise à zéro toutes les 30 min** (rôle `flip_planning_demo`). Un timer user arrête l'appli, supprime et recrée la base, y restaure le dump de référence, puis recrée le conteneur de l'appli (ses journaux ne couvrent qu'une demi-heure). Le dump est fabriqué une fois sur l'hôte par le script de l'application (`scripts/demo/generer-dump.sh`) : il n'est ni dans l'image ni dans ce dépôt, et le mot de passe des comptes de démo n'existe qu'en empreinte dans le dump. La démo n'a ni sauvegarde, ni moniteur Backup.
 
 **Sortie filtrée sur l'hôte** (nftables, table `demo_egress`, chargée avant Docker) :
 - les conteneurs ne joignent que Pangolin (Newt, HTTPS et WireGuard) ;
