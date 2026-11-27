@@ -114,6 +114,34 @@ realm recréé, refaire cette commande, et `tofu import
 avant l'apply (le plan doit montrer une mise à jour en place, jamais une
 création ; pas de bloc `import`, il fait paniquer `tofu test`).
 
+## Fournisseur fédéré (Pocket ID)
+
+Le bouton « Pocket ID » de la page de connexion du realm
+(`identity_provider.tf`, alias `pocket-id`) : la répétition d'un client qui
+branche son propre fournisseur (ADFS…). L'application ne change pas : elle ne
+voit que Keycloak, même émetteur, même client `planning-app`.
+
+- Côté Pocket ID : client `flip-planning` (`tofu/pangolin_config/pocket_id.tf`),
+  réservé au groupe `flip-planning` (celui du rôle Pangolin), rappel
+  `/auth/realms/planning/broker/pocket-id/endpoint` (hors mur Pangolin). Son
+  secret passe d'un state à l'autre (sortie
+  `pocket_id_flip_planning_client_secret`), ni SOPS ni console.
+- Ordre : apply de `tofu/pangolin_config` (skill `pangolin-config-plan` :
+  `random_password`, le client, la vitrine `vitrine-flip_planning` détruite),
+  puis apply de ce module.
+- Première connexion : adresse déjà dans le realm → Keycloak demande son mot
+  de passe pour lier ; sinon il crée le compte (l'inscription fermée ne
+  bloque pas le broker), qui n'a aucun droit tant que l'application n'a pas
+  de compte actif à cette adresse. Adresse marquée vérifiée (`trust_email`),
+  nom et adresse relus à chaque connexion (`sync_mode = FORCE`).
+- Tester sans brancher l'application : console de compte
+  `https://flip-planning.sylvain.cloud/auth/realms/planning/account/`,
+  « Pocket ID ». Une personne hors du groupe `flip-planning` est refusée chez
+  Pocket ID.
+- Retirer : supprimer `identity_provider.tf` (les comptes liés restent, leur
+  lien se retire dans la console, Users › Identity provider links), puis le
+  client côté `pangolin_config`.
+
 ## Mémoire
 
 Mesuré le 25/11/2026 sur flip (3,8 Gio, 2 vCPU) : ~2,0 Gio disponibles au

@@ -23,7 +23,8 @@ override_data {
   target = data.terraform_remote_state.pangolin_config
   values = {
     outputs = {
-      flip_planning_access_token = "{\"id\":\"42\",\"token\":\"fake-token\"}"
+      flip_planning_access_token            = "{\"id\":\"42\",\"token\":\"fake-token\"}"
+      pocket_id_flip_planning_client_secret = "fake-pocket-id-client-secret"
     }
   }
 }
@@ -90,5 +91,23 @@ run "enregistrement_dynamique_borne" {
   assert {
     condition     = length(keycloak_realm_optional_client_scopes.planning.optional_scopes) == 0
     error_message = "Aucun scope optionnel, offline_access compris : un client enregistré par n'importe qui ne doit pas obtenir de jeton hors session."
+  }
+}
+
+run "pocket_id_federe" {
+  command = plan
+
+  # L'alias est dans le rappel déclaré chez Pocket ID (pocketid_client.flip_planning).
+  assert {
+    condition = (
+      keycloak_oidc_identity_provider.pocket_id.alias == "pocket-id"
+      && keycloak_oidc_identity_provider.pocket_id.client_id == "flip-planning"
+      && keycloak_oidc_identity_provider.pocket_id.client_secret == "fake-pocket-id-client-secret"
+      && keycloak_oidc_identity_provider.pocket_id.issuer == "https://id.sylvain.cloud"
+      && keycloak_oidc_identity_provider.pocket_id.validate_signature
+      && keycloak_oidc_identity_provider.pocket_id.extra_config["pkceMethod"] == "S256"
+      && !keycloak_oidc_identity_provider.pocket_id.store_token
+    )
+    error_message = "IdP pocket-id : client flip-planning, secret lu dans tofu/pangolin_config, signature vérifiée, PKCE S256, aucun jeton stocké."
   }
 }
