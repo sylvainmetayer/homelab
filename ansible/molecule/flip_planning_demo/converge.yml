@@ -1,0 +1,17 @@
+---
+- name: Converge
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../host_vars/demo-planning/variables.yaml
+  roles:
+    # Lingering et répertoire des unités user, que le timer suppose.
+    - role: docker_service
+    - role: flip_planning_demo
+      vars:
+        flip_planning_demo_reset_enabled: false
+        # TEST-NET-3, comme une IP publique de Pangolin.
+        flip_planning_demo_pangolin_ip: 203.0.113.7
+    - role: flip_planning_demo
+      vars:
+        flip_planning_demo_egress_enabled: false

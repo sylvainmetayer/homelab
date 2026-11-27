@@ -21,7 +21,6 @@ locals {
     "wiki",
     "papra",
     "flip-planning",
-    "demo-planning",
     "dawarich",
     "trek",
     "karakeep",

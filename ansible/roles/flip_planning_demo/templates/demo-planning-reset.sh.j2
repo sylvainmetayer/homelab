@@ -1,0 +1,34 @@
+#!/bin/sh
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+# Remet la démo publique au dump de référence : arrêt de l'appli, restauration
+# de la base (dans une transaction : un échec laisse l'état d'avant), puis
+# redémarrage de l'appli, échec ou non. Coupure d'une vingtaine de secondes.
+set -eu
+cd "{{ docker_base_path }}/{{ flip_planning_demo_service }}"
+app="{{ flip_planning_demo_container_prefix }}"
+db="{{ flip_planning_demo_container_prefix }}-db"
+{% if flip_planning_demo_dump_source == 'image' %}
+dump=$(mktemp "{{ flip_planning_demo_reset_dir }}/dump.XXXXXX")
+trap 'rm -f "$dump"' EXIT
+# Le dump de l'image en cours : toujours de la version de l'appli déployée
+# (un dump plus récent que l'image serait refusé au démarrage).
+image=$(docker inspect --format '{{ '{{' }}.Image{{ '}}' }}' "$app")
+cid=$(docker create "$image")
+docker cp "$cid:{{ flip_planning_demo_dump_image_path }}" "$dump" || { docker rm "$cid" >/dev/null; exit 1; }
+docker rm "$cid" >/dev/null
+{% else %}
+dump="{{ flip_planning_demo_reset_dir }}/reference.dump"
+{% endif %}
+
+docker compose stop app
+status=0
+{% if flip_planning_demo_dump_format == 'custom' %}
+docker exec -i "$db" pg_restore -U "{{ flip_planning_demo_db_user }}" -d "{{ flip_planning_demo_db_name }}" \
+  --clean --if-exists --no-owner --role="{{ flip_planning_demo_db_user }}" --single-transaction --exit-on-error < "$dump" || status=$?
+{% else %}
+docker exec -i "$db" psql -U "{{ flip_planning_demo_db_user }}" -d "{{ flip_planning_demo_db_name }}" \
+  -v ON_ERROR_STOP=1 --single-transaction --quiet < "$dump" >/dev/null || status=$?
+{% endif %}
+docker compose start app
+[ "$status" -eq 0 ] || echo "demo-planning-reset : restauration en échec ($status), base laissée en l'état" >&2
+exit "$status"

@@ -1,0 +1,19 @@
+---
+- name: Check the demo host parameters
+  ansible.builtin.assert:
+    that:
+      - not (flip_planning_demo_egress_enabled | bool) or flip_planning_demo_pangolin_ip | length > 0
+      - flip_planning_demo_dump_source in ['image', 'url']
+      - flip_planning_demo_dump_format in ['custom', 'plain']
+      - flip_planning_demo_dump_source != 'url' or (flip_planning_demo_dump_url | length > 0 and flip_planning_demo_dump_sha256 | length > 0)
+    fail_msg: >-
+      flip_planning_demo : IP publique de Pangolin absente, ou source du dump
+      incomplète (url sans sha256), voir defaults/main.yml.
+
+- name: Egress filter
+  ansible.builtin.import_tasks: egress.yml
+  tags: egress
+
+- name: Database reset
+  ansible.builtin.import_tasks: reset.yml
+  tags: reset

@@ -37,6 +37,10 @@ ONE_VARIABLE = re.compile(r"^\{\{\s*(\w+)\s*\}\}$")
 
 # Repository (borgmatic_app_name) -> why its restore is not tested.
 EXCLUDED = {
+    "demo_planning": (
+        "l'ancienne démo, en pause sur flip, à décommissionner : la démo publique vit sur "
+        "son serveur, remise au dump de référence, sans sauvegarde (ADR 0038)"
+    ),
     "mediamanager": (
         "à l'essai : ni moniteur Backup ni test de restauration tant que l'essai dure "
         "(ansible/roles/mediamanager/README.md)"

@@ -1,0 +1,58 @@
+# 0038. Démo publique de Flip Planning sur son propre serveur, ouverte au monde
+
+- **Statut** : proposée
+- **Date** : 2026-11-27
+
+## Contexte
+
+Sylvain veut présenter Flip Planning sur Show HN et Reddit avec une instance de démo en libre accès. Il y faut quatre comptes affichés sur la page (dont `admin/admin`), le scénario du site déjà chargé avec un plan calculé, un calcul de 40 s au plus, et une remise à zéro toutes les 30 min.
+
+La démo existante, sur flip, est en pause depuis le 2026-11-11 : flip (cx23, 2 vCPU, 4 Gio) n'a pas de mémoire à lui donner à côté de la production, d'OpenPost et de Promptoramix. Une vague de visiteurs prendrait du CPU, de la mémoire et du disque à la production. Toutes les ressources Pangolin publiques ne laissent passer que FR et DE, alors que le public visé est surtout américain.
+
+## Décision
+
+**Un serveur à lui**, `demo-planning` (cx23, `tofu/pangolin/demo_planning.tf`), sur le modèle de flip :
+- pas d'IP publique ;
+- sortie par le NAT de Pangolin ;
+- SSH par rebond ;
+- son propre site Newt (`pangolin_site.demo_planning`) ;
+- configuré à la main par `ansible/demo-planning.yml`, jamais par la CI.
+
+Le rôle `flip_planning` s'y applique avec le mode démo de l'application (`DEMO_INSTANCE`, `PUBLIC_INSTANCE`). Ce mode accepte les mots de passe affichés sans permettre de les changer, coupe la météo, les webhooks, les clés MCP et les vrais courriels, affiche un bandeau, et passe un calcul à la fois (40 s au plus, file de 3, environ 30 par heure).
+
+**Ouverte à tous les pays, sans SSO, pour cette seule ressource** : une règle PASS sur `/*` en priorité 3 (`pangolin_resource_rule.demo_planning_worldwide`), devant les règles de pays. CrowdSec reste devant. Mailpit n'est pas exposé.
+
+**Remise à zéro toutes les 30 min** (rôle `flip_planning_demo`). Un timer user arrête l'appli, rejoue le dump de référence (`pg_restore --clean --if-exists`, dans une transaction), puis relance l'appli. Le dump est préparé par l'application et lu dans l'image en cours, donc toujours de sa version. La démo n'a ni sauvegarde, ni moniteur Backup.
+
+**Sortie filtrée sur l'hôte** (nftables, table `demo_egress`, chargée avant Docker) :
+- les conteneurs ne joignent que Pangolin (Newt, HTTPS et WireGuard) ;
+- l'hôte ne joint que DNS, NTP et HTTP(S) ;
+- personne ne joint le réseau privé.
+
+Les pare-feu Hetzner ne couvrent pas le réseau privé, d'où le filtre sur l'hôte.
+
+**Bugsink** : un projet à part pour la démo (DSN vide tant qu'il n'est pas créé), pour que son trafic ne consomme pas le quota de la production.
+
+## Alternatives écartées
+
+- **Rallumer la démo sur flip avec `cpu_shares`** : pas de mémoire disponible, et le disque et les deux vCPU restent partagés. La production ne serait pas protégée d'une vague HN.
+- **Une limite `cpus:`** : la doctrine l'interdit sur un service interactif, et elle ne protège ni la mémoire ni le disque.
+- **Ajouter des pays (US, GB…) au filtre de cette ressource** : le public de HN et de Reddit est mondial.
+- **Remise à zéro par la route de dump de l'application** : c'est un outil de test, à ne pas ouvrir sur une instance publique.
+- **Un conteneur cron pour la remise à zéro** : il lui faudrait le socket Docker.
+
+## Conséquences
+
+- Bon : la production de flip ne partage plus rien avec la démo, sauf Pangolin.
+- Bon : une base cassée ou un mot de passe changé ne dure pas plus de 30 min.
+- Mauvais : tout le trafic de la démo passe par la VM Pangolin, qui porte aussi Pocket ID, ntfy et le NAT de flip. À surveiller pendant une vague (Beszel).
+- Mauvais : un serveur de plus à payer (cx23) et à tenir à jour, à la main.
+- Mauvais : la ressource est ouverte à tous les pays. Tout ce que le filtre FR/DE arrêtait passe : seuls CrowdSec et le mode démo de l'application la gardent.
+- Mauvais : une coupure d'environ 20 s toutes les 30 min. Le moniteur Uptime Kuma (300 s, une reprise à 60 s) la tolère.
+- L'ancienne démo, en pause sur flip, est à décommissionner (`decommission_app` sur flip, puis retirer son entrée de `flip.yml`). Son dépôt Borg est exclu du test de restauration d'ici là.
+
+## Liens
+
+- `tofu/pangolin/demo_planning.tf`, `tofu/pangolin_config/website_demo_planning.tf`, `tofu/pangolin_config/nodes.tf`, `ansible/demo-planning.yml`, `ansible/roles/flip_planning_demo/`.
+- ADR de l'application sur son mode démo (dépôt `planning-equipes`).
+- [0037](0037-ntfy-sur-la-vm-pangolin.md) (charge de la VM Pangolin).

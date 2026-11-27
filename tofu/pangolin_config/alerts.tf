@@ -48,6 +48,7 @@ locals {
     pangolin_site.proxmox_docker.id,
     pangolin_site.proxmox_lxc.id,
     pangolin_site.flip.id,
+    pangolin_site.demo_planning.id,
     pangolin_site.nas.id,
     pangolin_site.pi.id,
   ]

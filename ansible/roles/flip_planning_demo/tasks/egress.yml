@@ -1,0 +1,42 @@
+---
+# Une table à elle, chargée par une unité à elle avant Docker : jamais
+# nftables.service, dont la configuration Debian commence par `flush ruleset`
+# (elle effacerait les règles de Docker et d'ufw).
+- name: Install nftables
+  become: true
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+  when: flip_planning_demo_egress_enabled | bool
+
+- name: Write the egress rules
+  become: true
+  ansible.builtin.template:
+    src: demo-egress.nft.j2
+    dest: /etc/demo-egress.nft
+    owner: root
+    group: root
+    mode: "0644"
+    validate: nft -c -f %s
+  when: flip_planning_demo_egress_enabled | bool
+  notify: Reload demo-egress
+
+- name: Write the demo-egress unit
+  become: true
+  ansible.builtin.template:
+    src: demo-egress.service.j2
+    dest: /etc/systemd/system/demo-egress.service
+    owner: root
+    group: root
+    mode: "0644"
+  when: flip_planning_demo_egress_enabled | bool
+  notify: Reload demo-egress
+
+- name: Enable demo-egress
+  become: true
+  ansible.builtin.systemd:
+    name: demo-egress
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: flip_planning_demo_egress_enabled | bool

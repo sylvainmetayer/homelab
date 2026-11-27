@@ -165,6 +165,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_rule.demo_planning_worldwide
+  values = { id = 2015 }
+}
+
+override_resource {
   target = pangolin_resource_access_token.rss_site_build
   values = { id = "tok-rss-build", token = "jeton-rss-build" }
 }
@@ -279,7 +284,7 @@ override_data {
         {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
-        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
@@ -373,6 +378,11 @@ override_resource {
 override_resource {
   target = pangolin_site.flip
   values = { id = 5, newt_id = "newt-flip", newt_secret = "secret-flip" }
+}
+
+override_resource {
+  target = pangolin_site.demo_planning
+  values = { id = 7, newt_id = "newt-demo-planning", newt_secret = "secret-demo-planning" }
 }
 
 override_resource {
@@ -758,11 +768,6 @@ override_resource {
 override_resource {
   target = uptimekuma_monitor_push.backup["dawarich"]
   values = { push_token = "push-dawarich" }
-}
-
-override_resource {
-  target = uptimekuma_monitor_push.backup["demo_planning"]
-  values = { push_token = "push-demo-planning" }
 }
 
 override_resource {
@@ -1560,6 +1565,21 @@ run "bypass_rules_sit_in_their_priority_band" {
     error_message = "/mcp de TREK, /api/beszel/agent-connect et /insert/jsonline doivent être des PASS (pas des ACCEPT) et /api/query.php (RSS) sur ces chemins exacts, avant les règles pays ; rien de Beszel ni de VictoriaLogs dans local.path_bypasses."
   }
 
+  # La démo publique : un PASS sur /* (ouverte à tous les pays, sans SSO donc
+  # sans authentification à garder), après le ACCEPT /mcp/* de priorité 2,
+  # jamais un ACCEPT, avant les règles pays.
+  assert {
+    condition = (
+      pangolin_resource_rule.demo_planning_worldwide.action == "PASS"
+      && pangolin_resource_rule.demo_planning_worldwide.match == "PATH"
+      && pangolin_resource_rule.demo_planning_worldwide.value == "/*"
+      && pangolin_resource_rule.demo_planning_worldwide.priority == 3
+      && pangolin_resource_rule.demo_planning_worldwide.enabled == true
+      && pangolin_resource.website["demo_planning"].sso == false
+    )
+    error_message = "La démo publique doit porter un PASS PATH /* en priorité 3 (ouverte à tous les pays), sur une ressource sans SSO."
+  }
+
   # L'override donne le même identifiant à toutes les instances d'une règle
   # for_each : l'audit d'inventaire ne verrait pas qu'une d'elles manque à
   # declared_extra_rules. D'où une comparaison sur les chemins, connus au plan.
@@ -1568,7 +1588,7 @@ run "bypass_rules_sit_in_their_priority_band" {
       for rule in concat(
         values(pangolin_resource_rule.path_bypass),
         values(pangolin_resource_rule.backslash_guard),
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml, pangolin_resource_rule.demo_planning_worldwide],
       ) :
       contains([for declared in local.declared_extra_rules : declared.value], rule.value)
     ])
@@ -1789,7 +1809,7 @@ run "backslash_guard_covers_every_path_rule" {
   assert {
     condition = alltrue([
       for rule in concat(
-        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml],
+        [pangolin_resource_rule.trek_mcp, pangolin_resource_rule.beszel_agent_connect, pangolin_resource_rule.victoria_logs_insert, pangolin_resource_rule.rss_opml, pangolin_resource_rule.demo_planning_worldwide],
         [pangolin_resource_rule.promptoramix_drop],
         values(pangolin_resource_rule.path_bypass),
       ) : rule.priority > 1
@@ -2074,10 +2094,10 @@ run "every_public_resource_applies_its_rules" {
   # chaque requête (website_promptoramix.tf).
   assert {
     condition = toset([for r in pangolin_resource.website : r.name if r.sso == false]) == setsubtract(
-      toset(["Betisier", "Promptoramix"]),
+      toset(["Betisier", "Demo Planning", "Promptoramix"]),
       [for key in local.php_lockdown_sso : local.websites[key].name],
     )
-    error_message = "Les ressources sans SSO doivent être exactement Betisier et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
+    error_message = "Les ressources sans SSO doivent être exactement Betisier, Demo Planning (démo publique) et Promptoramix, moins celles que php_lockdown.tf remet derrière le SSO."
   }
 
   # Toutes les ressources publiques sont des instances de
@@ -2196,21 +2216,8 @@ run "every_resource_declares_the_pinned_attributes" {
   # Les apps en pause, en toutes lettres (docs/runbooks/app-en-pause.md) : en
   # mettre une en pause ou la reprendre est une décision, pas un effet de bord.
   assert {
-    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == ["demo_planning"]
+    condition     = [for key, r in pangolin_resource.website : key if !r.enabled] == []
     error_message = "Les apps en pause (enabled = false) ont changé : relire docs/runbooks/app-en-pause.md, puis cette liste."
-  }
-
-  # La démo : son entrée de flip.yml lit demo_planning_enabled de host_vars/flip.
-  assert {
-    condition = (
-      yamldecode(file("${path.module}/../../ansible/host_vars/flip/variables.yaml")).demo_planning_enabled == pangolin_resource.website["demo_planning"].enabled
-      && [
-        for entry in yamldecode(file("${path.module}/../../ansible/flip.yml"))[0].roles :
-        entry.vars.flip_planning_enabled
-        if entry.role == "flip_planning" && try(entry.vars.flip_planning_service, "") == "demo_planning"
-      ] == ["{{ demo_planning_enabled }}"]
-    )
-    error_message = "demo_planning_enabled (ansible/host_vars/flip/variables.yaml), lu par l'entrée demo_planning de flip.yml, et enabled de l'entrée demo_planning (website_demo_planning.tf) doivent être égaux."
   }
 
   # OpenPost : son interrupteur est dans host_vars/flip (le rôle n'y est
@@ -2334,10 +2341,10 @@ run "one_role_per_app_slug" {
 
   assert {
     condition = alltrue([
-      for slug in ["flip-planning", "demo-planning"] :
+      for slug in ["flip-planning"] :
       contains(keys(pangolin_role.apps), slug)
-    ])
-    error_message = "Chaque environnement de Flip Planning a son propre rôle : un rôle partagé ouvrirait la production aux testeurs de la démo."
+    ]) && !contains(keys(pangolin_role.apps), "demo-planning")
+    error_message = "La production de Flip Planning a son propre rôle ; la démo, publique et sans SSO, n'en a aucun."
   }
 
   # Un rôle qu'aucun pangolin_resource_role ne lie n'ouvre rien et encombre la
@@ -2355,8 +2362,8 @@ run "one_role_per_app_slug" {
   # Une liaison par entrée qui nomme un rôle : toutes les applications sauf
   # Betisier et Promptoramix (sans SSO).
   assert {
-    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "promptoramix"])
-    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier et Promptoramix, sans SSO, à aucun."
+    condition     = setsubtract(toset(keys(local.websites)), keys(pangolin_resource_role.website)) == toset(["betisier", "demo_planning", "promptoramix"])
+    error_message = "Chaque application derrière le SSO est liée à son rôle ; Betisier, la démo publique et Promptoramix, sans SSO, à aucun."
   }
 
   # Chaque entrée prend le rôle de son propre slug (sa clé en kebab-case) : un
@@ -2488,7 +2495,6 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
         uptime_cron_dav_copy_url            = output.uptime_cron_dav_copy_url
         # flip.yml (production, démo)
         uptime_backup_flip_planning_url = output.uptime_backup_flip_planning_url
-        uptime_backup_demo_planning_url = output.uptime_backup_demo_planning_url
         uptime_backup_openpost_url      = output.uptime_backup_openpost_url
         # pi.yml, lxc.yml
         uptime_backup_immich_url = output.uptime_backup_immich_url
@@ -2552,6 +2558,16 @@ run "outputs_read_by_ansible_point_at_their_own_push_monitor" {
   }
 }
 
+# demo-planning.yml lit ceux du site demo-planning de la même façon.
+run "demo_planning_newt_credentials_come_from_its_site" {
+  command = apply
+
+  assert {
+    condition     = output.demo_planning_newt_id == "newt-demo-planning" && output.demo_planning_newt_secret == "secret-demo-planning" && pangolin_site.demo_planning.docker_socket_enabled == true
+    error_message = "demo_planning_newt_id / demo_planning_newt_secret doivent être ceux de pangolin_site.demo_planning."
+  }
+}
+
 # flip.yml lit les identifiants Newt du site flip dans ce state (et échoue
 # s'ils sont vides) : ils doivent venir de pangolin_site.flip, pas d'un autre
 # site dont le Newt se connecterait à la place.
@@ -2609,7 +2625,7 @@ run "pangolin_alerts_publish_to_a_known_topic" {
   # tous les autres oui.
   assert {
     condition = (
-      pangolin_alert_rule.ntfy["site_offline"].site_ids == toset([2, 3, 1, 5, 6, 4])
+      pangolin_alert_rule.ntfy["site_offline"].site_ids == toset([2, 3, 1, 5, 7, 6, 4])
       && !pangolin_alert_rule.ntfy["site_offline"].all_sites
     )
     error_message = "« Site hors ligne » doit viser chaque site d'infra (local.alert_infra_sites), jamais un site du support à distance."
@@ -2925,10 +2941,10 @@ run "demo_and_production_planning_share_nothing" {
   assert {
     condition = alltrue([
       for key, t in pangolin_target.website :
-      t.site_id == pangolin_site.flip.id
+      t.site_id == (local.website_targets[key].website == "demo_planning" ? pangolin_site.demo_planning.id : pangolin_site.flip.id)
       if contains(["flip_planning", "demo_planning"], local.website_targets[key].website)
     ])
-    error_message = "Une cible de Flip Planning n'est pas sur le site flip."
+    error_message = "Une cible de Flip Planning n'est pas sur le site flip, ou une cible de la démo pas sur le site demo-planning."
   }
 
   assert {
@@ -2943,10 +2959,9 @@ run "demo_and_production_planning_share_nothing" {
       ])
       && toset([
         pangolin_target.website["demo_planning"].ip,
-        pangolin_target.website["demo_planning_mailpit"].ip,
         pangolin_target.website["demo_planning_assets"].ip,
         ]) == toset([
-        "demo-planning", "demo-planning-mailpit", "demo-planning-assets",
+        "demo-planning", "demo-planning-assets",
       ])
     )
     error_message = "Une cible vise un conteneur de l'autre instance : les noms doivent suivre flip_planning_container_prefix de chaque environnement."

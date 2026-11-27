@@ -38,9 +38,11 @@ locals {
   #    2 -  9  app-specific rules evaluated before the geo-filter:
   #            - path ACCEPTs, every one of them from local.path_bypasses
   #              (pangolin_resource_rule.path_bypass);
-  #            - trek_mcp, beszel_agent_connect, victoria_logs_insert and
-  #              rss_opml, the four PASS, the only standalone path rules: they skip the
-  #              country rules but keep the authentication;
+  #            - trek_mcp, beszel_agent_connect, victoria_logs_insert,
+  #              rss_opml and demo_planning_worldwide, the five PASS, the only
+  #              standalone path rules: they skip the country rules but keep
+  #              the authentication (the demo's is `/*`: open worldwide, and it
+  #              has no authentication);
   #            - promptoramix_drop, the catch-all DROP behind its two ACCEPTs;
   #            - the home-IP ACCEPTs at 9 (immich_home_ip, immich_kiosk_home_ip,
   #              dawarich_home_ip, trek_home_ip). Behind the country PASS they were never reached
@@ -260,17 +262,20 @@ locals {
   ]...)
 
   # Resources with a path rule that lives in a standalone resource rather than
-  # in local.path_bypasses: the four PASS: TREK's `/mcp` (pangolin_resource_rule.
+  # in local.path_bypasses: the five PASS: TREK's `/mcp` (pangolin_resource_rule.
   # trek_mcp, website_trek.tf), Beszel's agent endpoint
   # (pangolin_resource_rule.beszel_agent_connect, website_beszel.tf),
   # VictoriaLogs' (pangolin_resource_rule.victoria_logs_insert,
   # website_victoria_logs.tf) and FreshRSS's OPML export
-  # (pangolin_resource_rule.rss_opml, website_rss.tf), the only path rules that
+  # (pangolin_resource_rule.rss_opml, website_rss.tf) and the public demo's
+  # `/*` (pangolin_resource_rule.demo_planning_worldwide,
+  # website_demo_planning.tf), the only path rules that
   # are not ACCEPTs.
   # Listed by hand for the same reason as local.declared_extra_rules below, so
   # that the guard stays even if TREK's ACCEPTs go away.
   standalone_path_rule_resources = [
     "Beszel",
+    "Demo Planning",
     "RSS",
     "TREK",
     "VictoriaLogs",
@@ -524,6 +529,7 @@ locals {
     [
       pangolin_resource_rule.beszel_agent_connect,
       pangolin_resource_rule.dawarich_home_ip,
+      pangolin_resource_rule.demo_planning_worldwide,
       pangolin_resource_rule.immich_home_ip,
       pangolin_resource_rule.immich_kiosk_home_ip,
       pangolin_resource_rule.promptoramix_drop,

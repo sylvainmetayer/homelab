@@ -1,0 +1,13 @@
+---
+# Serveur de la démo publique de Flip Planning (tofu/pangolin/demo_planning.tf,
+# ansible/demo-planning.yml, ADR 0038). Réseau privé seul, comme flip.
+security_ufw_allowed_ports:
+  - { port: "22", proto: tcp }
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - 10.0.0.0/16
+  - 172.16.0.0/12
+# Aucun courrier ne sort de cet hôte (filtre de sortie du rôle flip_planning_demo).
+security_mta_enabled: false
+security_unattended_reboot_time: "05:00"

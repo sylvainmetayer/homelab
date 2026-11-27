@@ -1,0 +1,41 @@
+---
+# Ce qui distingue l'hôte de la démo publique de Flip Planning (ADR 0038) :
+# un filtre de sortie et la remise à zéro périodique de la base. L'instance
+# elle-même est le rôle flip_planning (ansible/demo-planning.yml).
+
+# Doivent suivre la role entry flip_planning de ansible/demo-planning.yml.
+flip_planning_demo_service: demo_planning
+flip_planning_demo_container_prefix: demo-planning
+flip_planning_demo_db_user: festival
+flip_planning_demo_db_name: festival
+
+# --- Filtre de sortie (nftables, table inet demo_egress) ---
+# L'hôte : DNS, NTP, HTTP(S) (apt, images). Les conteneurs : Pangolin seul
+# (newt, HTTPS et WireGuard de gerbil). Personne : le réseau privé (flip,
+# les ports privés de Pangolin), SMTP, IMAP, SSH sortant.
+flip_planning_demo_egress_enabled: true
+# IP publique de Pangolin, la seule que joignent les conteneurs (newt_endpoint).
+# Lue dans l'inventaire (hetzner.py) par le playbook.
+flip_planning_demo_pangolin_ip: ""
+flip_planning_demo_pangolin_udp_ports: [51820, 21820]
+flip_planning_demo_private_network: 10.0.0.0/16
+flip_planning_demo_host_tcp_ports: [53, 80, 443]
+flip_planning_demo_host_udp_ports: [53, 123]
+
+# --- Remise à zéro ---
+flip_planning_demo_reset_enabled: true
+# systemd OnCalendar : toutes les 30 min.
+flip_planning_demo_reset_schedule: "*:00/30"
+# D'où vient le dump de référence, préparé par l'application :
+# - `image` : copié de l'image de l'appli en cours (flip_planning_demo_dump_image_path),
+#   donc toujours de sa version ;
+# - `url` : téléchargé par Ansible (flip_planning_demo_dump_url, vérifié par
+#   flip_planning_demo_dump_sha256), à garder en phase avec l'image.
+flip_planning_demo_dump_source: image
+flip_planning_demo_dump_image_path: /app/demo/reference.dump
+flip_planning_demo_dump_url: ""
+flip_planning_demo_dump_sha256: ""
+# `custom` (pg_dump -Fc, pg_restore --clean --if-exists) ou `plain` (SQL fait
+# avec pg_dump --clean --if-exists, rejoué par psql).
+flip_planning_demo_dump_format: custom
+flip_planning_demo_reset_dir: "{{ docker_base_path }}/{{ flip_planning_demo_service }}_reset"

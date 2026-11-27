@@ -37,12 +37,35 @@ resource "pangolin_site" "proxmox_docker" {
   docker_socket_enabled = true
 }
 
-# Hetzner server with no public IP, dedicated to Flip Planning (production and
-# demo, ansible/flip.yml). Its newt credentials are read from this state by
+# Hetzner server with no public IP, dedicated to Flip Planning (production,
+# ansible/flip.yml; the public demo has its own server below). Its newt credentials are read from this state by
 # flip.yml (outputs below), not copied into secrets/secrets.sops.yaml.
 resource "pangolin_site" "flip" {
   name                  = "flip"
   docker_socket_enabled = true
+}
+
+# Hetzner server with no public IP, dedicated to the public Flip Planning demo
+# (ansible/demo-planning.yml). Its own site and Newt, so the demo's traffic and
+# its resets never touch flip. Credentials read from this state by
+# demo-planning.yml (outputs below), not copied into secrets/secrets.sops.yaml.
+# Unlike flip, no `pangolin_site_resource` (no SSH through Pangolin, no VPN exit
+# node): the Newt only serves the public resource.
+resource "pangolin_site" "demo_planning" {
+  name                  = "demo-planning"
+  docker_socket_enabled = true
+}
+
+output "demo_planning_newt_id" {
+  description = "DEMO_PLANNING - Newt ID of the demo-planning site, read by ansible/demo-planning.yml"
+  value       = pangolin_site.demo_planning.newt_id
+  sensitive   = true
+}
+
+output "demo_planning_newt_secret" {
+  description = "DEMO_PLANNING - Newt secret of the demo-planning site, read by ansible/demo-planning.yml"
+  value       = pangolin_site.demo_planning.newt_secret
+  sensitive   = true
 }
 
 output "flip_newt_id" {

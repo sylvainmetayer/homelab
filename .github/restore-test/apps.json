@@ -2,7 +2,6 @@
   "beszel": {"host": "docker", "repo": "beszel", "role": "beszel", "databases": ["sqlite"], "expected_tables": {"data.db": ["users", "systems"]}, "allow_empty_databases": ["auxiliary.db"]},
   "betisier": {"host": "docker", "repo": "betisier", "role": "betisier", "databases": ["mysql"], "expected_tables": {"betisier": ["personne", "citation"]}, "expected_path": "opt/apps/betisier/config"},
   "dawarich": {"host": "docker", "repo": "dawarich", "role": "dawarich", "databases": ["postgresql"], "expected_tables": {"dawarich": ["users", "points"]}, "expected_path": "opt/apps/dawarich/storage"},
-  "demo_planning": {"host": "flip", "repo": "demo_planning", "role": "flip_planning", "databases": ["postgresql"], "expected_tables": {"festival": ["edition"]}, "paused": true},
   "flip_planning": {"host": "flip", "repo": "flip_planning", "role": "flip_planning", "databases": ["postgresql"], "expected_tables": {"festival": ["edition", "animateur", "stand"]}},
   "grocy": {"host": "docker", "repo": "grocy", "role": "grocy", "databases": ["sqlite"], "expected_tables": {"grocy.db": ["users"]}, "expected_path": "opt/apps/grocy/config"},
   "healthlog": {"host": "docker", "repo": "healthlog", "role": "healthlog", "databases": ["postgresql"], "expected_tables": {"healthlog": ["users"]}},

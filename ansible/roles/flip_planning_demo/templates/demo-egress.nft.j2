@@ -1,0 +1,38 @@
+#!/usr/sbin/nft -f
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+# Sortie de l'hôte de la démo publique. Sa propre table, remplacée d'un bloc :
+# les règles de Docker et d'ufw (leurs tables) ne sont pas touchées. Une base
+# chain à policy drop s'ajoute aux leurs : un paquet doit passer toutes.
+table inet demo_egress
+delete table inet demo_egress
+table inet demo_egress {
+  set host_tcp { type inet_service; elements = { {{ flip_planning_demo_host_tcp_ports | join(', ') }} } }
+  set host_udp { type inet_service; elements = { {{ flip_planning_demo_host_udp_ports | join(', ') }} } }
+  set pangolin_udp { type inet_service; elements = { {{ flip_planning_demo_pangolin_udp_ports | join(', ') }} } }
+
+  # L'hôte : apt, images, DNS, NTP. Rien vers le réseau privé (flip, les ports
+  # privés de Pangolin) : les réponses SSH au bastion sont `established`.
+  chain output {
+    type filter hook output priority filter; policy drop;
+    oif lo accept
+    ct state established,related accept
+    udp dport 67 accept
+    oifname "docker0" accept
+    oifname "br-*" accept
+    ip daddr {{ flip_planning_demo_private_network }} drop
+    tcp dport @host_tcp accept
+    udp dport @host_udp accept
+  }
+
+  # Les conteneurs : entre eux (ponts Docker), et vers Pangolin seul — le newt,
+  # en HTTPS et en WireGuard (gerbil). L'appli n'atteint rien d'autre : ni
+  # SMTP, ni webhook, ni API tierce, quoi que dise son environnement.
+  chain forward {
+    type filter hook forward priority filter; policy drop;
+    ct state established,related accept
+    oifname "docker0" accept
+    oifname "br-*" accept
+    ip daddr {{ flip_planning_demo_pangolin_ip }} tcp dport 443 accept
+    ip daddr {{ flip_planning_demo_pangolin_ip }} udp dport @pangolin_udp accept
+  }
+}

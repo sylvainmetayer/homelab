@@ -187,6 +187,10 @@ flip_planning_legal_conservation: ""
 # Tags the Bugsink/Sentry issues with the environment they came from, so a
 # crash on a demo is not investigated as a production incident.
 flip_planning_sentry_environment: production
+# Bugsink (Sentry-compatible) DSN. Public by design: it only lets a client
+# send events to that project. The demo has a project of its own (ADR 0038):
+# its traffic must not eat the production quota; empty = no reporting.
+flip_planning_sentry_dsn: "https://e80c2fb7991244f293e4319b7e3d74ba@sylvainmetayer.bugsink.com/1"
 
 # Product name shown in the application UI and on the generated PDFs. Carries
 # the environment for anything but production.
@@ -345,6 +349,15 @@ flip_planning_horloge_simulee_autorisee: false
 # application then boots with its mentions légales left empty instead of
 # refusing to. Only for an instance that holds no real person's data.
 flip_planning_legal_demo_instance: false
+
+# Public demo mode of the application (DEMO_INSTANCE, PUBLIC_INSTANCE): the
+# displayed passwords are accepted and cannot be changed; weather, webhooks,
+# MCP keys and real mail are off; a banner; solves limited (one at a time,
+# quota and queue). Only for the public demo host (ansible/demo-planning.yml,
+# ADR 0038). Written to the environment only when true, so the other instances'
+# environment (and their restart on deploy) is unchanged.
+flip_planning_demo_instance: false
+flip_planning_public_instance: false
 
 # ---------------------------------------------------------------------------
 # Solver budget: the default of a solve, and the operator ceiling no edition
