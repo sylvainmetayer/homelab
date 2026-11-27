@@ -472,8 +472,9 @@ class RunsReply(unittest.TestCase):
             with self.subTest(reply=reply):
                 checker = FakeChecker()
                 checker.attempts["1"] = reply
+                retried = run(NOW - 900, NOW - 800, attempt=2)
                 with self.assertRaisesRegex(audit.CheckError, "^GitHub : run illisible$"):
-                    checker.earlier_attempts(run(NOW - 900, NOW - 800, attempt=2))
+                    checker.earlier_attempts(retried)
 
     def test_an_earlier_attempt_keeps_only_the_fields_read(self):
         genuine = run(NOW - 900, NOW - 800)

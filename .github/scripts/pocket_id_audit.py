@@ -37,6 +37,11 @@ PREFIX = "pid-audit-"
 CALLBACK = "https://audit.invalid/callback"
 REPO = Path(__file__).resolve().parents[2]
 EVIL = "https://evil.example"
+USERS = "/api/users"
+CLIENTS = "/api/oidc/clients"
+USERINFO = "/api/oidc/userinfo"
+FORM = {"Content-Type": "application/x-www-form-urlencoded"}
+SCOPE_OFFLINE = "openid profile email groups offline_access"
 PRIVATE_JWK_FIELDS = {"d", "p", "q", "dp", "dq", "qi", "k"}
 
 results = []
@@ -151,7 +156,7 @@ def check_jwks(doc):
 
 def check_headers():
     for path in ("/", "/api/application-configuration"):
-        status, hdrs, _ = request("GET", path)
+        _, hdrs, _ = request("GET", path)
         hsts = header(hdrs, "strict-transport-security")
         age = int((re.search(r"max-age=(\d+)", hsts) or [0, 0])[1])
         record(f"en-têtes {path} : HSTS ≥ 180 j", "PASS" if age >= 15552000 else "FAIL", hsts or "absent")
@@ -170,12 +175,13 @@ def check_cors():
     _, hdrs, _ = request("GET", "/api/users/me", {"Origin": EVIL})
     acao = header(hdrs, "access-control-allow-origin")
     bad = acao in ("*", EVIL) and header(hdrs, "access-control-allow-credentials") == "true"
-    record("CORS : origine étrangère refusée", "FAIL" if bad else ("WARN" if acao else "PASS"), acao or "aucun ACAO")
+    verdict = "WARN" if acao else "PASS"
+    record("CORS : origine étrangère refusée", "FAIL" if bad else verdict, acao or "aucun ACAO")
 
 
 def check_exposed():
     for path in ("/metrics", "/debug/pprof/", "/api/swagger/index.html", "/swagger/index.html", "/.env", "/api/test/reset", "/.git/config"):
-        status, hdrs, data = request("GET", path)
+        status, _, data = request("GET", path)
         # Le frontal SvelteKit répond 200 (sa page) à tout chemin inconnu : seul compte un contenu qui n'est pas cette page.
         # Un Swagger UI ou un index pprof est aussi du HTML : reconnu à son contenu, jamais pris pour le frontal.
         spa = b"<!doctype html" in data[:200].lower() and not re.search(rb"swagger|openapi|redoc|pprof", data, re.I)
@@ -223,30 +229,30 @@ def check_version():
 # --- Sans compte ----------------------------------------------------------
 
 def check_unauthenticated(api_key_len):
-    for path in ("/api/users", "/api/oidc/clients", "/api/application-configuration/all", "/api/audit-logs/all"):
+    for path in (USERS, CLIENTS, "/api/application-configuration/all", "/api/audit-logs/all"):
         status, _, _ = request("GET", path)
         record(f"sans clé : {path}", "PASS" if status in (401, 403) else "FAIL", f"HTTP {status}")
         status, _, _ = request("GET", path, {"X-API-KEY": "x" * max(api_key_len, 32)})
         record(f"clé fausse : {path}", "PASS" if status in (401, 403) else "FAIL", f"HTTP {status}")
-    status, _, _ = request("GET", "/api/oidc/userinfo")
+    status, _, _ = request("GET", USERINFO)
     record("userinfo sans jeton", "PASS" if status == 401 else "FAIL", f"HTTP {status}")
     forged = ".".join(base64.urlsafe_b64encode(json.dumps(p).encode()).rstrip(b"=").decode()
                       for p in ({"alg": "none", "typ": "JWT"}, {"sub": "admin", "iss": BASE, "exp": int(time.time()) + 600})) + "."
-    status, _, _ = request("GET", "/api/oidc/userinfo", {"Authorization": f"Bearer {forged}"})
+    status, _, _ = request("GET", USERINFO, {"Authorization": f"Bearer {forged}"})
     record("userinfo avec JWT alg=none forgé", "PASS" if status == 401 else "FAIL", f"HTTP {status}")
-    status, _, data = request("POST", "/api/oidc/token", {"Content-Type": "application/x-www-form-urlencoded"},
+    status, _, data = request("POST", "/api/oidc/token", FORM,
                               urllib.parse.urlencode({"grant_type": "client_credentials", "client_id": "homebox", "client_secret": "wrong-" + secrets.token_hex(8)}))
     record("token : client réel, secret faux", "PASS" if status in (400, 401) else "FAIL", f"HTTP {status} {(as_json(data) or {}).get('error', '')}")
-    status, _, _ = request("POST", "/api/oidc/introspect", {"Content-Type": "application/x-www-form-urlencoded"}, "token=abc")
+    status, _, _ = request("POST", "/api/oidc/introspect", FORM, "token=abc")
     record("introspection sans client", "PASS" if status in (400, 401) else "FAIL", f"HTTP {status}")
-    status, _, data = request("POST", "/api/oidc/device/authorize", {"Content-Type": "application/x-www-form-urlencoded"}, "client_id=homebox")
+    status, _, data = request("POST", "/api/oidc/device/authorize", FORM, "client_id=homebox")
     record("device flow : client confidentiel sans secret", "PASS" if status in (400, 401) else "FAIL", f"HTTP {status} {(as_json(data) or {}).get('error', '')}")
 
 
 def check_burst():
     codes = {}
     for _ in range(40):
-        status, _, _ = request("GET", "/api/users", {"X-API-KEY": secrets.token_hex(24)})
+        status, _, _ = request("GET", USERS, {"X-API-KEY": secrets.token_hex(24)})
         codes[status] = codes.get(status, 0) + 1
     ok = set(codes) <= {401, 403, 429}
     record("rafale 40 clés fausses : aucune ne passe", "PASS" if ok else "FAIL", str(codes))
@@ -270,7 +276,7 @@ class Admin:
 
     def cleanup(self, only=None):
         """Supprime les objets pid-audit- ; `only` restreint aux identifiants donnés."""
-        for kind, path, field in (("clients", "/api/oidc/clients", "name"), ("users", "/api/users", "username"), ("groups", "/api/user-groups", "name")):
+        for kind, path, field in (("clients", CLIENTS, "name"), ("users", USERS, "username"), ("groups", "/api/user-groups", "name")):
             page = self.call("GET", f"{path}?search={PREFIX}&pagination%5Blimit%5D=100") or {}
             for item in page.get("data", []):
                 if str(item.get(field, "")).startswith(PREFIX) and (only is None or item["id"] in only):
@@ -337,7 +343,7 @@ def authorize(sess, client_id, redirect_uri, scope="openid profile email groups"
 
 def token(client_id, secret, **form):
     body = urllib.parse.urlencode({"client_id": client_id, "client_secret": secret, **form})
-    status, _, data = request("POST", "/api/oidc/token", {"Content-Type": "application/x-www-form-urlencoded"}, body)
+    status, _, data = request("POST", "/api/oidc/token", FORM, body)
     return status, as_json(data) or {}
 
 
@@ -351,7 +357,7 @@ def check_refused(label, code, where, cid, secret, **form):
 
 
 def userinfo(access_token):
-    status, _, _ = request("GET", "/api/oidc/userinfo", {"Authorization": f"Bearer {access_token}"})
+    status, _, _ = request("GET", USERINFO, {"Authorization": f"Bearer {access_token}"})
     return status
 
 
@@ -363,7 +369,7 @@ def check_flow(admin):
         created.add(group["id"])
         clients = {}
         for suffix in ("a", "b"):
-            client = admin.call("POST", "/api/oidc/clients", {
+            client = admin.call("POST", CLIENTS, {
                 "id": f"{run}-{suffix}", "name": f"{run}-{suffix}", "callbackURLs": [CALLBACK],
                 "isPublic": False, "pkceEnabled": True, "isGroupRestricted": True,
             })
@@ -371,7 +377,7 @@ def check_flow(admin):
             admin.call("PUT", f"/api/oidc/clients/{client['id']}/allowed-user-groups", {"userGroupIds": [group["id"]]})
             secret = admin.call("POST", f"/api/oidc/clients/{client['id']}/secrets", {})
             clients[suffix] = (client["id"], secret.get("secret") or secret.get("value"))
-        user = admin.call("POST", "/api/users", {
+        user = admin.call("POST", USERS, {
             "username": run, "email": f"{run}@example.invalid", "emailVerified": True,
             "firstName": "Audit", "lastName": "Pocket ID", "displayName": run, "isAdmin": False, "userGroupIds": [],
         })
@@ -392,7 +398,7 @@ def check_flow(admin):
         record("groupe : hors du groupe autorisé, pas de code", "PASS" if not code else "FAIL", where[:120])
 
         admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": [group["id"]]})
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         record("flux : code délivré au membre du groupe", "PASS" if code else "FAIL", where[:120])
         if not code:
             return
@@ -401,16 +407,16 @@ def check_flow(admin):
 
         check_refused("PKCE : mauvais vérificateur refusé", code, where, cid_a, sec_a, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
 
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         check_refused("code d'un client échangé par un autre", code, where, cid_b, sec_b, redirect_uri=CALLBACK, code_verifier=verifier)
 
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         check_refused("token : redirect_uri différente refusée", code, where, cid_a, sec_a, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
 
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         check_refused("token : secret client faux refusé", code, where, cid_a, "faux-" + secrets.token_hex(16), redirect_uri=CALLBACK, code_verifier=verifier)
 
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         if not code:
             record("flux : échange du code", "FAIL", "aucun code obtenu : " + where[:100])
             return
@@ -428,7 +434,8 @@ def check_flow(admin):
         try:
             _, access_claims = jwt_parts(tok["access_token"])
             access_aud = access_claims.get("aud")
-            record("access token : audience non détournable", "FAIL" if EVIL in (access_aud if isinstance(access_aud, list) else [access_aud]) else "PASS", str(access_aud))
+            audiences = access_aud if isinstance(access_aud, list) else [access_aud]
+            record("access token : audience non détournable", "FAIL" if EVIL in audiences else "PASS", str(access_aud))
             record("access token : durée", "INFO", f"{(access_claims.get('exp', 0) - access_claims.get('iat', 0)) // 60} min")
         except ValueError:
             record("access token : opaque", "INFO", f"expires_in={tok.get('expires_in')}")
@@ -441,11 +448,11 @@ def check_flow(admin):
 
         refresh = tok.get("refresh_token")
         if refresh:
-            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
             status, tok2 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
             r1 = tok2.get("refresh_token")
             if r1:
-                status, rot = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
+                status, _ = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
                 record("refresh : fonctionne", "PASS" if status == 200 else "WARN", f"HTTP {status}")
                 # Pocket ID garde l'ancien jeton une minute après la rotation (refreshTokenGracePeriod,
                 # rafraîchissements parallèles) : refusé seulement au-delà.
@@ -455,7 +462,7 @@ def check_flow(admin):
             else:
                 record("refresh : rotation", "WARN", "pas de refresh_token au second échange, non vérifié")
             # Chaîne neuve : la réutilisation de r1 a pu révoquer toute la précédente, le refus ne prouverait alors rien sur le groupe.
-            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope="openid profile email groups offline_access")
+            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
             status, tok3 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
             r3 = tok3.get("refresh_token")
             if r3:

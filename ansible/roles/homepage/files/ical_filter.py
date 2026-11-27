@@ -29,6 +29,7 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+TEXT = "text/plain; charset=utf-8"
 DROPPED = {b"VTODO", b"VJOURNAL"}
 FEED_PREFIX = "ICAL_FEED_"
 # Une ligne physique et sa fin de ligne, comme bytes.splitlines(keepends=True).
@@ -117,8 +118,8 @@ def fetch(url: str) -> bytes:
             data = response.read(MAX_BYTES + 1)
     except urllib.error.HTTPError as err:
         raise FeedError(f"HTTP {err.code}") from None
-    except (urllib.error.URLError, OSError, http.client.HTTPException, ValueError) as err:
-        # HTTPException : réponse tronquée (IncompleteRead), en-têtes invalides ;
+    except (OSError, http.client.HTTPException, ValueError) as err:
+        # OSError couvre URLError. HTTPException : réponse tronquée (IncompleteRead), en-têtes invalides ;
         # ValueError : URL mal formée. Sans elles, ni copie périmée ni 502.
         raise FeedError(type(err).__name__) from None
     if len(data) > MAX_BYTES:
@@ -171,17 +172,17 @@ def make_handler(cache: Cache):
         def do_GET(self):  # noqa: N802 (nom imposé par http.server)
             path = self.path.split("?", 1)[0]
             if path == "/healthz":
-                self.reply(200, b"ok\n", "text/plain; charset=utf-8")
+                self.reply(200, b"ok\n", TEXT)
                 return
             slug = path[1:].removesuffix(".ics") if path.endswith(".ics") else None
             if slug not in cache.feeds:
-                self.reply(404, b"agenda inconnu\n", "text/plain; charset=utf-8")
+                self.reply(404, b"agenda inconnu\n", TEXT)
                 return
             try:
                 body = cache.get(slug)
             except FeedError as err:
                 log(f"{slug} : {err}")
-                self.reply(502, b"agenda en amont indisponible\n", "text/plain; charset=utf-8")
+                self.reply(502, b"agenda en amont indisponible\n", TEXT)
                 return
             self.reply(200, body, "text/calendar; charset=utf-8")
 
@@ -199,7 +200,7 @@ def make_handler(cache: Cache):
     return Handler
 
 
-def main() -> int:
+def main() -> int:  # NOSONAR: 0 ou serve_forever, un échec lève une exception
     if sys.argv[1:] == ["--filter"]:
         sys.stdout.buffer.write(filter_calendar(sys.stdin.buffer.read()))
         return 0

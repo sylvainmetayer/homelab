@@ -15,12 +15,13 @@ trap 'rm -f "$tmp"' EXIT
 
 # fetch <source du registre> <zip> <sha256> <URL>
 fetch() {
-  local mirror="$plugins/$1" target="$plugins/$1/$2"
-  if ! echo "$3  $target" | sha256sum --check --status 2>/dev/null; then
+  local src=$1 zip=$2 sum=$3 url=$4
+  local mirror="$plugins/$src" target="$plugins/$src/$zip"
+  if ! echo "$sum  $target" | sha256sum --check --status 2>/dev/null; then
     mkdir -p "$mirror"
     tmp=$(mktemp "$mirror/.download.XXXXXX")
-    curl --proto '=https' --fail --silent --show-error --location --retry 3 --retry-all-errors --output "$tmp" "$4"
-    echo "$3  $tmp" | sha256sum --check --quiet
+    curl --proto '=https' --fail --silent --show-error --location --retry 3 --retry-all-errors --output "$tmp" "$url"
+    echo "$sum  $tmp" | sha256sum --check --quiet
     mv "$tmp" "$target"
   fi
 }

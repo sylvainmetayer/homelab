@@ -44,8 +44,9 @@ class CriticalFixedTest(unittest.TestCase):
             trivy_critical.critical_fixed({"Results": [{"Vulnerabilities": [{"Severity": "CRITICAL", "FixedVersion": "1"}]}]})
 
     def test_null_field_raises_a_report_error(self):
+        scan = report([vuln("CVE-1"), vuln("CVE-1", pkg=None)])
         with self.assertRaises(trivy_critical.ReportError):
-            trivy_critical.critical_fixed(report([vuln("CVE-1"), vuln("CVE-1", pkg=None)]))
+            trivy_critical.critical_fixed(scan)
 
     def test_null_installed_version(self):
         self.assertEqual(trivy_critical.critical_fixed(report([vuln("CVE-1", installed=None)])), [("CVE-1", "openssl", "?", "1.0.1")])

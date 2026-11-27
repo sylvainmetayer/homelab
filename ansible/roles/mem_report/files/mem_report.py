@@ -106,7 +106,7 @@ def parse_compose_size(value):
 
 def read_text(path):
     try:
-        return path.read_text().strip()
+        return path.read_text().strip()  # NOSONAR: fichiers de /proc et du cgroup, pas une entrée tierce
     except (FileNotFoundError, PermissionError):
         return None
 

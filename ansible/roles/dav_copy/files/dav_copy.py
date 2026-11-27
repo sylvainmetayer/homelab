@@ -67,17 +67,17 @@ class Dav:
         except urllib.error.HTTPError as e:
             with e:
                 return e.code, e.headers, e.read()
-        except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
+        except (OSError, http.client.HTTPException) as e:  # URLError est une OSError
             return 0, {}, type(e).__name__.encode()
 
 
 def load_conf(path, default_url=None):
     conf = {}
-    with open(path, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:  # NOSONAR: chemin choisi par l'unité systemd, pas par un tiers
         for line in f:
-            m = re.match(r"^\s*([A-Za-z_]+)\s*[:=]\s*(.*?)\s*$", line)
+            m = re.match(r"^\s*([A-Za-z_]+)\s*[:=](.*)$", line)
             if m:
-                conf[m.group(1).upper()] = m.group(2)
+                conf[m.group(1).upper()] = m.group(2).strip()
     url = conf.get("URL") or default_url
     pw = conf.get("MDP") or conf.get("PASSWORD")
     if not url or not pw:
@@ -246,7 +246,7 @@ def add_schedule_agent(ics):
 
 def _bday(v):
     d = v.replace("-", "")
-    if len(d) >= 8 and d[:4] != "1604":
+    if len(d) >= 8 and not d.startswith("1604"):
         return d[:8]
     return "--" + d[-4:]
 
@@ -298,13 +298,10 @@ def write(dav, method, url, body, headers, retries, delay, fresh):
     """Écriture avec reprises : toujours sur 5xx/429/0, sur tout échec juste après un MKCALENDAR."""
     for attempt in range(retries + 1):
         st, h, _ = dav.request(method, url, body, headers)
-        if st and st < 400:
+        retry = not (st and st < 400) and attempt < retries and (fresh or st == 0 or st == 429 or st >= 500)
+        if not retry:
             return st, h
-        if attempt < retries and (fresh or st == 0 or st == 429 or st >= 500):
-            time.sleep(delay)
-        else:
-            break
-    return st, h
+        time.sleep(delay)
 
 
 def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
@@ -422,13 +419,13 @@ def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
 def save_state(path, state):
     """Écriture atomique, 0600."""
     tmp = path + ".tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)  # NOSONAR: chemin choisi par l'unité systemd, pas par un tiers
     os.fchmod(fd, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(state, f)
         f.flush()
         os.fsync(f.fileno())
-    os.replace(tmp, path)
+    os.replace(tmp, path)  # NOSONAR: chemin choisi par l'unité systemd, pas par un tiers
 
 
 def run(src, dst, src_user, dst_user, cfg, o, state):
@@ -493,10 +490,10 @@ def main(argv=None):
                 r["source"] = len(list_objects(dav, c["url"]))
                 reports.append(r)
         else:
-            cfg = json.load(open(o.collections, encoding="utf-8"))
+            cfg = json.load(open(o.collections, encoding="utf-8"))  # NOSONAR: chemin choisi par l'unité systemd, pas par un tiers
             state = {}
             if o.state and os.path.exists(o.state):
-                state = json.load(open(o.state, encoding="utf-8"))
+                state = json.load(open(o.state, encoding="utf-8"))  # NOSONAR: chemin choisi par l'unité systemd, pas par un tiers
             # systemd arrête par SIGTERM (TimeoutStartSec, stop, arrêt de la VM) : sans ce
             # handler, Python meurt sans passer par le finally et l'état de la passe est perdu.
             signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))

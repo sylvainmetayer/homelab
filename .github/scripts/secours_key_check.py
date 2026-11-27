@@ -42,7 +42,7 @@ ISOLATED_PATH = "/usr/bin:/bin"
 SECOURS_RE = re.compile(r"^\s*-\s*(age1[0-9a-z]+)\s+#\s*secours\s*$")
 # Le motif de check_secret_rotation.py (épinglé par le test) : -I implique -P,
 # le script voisin ne s'importe pas.
-LAST_TEST_RE = re.compile(r"^dernier_test:\s*([^\s#]*)\s*(?:#.*)?$")
+LAST_TEST_RE = re.compile(r"^dernier_test:\s*+([^\s#]*)\s*+(?:#.*)?$")
 # Le refus attendu de la contre-épreuve : aucune clé n'ouvre la clé de données.
 # Tout autre échec de sops ne prouve pas l'isolement.
 NO_DATA_KEY = "Failed to get the data key"

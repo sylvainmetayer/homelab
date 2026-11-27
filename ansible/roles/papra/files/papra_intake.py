@@ -153,13 +153,13 @@ class HTMLText(html.parser.HTMLParser):
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
-        self.parts, self.hidden = [], 0
+        self.parts, self.hidden_depth = [], 0
 
     def handle_starttag(self, tag, attrs):
         if tag == "body":  # </head> est facultatif : <body> le ferme
-            self.hidden = 0
+            self.hidden_depth = 0
         elif tag in self.HIDDEN:
-            self.hidden += 1
+            self.hidden_depth += 1
         elif tag in self.BREAKS:
             self.parts.append("\n- " if tag == "li" else "\n")
         elif tag in self.CELLS:
@@ -167,12 +167,12 @@ class HTMLText(html.parser.HTMLParser):
 
     def handle_endtag(self, tag):
         if tag in self.HIDDEN:
-            self.hidden = max(0, self.hidden - 1)
+            self.hidden_depth = max(0, self.hidden_depth - 1)
         elif tag in self.BREAKS - {"br", "li"}:  # <br/> passe aussi ici
             self.parts.append("\n")
 
     def handle_data(self, data):
-        if not self.hidden:
+        if not self.hidden_depth:
             self.parts.append(re.sub(r"\s+", " ", data))
 
     def text(self):

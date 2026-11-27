@@ -24,8 +24,35 @@ class BuildError(Exception):
 
 # Bloc clôturé (``` ou ~~~, longueur quelconque) et code en ligne : les liens
 # qu'ils montrent en exemple ne sont pas des liens.
-FENCE_RE = re.compile(r"^ *(`{3,}|~{3,}).*?^ *\1", re.MULTILINE | re.DOTALL)
+FENCE_RE = re.compile(r" *(`{3,}|~{3,})")
+CONFIG = "mkdocs.yml"
 INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
+
+
+def strip_fences(text):
+    """Le texte sans ses blocs clôturés ; un bloc jamais refermé reste."""
+    kept, block, fence = [], [], None
+    for line in text.splitlines(keepends=True):
+        if fence is None and (m := FENCE_RE.match(line)):
+            fence, block = m.group(1), [line]
+        elif fence is None:
+            kept.append(line)
+        elif line.lstrip(" ").startswith(fence):
+            fence = None
+        else:
+            block.append(line)
+    return "".join(kept + (block if fence else []))
+
+
+def nav_pages(nav_text):
+    """Les pages .md de nav: (`- page.md` ou `- Titre: page.md`)."""
+    pages = set()
+    for line in nav_text.splitlines():
+        item = line.strip()
+        words = item[1:].split() if item.startswith("-") else []
+        if words and len(words[-1]) > 3 and words[-1].endswith(".md") and (len(words) == 1 or words[-2].endswith(":")):
+            pages.add(words[-1])
+    return pages
 
 
 def blob_url(config_text):
@@ -34,7 +61,7 @@ def blob_url(config_text):
 
 def link_targets(docs, page):
     """Les cibles des liens (en ligne ou par référence) d'une page, hors code."""
-    text = INLINE_CODE_RE.sub("", FENCE_RE.sub("", (docs / page).read_text(encoding="utf-8")))
+    text = INLINE_CODE_RE.sub("", strip_fences((docs / page).read_text(encoding="utf-8")))
     return [m.group(2) for m in LINK_RE.finditer(text)] + [m.group(2) for m in REF_RE.finditer(text)]
 
 
@@ -56,7 +83,7 @@ def check_targets(docs):
 def check_sources(config_text, docs):
     """Ce que MkDocs refusait en strict et que Zensical 0.0.x laisse passer :
     page absente de nav:, entrée de nav: sans fichier, lien absolu."""
-    nav = set(re.findall(r"^\s*-\s*(?:[^\n]*?:\s+)?(\S+\.md)\s*$", config_text.partition("\nnav:")[2], re.MULTILINE))
+    nav = nav_pages(config_text.partition("\nnav:")[2])
     pages = {page.relative_to(docs).as_posix() for page in docs.rglob("*.md")}
     problems = [f"{page} : absente de nav:" for page in sorted(pages - nav)]
     problems += [f"{page} : dans nav:, fichier absent" for page in sorted(nav - pages)]
@@ -68,7 +95,7 @@ def check_sources(config_text, docs):
 def prepare(config, work):
     """Copie mkdocs.yml et docs/ dans `work`, liens hors de docs/ réécrits."""
     text = config.read_text(encoding="utf-8")
-    (work / "mkdocs.yml").write_text(text, encoding="utf-8")
+    (work / CONFIG).write_text(text, encoding="utf-8")
     docs = work / "docs"
     shutil.copytree(config.parent / "docs", docs)
     problems = check_sources(text, docs)
@@ -105,7 +132,7 @@ def add_mermaid(site):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config-file", type=Path, default=Path("mkdocs.yml"))
+    parser.add_argument("--config-file", type=Path, default=Path(CONFIG))
     parser.add_argument("--site-dir", type=Path, required=True)
     args = parser.parse_args()
     target = args.site_dir.resolve()
@@ -113,7 +140,7 @@ def main():
         work = Path(tmp)
         prepare(args.config_file.resolve(), work)
         subprocess.run(
-            [sys.executable, "-m", "zensical", "build", "--strict", "--clean", "--config-file", str(work / "mkdocs.yml")],
+            [sys.executable, "-m", "zensical", "build", "--strict", "--clean", "--config-file", str(work / CONFIG)],
             cwd=work, check=True,
         )
         add_mermaid(work / "site")

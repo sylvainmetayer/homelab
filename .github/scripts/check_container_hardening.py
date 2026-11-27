@@ -28,8 +28,8 @@ ROOT = Path(__file__).resolve().parents[2]
 # Only a key closes a top-level section: `---` and Jinja also sit in column 0.
 TOP_LEVEL = re.compile(r"^(?P<key>[A-Za-z0-9._-]+):")
 # The name may be templated, and an anchor or a flow value may follow it.
-SERVICE_LINE = re.compile(r"^  (?P<key>(?:\{\{[^{}]*\}\}|[A-Za-z0-9._-])+):(?:\s|$)")
-SERVICE_KEY = re.compile(r"^    (?P<key>[A-Za-z_]+):")
+SERVICE_LINE = re.compile(r"^ {2}(?P<key>(?:\{\{[^{}]*\}\}|[A-Za-z0-9._-])+):(?:\s|$)")
+SERVICE_KEY = re.compile(r"^ {4}(?P<key>[A-Za-z_]+):")
 # Block form (`- no-new-privileges:true`) or flow form (`["no-new-privileges:true"]`).
 OPTION = re.compile(
     r"""^\s*(?:-\s*|security_opt:\s*\[[^\]#]*)["']?no-new-privileges:true\b"""
@@ -45,6 +45,10 @@ EXCEPTIONS = {
     ),
 }
 
+HOST_NETWORK = "network_mode: host"
+DOCKER_SOCK = "docker.sock"
+SOCKET_PROXY = {DOCKER_SOCK: "le proxy de socket : API filtrée en lecture seule"}
+
 # (owner, service) -> {risky feature: reason}. Every feature `features()` reads
 # in a compose must be here, and every entry must still be there: a new mount of
 # docker.sock, privilege, device or host namespace is a decision, taken in this
@@ -53,20 +57,20 @@ ALLOWED = {
     ("beszel_agent", "agent"): {
         "cap_add: SYS_RAWIO": "lecture S.M.A.R.T. des disques",
         "device: {{ device.path }}": "disques lus par smartctl (boucle sur les périphériques de l'hôte)",
-        "network_mode: host": "statistiques des interfaces réseau de l'hôte",
+        HOST_NETWORK: "statistiques des interfaces réseau de l'hôte",
     },
-    ("beszel_agent", "socket-proxy"): {"docker.sock": "le proxy de socket : API filtrée en lecture seule"},
+    ("beszel_agent", "socket-proxy"): SOCKET_PROXY,
     ("borgmatic", "borgmatic"): {"pid: host": "verrous de borg : PID et id d'hôte de l'hôte, comme un borg installé dessus"},
     ("immich_ml", "immich-machine-learning"): {"device: /dev/dri": "accélération GPU (OpenVINO)"},
     ("jellyfin", "jellyfin"): {"device: {{ jellyfin_render_device }}": "transcodage matériel (rendu GPU)"},
-    ("log_agent", "agent"): {"network_mode: host": "lit le journal et le réseau de l'hôte"},
-    ("log_agent", "socket-proxy"): {"docker.sock": "le proxy de socket : API filtrée en lecture seule"},
+    ("log_agent", "agent"): {HOST_NETWORK: "lit le journal et le réseau de l'hôte"},
+    ("log_agent", "socket-proxy"): SOCKET_PROXY,
     ("mediamanager", "gluetun"): {
         "cap_add: NET_ADMIN": "tunnel VPN et son pare-feu",
         "device: /dev/net/tun": "interface du tunnel",
     },
-    ("nas_proxy", "forward"): {"network_mode: host": "relais Traefik du NAS sur le réseau de l'hôte (nas_proxy)"},
-    ("newt", "socket-proxy"): {"docker.sock": "le proxy de socket : API filtrée en lecture seule"},
+    ("nas_proxy", "forward"): {HOST_NETWORK: "relais Traefik du NAS sur le réseau de l'hôte (nas_proxy)"},
+    ("newt", "socket-proxy"): SOCKET_PROXY,
     ("pangolin", "gerbil"): {"cap_add: NET_ADMIN": "interface WireGuard, exigence amont"},
 }
 
@@ -79,8 +83,9 @@ DEFAULT_CAPS = {
 }
 # `key: host` of a service: shares a namespace of the host.
 HOST_NAMESPACES = ("network_mode", "pid", "ipc", "userns_mode", "uts")
-LIST_ITEM = re.compile(r"""^      - \s*["']?(?P<value>[^"'#]*?)["']?\s*(?:#.*)?$""")
-FLOW_LIST = re.compile(r"^    (?P<key>cap_add|devices|volumes|security_opt):\s*\[(?P<items>[^\]#]*)\]")
+# Possessive: no backtracking between the value and the spaces around it (Sonar S8786).
+LIST_ITEM = re.compile(r"""^ {6}- \s*+["']?(?P<value>[^"'#]*+)["']?\s*+(?:#.*)?$""")
+FLOW_LIST = re.compile(r"^ {4}(?P<key>cap_add|devices|volumes|security_opt):\s*\[(?P<items>[^\]#]*)\]")
 UNCONFINED = re.compile(r"^(?:apparmor|seccomp)[=:]unconfined$")
 
 
@@ -91,7 +96,7 @@ def feature_of(key, value):
     if key == "devices":
         return f"device: {value.split(':')[0]}"
     if key == "volumes":
-        return "docker.sock" if "docker.sock" in value.split(":")[0] else None
+        return DOCKER_SOCK if DOCKER_SOCK in value.split(":")[0] else None
     return f"security_opt: {value}" if UNCONFINED.match(value) else None
 
 
@@ -130,7 +135,7 @@ def features(text):
                             if feature := feature_of(flow["key"], item):
                                 risky.add(feature)
             elif (item := LIST_ITEM.match(line)) and key in ("cap_add", "devices", "volumes", "security_opt"):
-                if feature := feature_of(key, item["value"]):
+                if feature := feature_of(key, item["value"].strip()):
                     risky.add(feature)
     return found
 

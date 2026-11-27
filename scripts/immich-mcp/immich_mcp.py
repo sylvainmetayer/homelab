@@ -27,6 +27,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+SEARCH_METADATA = "/search/metadata"
+ALBUMS = "/albums"
+ALBUM = "/albums/{id}"
 UUID = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 # Appels de lecture (les deux POST sont des recherches, qui ne modifient rien).
 READ = {
@@ -78,9 +81,9 @@ def _obj(props=None, required=()):
 # nom -> (description, schéma, méthode, chemin)
 TOOLS = {
     "search_smart": ("Recherche sémantique (CLIP) de photos et vidéos", _obj(SEARCH_PROPS, ["query"]), "POST", "/search/smart"),
-    "search_metadata": ("Recherche par métadonnées (dates, lieu, personnes, nom de fichier)", _obj(META_PROPS), "POST", "/search/metadata"),
+    "search_metadata": ("Recherche par métadonnées (dates, lieu, personnes, nom de fichier)", _obj(META_PROPS), "POST", SEARCH_METADATA),
     "get_album": ("Un album (nom, description, nombre d'assets) ; ses assets : search_metadata avec albumIds",
-                  _obj({"id": {"type": "string"}}, ["id"]), "GET", "/albums/{id}"),
+                  _obj({"id": {"type": "string"}}, ["id"]), "GET", ALBUM),
     "list_people": ("Personnes reconnues", _obj({"size": {"type": "integer"}, "page": {"type": "integer"}}), "GET", "/people"),
     "get_asset": ("Détail d'un asset (EXIF, lieu, personnes)", _obj({"id": {"type": "string"}}, ["id"]), "GET", "/assets/{id}"),
     "asset_statistics": ("Nombre de photos et de vidéos (hors corbeille)", _obj(), "GET", "/assets/statistics"),
@@ -156,10 +159,10 @@ def _album_assets(call, aid, album=None):
     `album` : l'album déjà lu (id, assetCount), pour ne pas le relire."""
     items, page = {}, 1
     while page:
-        r = call("POST", "/search/metadata", {"albumIds": [_uuid(aid)], "size": 1000, "page": page})["assets"]
+        r = call("POST", SEARCH_METADATA, {"albumIds": [_uuid(aid)], "size": 1000, "page": page})["assets"]
         items.update({i["id"]: i.get("originalFileName", "") for i in r["items"]})
         page = page + 1 if r.get("nextPage") and page < 50 else 0
-    album = album or call("GET", "/albums/{id}", {"id": aid})
+    album = album or call("GET", ALBUM, {"id": aid})
     return items, len(items) == album.get("assetCount")
 
 
@@ -201,7 +204,7 @@ def list_albums(call, args):
     page = max(1, int(args.get("page") or 1))
     rows = [{"id": a["id"], "nom": a["albumName"], "assets": a["assetCount"], "debut": a.get("startDate"),
              "fin": a.get("endDate"), "partage": bool(a.get("shared"))}
-            for a in call("GET", "/albums", {}) if q in _norm(a["albumName"])]
+            for a in call("GET", ALBUMS, {}) if q in _norm(a["albumName"])]
     rows.sort(key=lambda r: _norm(r["nom"]))
     pages = max(1, -(-len(rows) // ALBUMS_PAGE))
     if page > pages:
@@ -211,7 +214,7 @@ def list_albums(call, args):
 
 
 def find_duplicate_albums(call, args):
-    albums = call("GET", "/albums", {})
+    albums = call("GET", ALBUMS, {})
     groups = {}
     for a in albums:
         groups.setdefault(_norm(a["albumName"]), []).append(a)
@@ -236,7 +239,7 @@ def find_duplicate_albums(call, args):
 
 
 def assets_without_album(call, args):
-    r = call("POST", "/search/metadata", {"isNotInAlbum": True, "size": int(args.get("size", 100)), "page": int(args.get("page", 1))})["assets"]
+    r = call("POST", SEARCH_METADATA, {"isNotInAlbum": True, "size": int(args.get("size", 100)), "page": int(args.get("page", 1))})["assets"]
     return {"assets": [{k: i.get(k) for k in ("id", "originalFileName", "fileCreatedAt", "type")} for i in r["items"]],
             "pageSuivante": r.get("nextPage")}
 
@@ -250,10 +253,10 @@ def create_album(call, args):
         body["description"] = args["description"]
     if args.get("assetIds"):
         body["assetIds"] = _uuids(args["assetIds"])
-    same = [a["id"] for a in call("GET", "/albums", {}) if _norm(a["albumName"]) == _norm(name)]
+    same = [a["id"] for a in call("GET", ALBUMS, {}) if _norm(a["albumName"]) == _norm(name)]
     preview = {"action": "créer un album", "albumName": name, "description": body.get("description"),
                "assets_ajoutes": len(body.get("assetIds", [])), "albums_existants_de_meme_nom": same}
-    return _guarded("create_album", args, preview, same, lambda: call("POST", "/albums", body))
+    return _guarded("create_album", args, preview, same, lambda: call("POST", ALBUMS, body))
 
 
 def update_album(call, args):
@@ -261,15 +264,15 @@ def update_album(call, args):
     body = {k: args[k] for k in ("albumName", "description") if k in args}
     if not body or not all(isinstance(v, str) for v in body.values()) or not body.get("albumName", "x").strip():
         raise ValueError("albumName (non vide) ou description (texte) requis")
-    a = call("GET", "/albums/{id}", {"id": aid})
+    a = call("GET", ALBUM, {"id": aid})
     now = {"albumName": a["albumName"], "description": a.get("description")}
     preview = {"action": "modifier l'album", "id": aid, "avant": now, "apres": {**now, **body}}
-    return _guarded("update_album", args, preview, now, lambda: call("PATCH", "/albums/{id}", {"id": aid, **body}))
+    return _guarded("update_album", args, preview, now, lambda: call("PATCH", ALBUM, {"id": aid, **body}))
 
 
 def add_assets(call, args):
     aid, ids = _uuid(args.get("id")), _uuids(args.get("assetIds"))
-    a = call("GET", "/albums/{id}", {"id": aid})
+    a = call("GET", ALBUM, {"id": aid})
     have, complete = _album_assets(call, aid, a)
     todo = [i for i in ids if i not in have]
     names = {i: call("GET", "/assets/{id}", {"id": i}).get("originalFileName", "") for i in todo[:10]}
@@ -280,7 +283,7 @@ def add_assets(call, args):
 
 def remove_assets(call, args):
     aid, ids = _uuid(args.get("id")), _uuids(args.get("assetIds"))
-    a = call("GET", "/albums/{id}", {"id": aid})
+    a = call("GET", ALBUM, {"id": aid})
     have, complete = _album_assets(call, aid, a)
     todo = [i for i in ids if i in have]
     preview = {"action": "retirer des assets de l'album (le lien seulement, les photos restent)", "album": a["albumName"],
@@ -293,7 +296,7 @@ def merge_albums(call, args):
     keep, dup, delete = _uuid(args.get("keepId")), _uuid(args.get("duplicateId")), args.get("deleteDuplicate") is True
     if keep == dup:
         raise ValueError("keepId et duplicateId sont le même album")
-    ka, dn = call("GET", "/albums/{id}", {"id": keep}), call("GET", "/albums/{id}", {"id": dup})
+    ka, dn = call("GET", ALBUM, {"id": keep}), call("GET", ALBUM, {"id": dup})
     kept, kc = _album_assets(call, keep, ka)
     dups, dc = _album_assets(call, dup, dn)
     if delete and not (kc and dc):
@@ -312,7 +315,7 @@ def merge_albums(call, args):
             now, _ = _album_assets(call, keep)
             if any(i not in now for i in dups):  # filet : l'album doublon ne part que si tout est dans le gardé
                 raise RuntimeError("des assets du doublon manquent dans l'album gardé : album doublon conservé. " + str(res))
-            call("DELETE", "/albums/{id}", {"id": dup})
+            call("DELETE", ALBUM, {"id": dup})
             out["doublon_supprime"] = True
         return out
 

@@ -115,7 +115,7 @@ def required_switches(when):
     switches = []
     for condition in when if isinstance(when, list) else [when]:
         if not re.search(r"\bor\b", str(condition)):
-            terms = re.split(r"\s+and\s+", str(condition).strip())
+            terms = " ".join(str(condition).split()).split(" and ")
             switches += [match[1] for match in map(SWITCH.fullmatch, terms) if match]
     return switches
 
