@@ -199,34 +199,39 @@ def validate(entries, keys_by_file, today, root=ROOT):
         seen.add((file, key))
         if key not in keys_by_file[file]:
             errors.append(f"{label} : la clé n'existe plus dans {file}, retirer l'entrée")
-        kind = entry.get("kind")
-        if kind not in KINDS:
-            errors.append(f"{label} : nature {kind!r} inconnue, attendu l'une de {', '.join(KINDS)}")
-            continue
-        if kind == "identifier":
-            extra = [name for name in DATED_FIELDS if name in entry]
-            if extra:
-                errors.append(f"{label} : un identifiant ne porte ni {', '.join(extra)}")
-            continue
-        missing = [name for name in DATED_FIELDS if name not in entry]
-        if missing:
-            errors.append(f"{label} : champ(s) manquant(s) : {', '.join(missing)}")
-            continue
-        date = parse_date(entry["last_rotated"])
-        if date is None:
-            errors.append(f"{label} : last_rotated {entry['last_rotated']!r} n'est pas une date AAAA-MM-JJ")
-        # Un jour de marge : le runner est en UTC, Paris en avance d'une à
-        # deux heures ; une rotation datée du jour juste après minuit passe.
-        elif date > today + datetime.timedelta(days=1):
-            errors.append(f"{label} : last_rotated {date} est dans le futur")
-        if not isinstance(entry["estimated"], bool):
-            errors.append(f"{label} : estimated doit valoir true ou false")
-        errors.extend(f"{label} : {error}" for error in check_link(entry["how"], root, anchor_cache))
-    for file, keys in keys_by_file.items():
-        for key in sorted(keys):
-            if (file, key) not in seen:
-                errors.append(f"{file} : la clé {key} manque à {INVENTORY}")
+        errors.extend(entry_errors(entry, label, today, root, anchor_cache))
+    errors.extend(missing_from_inventory(keys_by_file, seen))
     return errors
+
+
+def entry_errors(entry, label, today, root, anchor_cache):
+    """Erreurs du type et des champs datés d'une entrée dont `key` et `file` sont valides."""
+    kind = entry.get("kind")
+    if kind not in KINDS:
+        return [f"{label} : nature {kind!r} inconnue, attendu l'une de {', '.join(KINDS)}"]
+    if kind == "identifier":
+        extra = [name for name in DATED_FIELDS if name in entry]
+        return [f"{label} : un identifiant ne porte ni {', '.join(extra)}"] if extra else []
+    missing = [name for name in DATED_FIELDS if name not in entry]
+    if missing:
+        return [f"{label} : champ(s) manquant(s) : {', '.join(missing)}"]
+    errors = []
+    date = parse_date(entry["last_rotated"])
+    if date is None:
+        errors.append(f"{label} : last_rotated {entry['last_rotated']!r} n'est pas une date AAAA-MM-JJ")
+    # Un jour de marge : le runner est en UTC, Paris en avance d'une à
+    # deux heures ; une rotation datée du jour juste après minuit passe.
+    elif date > today + datetime.timedelta(days=1):
+        errors.append(f"{label} : last_rotated {date} est dans le futur")
+    if not isinstance(entry["estimated"], bool):
+        errors.append(f"{label} : estimated doit valoir true ou false")
+    errors.extend(f"{label} : {error}" for error in check_link(entry["how"], root, anchor_cache))
+    return errors
+
+
+def missing_from_inventory(keys_by_file, seen):
+    return [f"{file} : la clé {key} manque à {INVENTORY}"
+            for file, keys in keys_by_file.items() for key in sorted(keys) if (file, key) not in seen]
 
 
 def check_link(how, root, cache):

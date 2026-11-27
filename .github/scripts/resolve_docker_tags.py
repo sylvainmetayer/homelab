@@ -117,27 +117,41 @@ def changed_entry_tags(old, new):
     for old_play, new_play in zip(old, new):
         if not isinstance(old_play, dict) or not isinstance(new_play, dict):
             return None
-        if {k: v for k, v in old_play.items() if k != "roles"} != {k: v for k, v in new_play.items() if k != "roles"}:
+        play_tags = play_entry_tags(old_play, new_play)
+        if play_tags is None:
             return None
-        new_entries = new_play.get("roles") or []
-        tag_count = {}
-        for entry in new_entries:
-            for tag in set(entry_tags(entry) if isinstance(entry, dict) else []):
-                tag_count[tag] = tag_count.get(tag, 0) + 1
-        # Matched as a multiset: a second copy of an entry is an added one.
-        unmatched_old = list(old_play.get("roles") or [])
-        for entry in new_entries:
-            if entry in unmatched_old:
-                unmatched_old.remove(entry)
-                continue
-            entry_tag_list = entry_tags(entry) if isinstance(entry, dict) else []
-            if not entry_tag_list:
-                return None
-            if "never" in entry_tag_list:
-                continue
-            specific = set(entry_tag_list) - GENERIC_TAGS
-            own = {t for t in specific if tag_count[t] == 1}
-            tags |= own or specific or set(entry_tag_list)
+        tags |= play_tags
+    return tags
+
+
+def dict_entry_tags(entry):
+    return entry_tags(entry) if isinstance(entry, dict) else []
+
+
+def play_entry_tags(old_play, new_play):
+    """The tags `changed_entry_tags` finds in one play, None for the whole playbook."""
+    if {k: v for k, v in old_play.items() if k != "roles"} != {k: v for k, v in new_play.items() if k != "roles"}:
+        return None
+    new_entries = new_play.get("roles") or []
+    tag_count = {}
+    for entry in new_entries:
+        for tag in set(dict_entry_tags(entry)):
+            tag_count[tag] = tag_count.get(tag, 0) + 1
+    tags = set()
+    # Matched as a multiset: a second copy of an entry is an added one.
+    unmatched_old = list(old_play.get("roles") or [])
+    for entry in new_entries:
+        if entry in unmatched_old:
+            unmatched_old.remove(entry)
+            continue
+        entry_tag_list = dict_entry_tags(entry)
+        if not entry_tag_list:
+            return None
+        if "never" in entry_tag_list:
+            continue
+        specific = set(entry_tag_list) - GENERIC_TAGS
+        own = {t for t in specific if tag_count[t] == 1}
+        tags |= own or specific or set(entry_tag_list)
     return tags
 
 
