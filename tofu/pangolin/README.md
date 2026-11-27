@@ -10,6 +10,21 @@ flip stays without a public IPv4 on purpose (NAT and SSH jump through Pangolin, 
 
 The running Pangolin server was created from an old Packer snapshot (Packer has since been removed from the repo). `image` is in the `ignore_changes` of `hcloud_server.pangolin` (`tofu/pangolin/pangolin.tf`), so the plan stays clean. Its Hetzner backups are on (`backups = true`, 7 daily images, deleted with the server): if the server still exists and was not compromised, restore yesterday's image first (same IP and host key), then replay `pangolin.yaml` and plan `pangolin_config`. Otherwise a rebuild starts from plain `debian-13` + `user_data.yaml` (user `sylvain` only), then `00-setup.yaml` and `pangolin.yaml`, then a restore of `/opt/pangolin` (config, SQLite DB, Let's Encrypt certificates) from its Borg repository. A rebuilt host has a new SSH host key: read it on the host (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`, Hetzner console) and replace its line in `ansible/known_hosts`, never through `ssh-keyscan` across the network — Ansible (`ansible.cfg` `ssh_args`, `StrictHostKeyChecking=yes`), the bastion jump of `hetzner.py` (a `ProxyCommand`, so the jump checks the same file) and the CI all refuse any other key.
 
+## The demo VPS (`demo_planning.tf`)
+
+The OVH VPS-1 of the public Flip Planning demo (ADR 0038). **Never ordered by Tofu**: ordering takes order and payment routes valid for the whole account (provider guide `order_consumer_key_access_rules.md`), and the Tofu token (`.github/scripts/ovh_credentials.py`) only reads and renames it (`GET`, `PUT /vps/*`). With `demo_planning_vps` empty (the default) nothing is declared.
+
+1. Order it in the OVH console: VPS-1 (2027 range, plan `vps-2027-model1`), Gravelines, Debian 13, your SSH key `keys/perso.pub`, monthly, automated backup at its cheapest (mandatory). About 4.84 € excl. VAT a month.
+2. Renew the Tofu consumer key with its new rules (`ovh_credentials.py renew`, `docs/runbooks/rotation-des-secrets.md`).
+3. Import it, with the service name shown in the console (`vps-xxxxxxx.vps.ovh.net`):
+   ```bash
+   mise exec -- tofu -chdir=tofu/pangolin import -var demo_planning_vps=vps-xxxxxxx.vps.ovh.net 'ovh_vps.demo_planning[0]' vps-xxxxxxx.vps.ovh.net
+   ```
+4. Set that service name as the default of `demo_planning_vps` in a PR, then `mise run plan-pangolin`: only the `display_name` update. A plan that **creates** `ovh_vps.demo_planning` means the import is missing: do not apply (it would fail on the token anyway).
+5. `mise run apply-pangolin`. The `demo_planning_ipv4` output feeds `hetzner.py` (host `demo-planning`); read the host key on the host (OVH KVM console, `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub`) into `ansible/known_hosts`, never `ssh-keyscan`.
+
+`prevent_destroy` is set: terminating it is done in the console, then `tofu state rm` and the default back to `""`.
+
 ## The throwaway docker VM (`drill.tf`)
 
 A copy of the Proxmox docker VM on a Hetzner Cloud server, for the rebuild drill and as a provisional host after a disaster: `docs/runbooks/reconstruction-vm-docker.md`. **Off by default** (`count = 0`): `enabled` is only ever set with `-var 'drill={enabled=true,allowed_ssh_cidrs=["<your IP>/32"]}'`, never in `terraform.tfvars`, so an ordinary apply destroys it. It creates three resources (host key, firewall, server) and touches nothing else: no private network (so no Pangolin, flip or NAT), IPv4 only, `fsn1` (the Storage Box's datacenter), label `role=drill` (`hetzner.py` makes it the Ansible group `drill`, nothing else), no Hetzner backups. The firewall opens SSH only, from the given addresses (never `0.0.0.0/0`, validated), and lets out only DNS, NTP, 80, 443 and 23 (the Storage Box): no SMTP, IMAP or SSH, so a restored app cannot mail anyone with the real credentials. The ed25519 host key is generated here and injected by cloud-init (`user_data_drill.yaml`): the `drill_known_hosts_line` output goes to the git-ignored `ansible/known_hosts.drill`, no `ssh-keyscan`. Server type `cx53` (16 vCPU, 32 GiB, 320 GB; check the hourly price in the console first). Tests: `tests/drill.tftest.hcl`.

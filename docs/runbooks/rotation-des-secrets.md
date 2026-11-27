@@ -193,9 +193,13 @@ les ressources des modules, lues dans son source :
 
   Le jeton n'a aucun droit sur le reste du projet (instances, réseau,
   facturation).
+- Pour le VPS de la démo (`tofu/pangolin/demo_planning.tf`) : `/vps/*` en
+  `GET` et `PUT` (lecture, nom affiché). Aucun `POST` : ni réinstallation,
+  ni résiliation, ni aucune route de commande ou de paiement (`/order`,
+  `/me`), valables pour tout le compte.
 
 Le test échoue si un module touche une autre zone, prend une autre
-ressource ou data source `ovh`, ou change de version de provider : dans ce
+ressource ou data source `ovh` que celles de `COVERED_RESOURCES` et `COVERED_DATA_SOURCES`, ou change de version de provider : dans ce
 cas, relire les routes dans le source du provider avant de monter la
 version.
 

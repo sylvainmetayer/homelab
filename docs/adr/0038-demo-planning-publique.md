@@ -11,7 +11,7 @@ La démo existante, sur flip, est en pause depuis le 2026-11-11 : flip (cx23, 2 
 
 ## Décision
 
-**Un serveur à lui** : un VPS-1 d'OVH (2 vCPU, 4 Go, x86, environ 5,40 € TTC par mois sans engagement), commandé à la main dans la console, car le stock est irrégulier. Il est configuré à la main par `ansible/demo-planning.yml`, jamais par la CI.
+**Un serveur à lui** : un VPS-1 d'OVH (2 vCPU, 4 Go, x86, environ 5,40 € TTC par mois sans engagement), commandé une fois dans la console OVH puis importé dans `tofu/pangolin` (`demo_planning.tf`), comme le conseille le guide du provider pour un service créé une fois : commander depuis Tofu demanderait des routes de commande et de paiement valables pour tout le compte, que le jeton de Tofu n'a pas. Tofu le lit et le renomme seulement (`GET` et `PUT /vps/*`), et l'inventaire prend son IP dans la sortie `demo_planning_ipv4`. Il est configuré à la main par `ansible/demo-planning.yml`, jamais par la CI.
 - Il a une IP publique, mais rien n'y écoute pour le public : le trafic web arrive par son propre newt (site `demo-planning`, connexion sortante vers Pangolin).
 - SSH n'est ouvert qu'à l'IP de Pangolin (ufw), par où Ansible rebondit comme pour flip.
 - Sa clé d'hôte se lit sur l'hôte.
@@ -55,6 +55,6 @@ Le filtre est sur l'hôte, en plus du pare-feu d'entrée (ufw) : un conteneur co
 
 ## Liens
 
-- `ansible/inventory/hosts`, `tofu/pangolin_config/website_demo_planning.tf`, `tofu/pangolin_config/nodes.tf`, `ansible/demo-planning.yml`, `ansible/roles/flip_planning_demo/`.
+- `tofu/pangolin/demo_planning.tf`, `ansible/inventory/hetzner.py`, `tofu/pangolin_config/website_demo_planning.tf`, `tofu/pangolin_config/nodes.tf`, `ansible/demo-planning.yml`, `ansible/roles/flip_planning_demo/`.
 - ADR de l'application sur son mode démo (dépôt `planning-equipes`).
 - [0037](0037-ntfy-sur-la-vm-pangolin.md) (charge de la VM Pangolin).
