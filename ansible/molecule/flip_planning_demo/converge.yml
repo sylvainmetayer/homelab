@@ -12,6 +12,8 @@
         flip_planning_demo_proxy_enabled: false
         # TEST-NET-3, comme une IP publique de Pangolin.
         flip_planning_demo_pangolin_ip: 203.0.113.7
+        # Résolu sans réseau : vérifie la règle HTTPS des noms autorisés.
+        flip_planning_demo_https_hosts: [localhost]
     - role: flip_planning_demo
       vars:
         flip_planning_demo_egress_enabled: false

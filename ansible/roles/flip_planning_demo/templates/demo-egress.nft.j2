@@ -29,7 +29,8 @@ table inet demo_egress {
   # Les conteneurs : entre eux (ponts Docker), vers les résolveurs DNS (le DNS
   # embarqué de Docker interroge depuis l'espace de noms du conteneur : sans
   # cette règle le newt ne résout pas Pangolin), et vers Pangolin seul — le
-  # newt, en HTTPS et en WireGuard (gerbil). L'appli n'atteint rien d'autre :
+  # newt, en HTTPS et en WireGuard (gerbil), plus HTTPS vers les seuls noms de
+  # flip_planning_demo_https_hosts (Bugsink). L'appli n'atteint rien d'autre :
   # ni SMTP, ni webhook, ni API tierce, quoi que dise son environnement.
   chain forward {
     type filter hook forward priority filter; policy drop;
@@ -40,5 +41,9 @@ table inet demo_egress {
     ip daddr { {{ flip_planning_demo_dns_servers | join(', ') }} } tcp dport 53 accept
     ip daddr {{ flip_planning_demo_pangolin_ip }} tcp dport 443 accept
     ip daddr {{ flip_planning_demo_pangolin_ip }} udp dport @pangolin_udp accept
+{% if flip_planning_demo_https_ips | default([]) | length > 0 %}
+    # {{ flip_planning_demo_https_hosts | join(', ') }} (defaults/main.yml).
+    ip daddr { {{ flip_planning_demo_https_ips | join(', ') }} } tcp dport 443 accept
+{% endif %}
   }
 }

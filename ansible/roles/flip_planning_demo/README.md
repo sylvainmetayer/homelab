@@ -12,6 +12,7 @@ The host side of the public Flip Planning demo (`ansible/demo-planning.yml`, ADR
   - blocked: the private network. The SSH replies to the bastion are `established`.
 - **Containers (forward chain):**
   - allowed: the Docker bridges, the DNS resolvers `flip_planning_demo_dns_servers` (Docker's embedded DNS queries from the container's namespace, so Newt could not resolve Pangolin without them), and Pangolin's public IP on TCP 443 and on gerbil's UDP ports. That is what Newt uses.
+  - containers, HTTPS to `flip_planning_demo_https_hosts` (Bugsink, for the demo's errors), resolved to IPv4 on the host at each `--tags egress` run: a changed IP loses the events until the next run;
   - blocked: everything else. Whatever the app's environment says, no SMTP, webhook or third-party API gets out.
 - **Pangolin's IP** comes from the inventory (`hostvars['pangolin'].ansible_host`). After a Pangolin rebuild with a new IP, rerun `--tags egress`.
 - **To check it:** `sudo nft list table inet demo_egress`.

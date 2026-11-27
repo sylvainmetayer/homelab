@@ -9,6 +9,20 @@
     state: present
   when: flip_planning_demo_egress_enabled | bool
 
+- name: Resolve the HTTPS hosts the containers may reach
+  ansible.builtin.command: getent ahostsv4 {{ item }}
+  loop: "{{ flip_planning_demo_https_hosts }}"
+  register: flip_planning_demo_https_resolved
+  changed_when: false
+  when: flip_planning_demo_egress_enabled | bool
+
+- name: Keep their IPv4 addresses
+  ansible.builtin.set_fact:
+    flip_planning_demo_https_ips: >-
+      {{ flip_planning_demo_https_resolved.results | map(attribute='stdout_lines') | flatten
+         | map('split') | map('first') | unique | sort }}
+  when: flip_planning_demo_egress_enabled | bool
+
 - name: Write the egress rules
   become: true
   ansible.builtin.template:

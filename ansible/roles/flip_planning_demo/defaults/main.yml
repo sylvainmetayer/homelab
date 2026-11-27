@@ -24,6 +24,10 @@ flip_planning_demo_private_networks: [10.0.0.0/8, 192.168.0.0/16]
 # Docker (ansible/demo-planning.yml) : Quad9.
 flip_planning_demo_dns_servers: [9.9.9.9, 149.112.112.112]
 flip_planning_demo_host_tcp_ports: [53, 80, 443]
+# Seules exceptions pour les conteneurs : HTTPS vers ces noms (Bugsink, pour
+# les erreurs de la démo). Résolus en IPv4 sur l'hôte à chaque run du tag
+# egress : une IP changée entre deux runs perd les envois jusqu'au suivant.
+flip_planning_demo_https_hosts: [sylvainmetayer.bugsink.com]
 flip_planning_demo_host_udp_ports: [53, 123]
 
 # --- Remise à zéro ---
