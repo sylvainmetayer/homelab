@@ -107,7 +107,7 @@ services:
       - {{ flip_planning_newt_network }}
     image: axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e
 
-  # BRANDING_LOGO_URL / MASCOT_URL are URLs the browser fetches, not file paths:
+  # The logo / mascot keys of BRANDING_IMAGES are URLs the browser fetches, not file paths:
   # the application only serves its Angular bundle (Quinoa, SPA fallback), so
   # /assets/* would come back as index.html. This nginx serves the very same
   # read-only directory the app container mounts for its PDFs, and Pangolin
