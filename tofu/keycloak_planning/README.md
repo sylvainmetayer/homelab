@@ -139,8 +139,9 @@ voit que Keycloak, même émetteur, même client `planning-app`.
   « Pocket ID ». Une personne hors du groupe `flip-planning` est refusée chez
   Pocket ID.
 - Retirer : supprimer `identity_provider.tf` (les comptes liés restent, leur
-  lien se retire dans la console, Users › Identity provider links), puis le
-  client côté `pangolin_config`.
+  lien se retire dans la console, Users › Identity provider links), puis, côté
+  `pangolin_config`, le client, sa sortie et `"flip-planning"` de
+  `local.pocket_id_oidc_roles` (sinon la tuile vitrine ne revient pas).
 
 ## Mémoire
 
