@@ -103,7 +103,8 @@
         if flip_instance.logo_url else
         env_content is not search('(?m)^BRANDING_IMAGES=(.*;)?logo=')
       # Plus aucun nom d'avant la 4.0 (lus jusqu'à la 5.0, avec un avertissement).
-      - env_content is not search('(?m)^(BRANDING_(LOGO_URL|PDF_|MASCOT|ACCENT)|LEGAL_(EDITEUR|DIRECTEUR|HEBERGEUR|CONTACT|RESPONSABLE|BASE_LEGALE|CONSERVATION))')
+      - env_content is not search('(?m)^BRANDING_(LOGO_URL|PDF_|MASCOT|ACCENT)')
+      - env_content is not search('(?m)^LEGAL_(EDITEUR|DIRECTEUR|HEBERGEUR|CONTACT|RESPONSABLE|BASE_LEGALE|CONSERVATION)')
       - ("\nHORLOGE_SIMULEE_AUTORISEE=true\n") in env_content
       # Sous-réseau du réseau newt lu au déploiement : jamais vide.
       - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_subnet ~ "\n") in env_content
