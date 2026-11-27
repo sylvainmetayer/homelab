@@ -19,6 +19,7 @@
           - app
           - aide
           - apercu
+          - outils
 
     # Paquet GHCR privé : l'identifiant ne sert qu'à dc@neonova.
     - name: Stat the registry config of neonova

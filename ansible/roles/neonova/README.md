@@ -8,6 +8,8 @@ Aucune donnée, aucune sauvegarde. L'image suit le tag `main`, sans digest ni Re
 
 Le même projet compose sert le site d'aide (`aide-neonova.sylvain.dev`, conteneur `neonova-aide`, tag `aide` du même package) : le dossier `aide/` du dépôt construit par Zensical. Même SSO, même PIN, même déploiement.
 
+Un quatrième conteneur sert le site d'outils (`outils-neonova.sylvain.dev`, conteneur `neonova-outils`, tag `outils` du même package). Même SSO, même PIN, même déploiement ; son rôle SSO est `neonova-outils`. Les quatre partagent `dc@neonova` : un tag absent de GHCR arrête les quatre sites, ne déployer qu'une fois le tag publié.
+
 Un troisième conteneur sert l'aperçu de production (`apercu-neonova.sylvain.dev`, conteneur `neonova-apercu`, tag `apercu-prod` du même package) : le même site que la démo, brouillons exclus. Même SSO, même PIN, même déploiement.
 
 ## Identifiant GHCR

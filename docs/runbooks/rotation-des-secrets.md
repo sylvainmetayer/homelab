@@ -846,8 +846,8 @@ envoyé et le plan reste vide), puis `tofu apply` de `pangolin_config`.
 ### Code PIN Neonova
 
 `neonova_pin` du fichier racine est le PIN des ressources Pangolin de la démo,
-du site d'aide et de l'aperçu de production (`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
-`sops set`, `pincode_wo_version` + 1 sur les trois ressources de ce fichier (sans
+du site d'aide, de l'aperçu de production et du site d'outils (`tofu/pangolin_config/website_neonova.tf`), donné au client : nouveau PIN par
+`sops set`, `pincode_wo_version` + 1 sur les quatre ressources de ce fichier (sans
 cela rien n'est envoyé et le plan reste vide), puis `tofu apply` de
 `pangolin_config`.
 
