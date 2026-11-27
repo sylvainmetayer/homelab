@@ -192,16 +192,14 @@ jobs:
             fi
           fi
 
-          if [ "$EVENT_NAME" != "push" ]; then
-            # The morning catch-up of the quiet window (schedule), or a dispatch
-            # without tags: main since the last success, or nothing. Never "this
-            # push only" (there is no push).
-            if [ -z "$base" ]; then
-              echo "::notice::$EVENT_NAME: nothing to catch up (main is already deployed, or no usable last successful run)"
-              echo "files=" >> "$GITHUB_OUTPUT"
-              echo "base=" >> "$GITHUB_OUTPUT"
-              exit 0
-            fi
+          # The morning catch-up of the quiet window (schedule), or a dispatch
+          # without tags: main since the last success, or nothing. Never "this
+          # push only" (there is no push).
+          if [ "$EVENT_NAME" != "push" ] && [ -z "$base" ]; then
+            echo "::notice::$EVENT_NAME: nothing to catch up (main is already deployed, or no usable last successful run)"
+            echo "files=" >> "$GITHUB_OUTPUT"
+            echo "base=" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           if [ -z "$base" ] && [ "$last_ok" != "$AFTER_SHA" ]; then
@@ -313,6 +311,7 @@ jobs:
             pi) docker_tags=""; pangolin_tags=""; flip_tags="" ;;
             pangolin) docker_tags=""; pi_tags=""; flip_tags="" ;;
             flip) docker_tags=""; pi_tags=""; pangolin_tags="" ;;
+            *) ;; # all, or no input (push, schedule): every playbook keeps its tags
           esac
 
           {

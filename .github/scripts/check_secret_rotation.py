@@ -62,14 +62,14 @@ DATED_FIELDS = ("last_rotated", "estimated", "how")
 # Une clé de premier niveau, quels que soient ses caractères (tiret, point,
 # guillemets) : un motif plus étroit ignorerait la clé sans un mot.
 TOP_KEY_RE = re.compile(r"""^(?:"([^"]+)"|'([^']+)'|([^\s#'"-][^:]*?)):(?:\s|$)""")
-HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s+(.*?)(?:\s+#+)?\s*$")
+HEADING_RE = re.compile(r"^ {0,3}#{1,6}\s(.*)$")
 FENCE_RE = re.compile(r"^\s*(?:```|~~~)")
 # Le suffixe des fichiers que chiffrent les creation_rules de .sops.yaml.
 SOPS_SUFFIX = ".sops.yaml"  # pas `.sops.yaml` lui-même, la configuration
 SKIP_DIRS = {"collections", "galaxy_roles", "node_modules"}
-ENTRY_RE = re.compile(r"^  - ([a-z_]+):(?: (.*))?$")
-FIELD_RE = re.compile(r"^    ([a-z_]+):(?: (.*))?$")
-LAST_TEST_RE = re.compile(r"^dernier_test:\s*([^\s#]*)\s*(?:#.*)?$")
+ENTRY_RE = re.compile(r"^ {2}- ([a-z_]+):(?: (.*))?$")
+FIELD_RE = re.compile(r"^ {4}([a-z_]+):(?: (.*))?$")
+LAST_TEST_RE = re.compile(r"^dernier_test:\s*+([^\s#]*)\s*+(?:#.*)?$")
 
 
 class InventoryError(Exception):
@@ -149,6 +149,15 @@ def slug(heading):
     return text.replace(" ", "-")
 
 
+def heading_text(rest):
+    """Le texte d'un titre ATX, sans les `#` de fermeture (précédés d'une espace)."""
+    text = rest.rstrip()
+    bare = text.rstrip("#")
+    if bare != text and bare[-1:].isspace():
+        return bare.strip()
+    return text.strip()
+
+
 def anchors(markdown):
     """Ancres des titres ATX hors blocs de code, `-1`, `-2`… aux doublons comme GitHub."""
     found, counts, fenced = set(), {}, False
@@ -158,7 +167,7 @@ def anchors(markdown):
             continue
         heading = None if fenced else HEADING_RE.match(line)
         if heading:
-            base = slug(heading.group(1))
+            base = slug(heading_text(heading.group(1)))
             count = counts.get(base, 0)
             counts[base] = count + 1
             found.add(f"{base}-{count}" if count else base)

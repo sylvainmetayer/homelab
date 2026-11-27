@@ -122,8 +122,9 @@ class EvaluateTest(unittest.TestCase):
         self.assertIn("seuil 80 %", storage_box_quota.evaluate(payload(1), "backups", 80.0)[1])
 
     def test_zero_quota_is_an_error(self):
+        box = payload(1, quota=0)
         with self.assertRaises(storage_box_quota.QuotaError):
-            storage_box_quota.evaluate(payload(1, quota=0), "backups", 80)
+            storage_box_quota.evaluate(box, "backups", 80)
 
 
 class MainTest(unittest.TestCase):

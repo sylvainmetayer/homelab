@@ -21,6 +21,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+NOT_FOUND = {"message": "The requested resource wasn't found."}
 CONFIG_YML = "/opt/apps/beszel/beszel_data/config.yml"
 CONFIG_JSON = "/etc/beszel-api-mock/config.json"
 WRITES_LOG = "/var/lib/beszel-api-mock/writes.jsonl"
@@ -164,13 +165,13 @@ class Handler(BaseHTTPRequestHandler):
             if alert["id"] == record_id:
                 alert.update({k: data[k] for k in ("value", "min") if k in data})
                 return self.reply(200, alert)
-        return self.reply(404, {"message": "The requested resource wasn't found."})
+        return self.reply(404, NOT_FOUND)
 
     def delete_alert(self, record_id):
         before = len(self.state.alerts)
         self.state.alerts = [a for a in self.state.alerts if a["id"] != record_id]
         if len(self.state.alerts) == before:
-            return self.reply(404, {"message": "The requested resource wasn't found."})
+            return self.reply(404, NOT_FOUND)
         self.send_response(204)
         self.end_headers()
 
@@ -187,7 +188,7 @@ class Handler(BaseHTTPRequestHandler):
             if record["id"] == record_id:
                 record["settings"] = data["settings"]
                 return self.reply(200, record)
-        return self.reply(404, {"message": "The requested resource wasn't found."})
+        return self.reply(404, NOT_FOUND)
 
     def post_test_notification(self, data):
         if not data.get("url"):

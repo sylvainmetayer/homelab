@@ -9,7 +9,8 @@
 set -euo pipefail
 
 extract() {
-  sops -d --extract "[\"$1\"]" secrets/ansible.sops.yaml
+  local key=$1
+  sops -d --extract "[\"$key\"]" secrets/ansible.sops.yaml
 }
 
 AWS_ACCESS_KEY_ID="$(extract state_s3_access_key)"
@@ -19,7 +20,8 @@ TF_VAR_pangolin_config_state_passphrase="$(extract tofu_state_passphrase)"
 echo "::add-mask::$AWS_ACCESS_KEY_ID"
 echo "::add-mask::$AWS_SECRET_ACCESS_KEY"
 echo "::add-mask::$TF_VAR_pangolin_config_state_passphrase"
-export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TF_VAR_pangolin_config_state_passphrase
+# Tofu lit TF_VAR_<nom de la variable>, en minuscules comme elle.
+export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY TF_VAR_pangolin_config_state_passphrase # NOSONAR
 
 # Le registre peut couper une connexion : même reprise que test.yaml.
 for attempt in 1 2 3; do

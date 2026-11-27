@@ -142,7 +142,7 @@ class ImmichMcpTest(unittest.TestCase):
         r = m.handle({"id": 1, "method": "tools/list"}, None, True)
         names = [t["name"] for t in r["result"]["tools"]]
         self.assertEqual(len(names), 14)
-        self.assertTrue(set(WRITE_TOOLS) <= set(names))
+        self.assertLessEqual(set(WRITE_TOOLS), set(names))
 
     def test_read_mode_refuses_write_tools_before_any_call(self):
         fake = two_albums()
@@ -317,7 +317,7 @@ class ImmichMcpTest(unittest.TestCase):
             return {"assets": {"items": [{"id": P[0], "originalFileName": "a.jpg", "exifInfo": {"x": 1}}], "nextPage": "2"}}
 
         _, out = tool(call, "assets_without_album", {}, write=False)
-        self.assertEqual(seen[0][2]["isNotInAlbum"], True)
+        self.assertTrue(seen[0][2]["isNotInAlbum"])
         self.assertEqual(out["assets"][0]["originalFileName"], "a.jpg")
         self.assertNotIn("exifInfo", out["assets"][0])
 

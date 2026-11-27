@@ -42,7 +42,7 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def log_message(self, *args):
-        pass
+        pass  # silence the default stderr access log
 
 
 def blackhole():

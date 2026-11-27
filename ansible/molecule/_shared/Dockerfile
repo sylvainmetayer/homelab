@@ -57,18 +57,16 @@ RUN python3 -m venv /opt/molecule-borgmatic \
 ARG SSH_AUDIT_VERSION=3.9.0
 RUN python3 -m venv /opt/molecule-ssh-audit \
     && /opt/molecule-ssh-audit/bin/pip install --no-cache-dir --only-binary :all: "ssh-audit==${SSH_AUDIT_VERSION}" \
-    && /opt/molecule-ssh-audit/bin/ssh-audit -h >/dev/null
-
-# Les playbooks se connectent en `sylvain` et passent root par sudo : on
-# reproduit ce modèle, c'est lui que docker_service (unités user, lingering)
-# et les `become` des rôles supposent.
-RUN useradd --create-home --shell /bin/bash --uid 1000 sylvain \
+    && /opt/molecule-ssh-audit/bin/ssh-audit -h >/dev/null \
+    # Les playbooks se connectent en `sylvain` et passent root par sudo : on
+    # reproduit ce modèle, c'est lui que docker_service (unités user, lingering)
+    # et les `become` des rôles supposent.
+    && useradd --create-home --shell /bin/bash --uid 1000 sylvain \
     && usermod -aG docker sylvain \
     && echo 'sylvain ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/sylvain \
-    && chmod 0440 /etc/sudoers.d/sylvain
-
-# Unités inutiles ou impossibles dans un conteneur.
-RUN systemctl mask \
+    && chmod 0440 /etc/sudoers.d/sylvain \
+    # Unités inutiles ou impossibles dans un conteneur.
+    && systemctl mask \
         getty.target \
         console-getty.service \
         systemd-firstboot.service \

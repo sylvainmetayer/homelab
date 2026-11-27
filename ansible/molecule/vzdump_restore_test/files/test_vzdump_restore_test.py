@@ -232,7 +232,7 @@ class FreshnessTest(unittest.TestCase):
             patcher = mock.patch.object(vz, name, value)
             self.addCleanup(patcher.stop)
             patcher.start()
-        for patcher in (mock.patch.object(vz.time, "time", lambda: self.now),
+        for patcher in (mock.patch.object(vz.time, "time", return_value=self.now),
                         mock.patch.dict(os.environ, {vz.FRESHNESS_PUSH_URL_VARIABLE: "http://kuma/api/push/x"})):
             self.addCleanup(patcher.stop)
             patcher.start()

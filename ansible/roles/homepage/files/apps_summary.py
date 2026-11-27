@@ -55,6 +55,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Plafond d'une réponse amont : quelques Kio pour chacune ; au-delà, refus
 # plutôt qu'un conteneur à 64 Mio poussé au bout.
+JSON = "application/json"
 MAX_BYTES = 4 * 1024 * 1024
 FETCH_TIMEOUT = 20
 
@@ -127,7 +128,7 @@ def summarize_grocy(raw: dict, now: float) -> dict:
 
 def fetch_grocy(env: dict) -> dict:
     base = env["GROCY_URL"].rstrip("/")
-    headers = {"GROCY-API-KEY": env["GROCY_API_KEY"], "Accept": "application/json"}
+    headers = {"GROCY-API-KEY": env["GROCY_API_KEY"], "Accept": JSON}
     days = int(env.get("GROCY_DUE_SOON_DAYS") or 5)
     return {
         "volatile": fetch_json(f"{base}/api/stock/volatile?due_soon_days={days}", headers),
@@ -153,7 +154,7 @@ def summarize_papra(raw: dict, now: float) -> dict:
 def fetch_papra(env: dict, now: float | None = None) -> dict:
     now = time.time() if now is None else now
     base = env["PAPRA_URL"].rstrip("/")
-    headers = {"Authorization": f"Bearer {env['PAPRA_API_KEY']}", "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {env['PAPRA_API_KEY']}", "Accept": JSON}
     organizations = fetch_json(f"{base}/api/organizations", headers).get("organizations") or []
     totals = {"documents": 0, "recent": 0, "untagged": 0}
     for organization in organizations:
@@ -184,7 +185,7 @@ def summarize_dawarich(raw: dict, now: float) -> dict:
 
 
 def fetch_dawarich(env: dict) -> dict:
-    headers = {"Authorization": f"Bearer {env['DAWARICH_API_KEY']}", "Accept": "application/json"}
+    headers = {"Authorization": f"Bearer {env['DAWARICH_API_KEY']}", "Accept": JSON}
     # Rails refuse un Host absent d'APPLICATION_HOSTS (le domaine public) :
     # le conteneur est joint par son nom, sous le Host public.
     if env.get("DAWARICH_HOST"):
@@ -341,7 +342,7 @@ def make_handler(sources: dict):
                 summary = source.summary()
             except FetchError as err:
                 log(f"{source.name} : {err}")
-                self.reply(502, b'{"error": "source indisponible"}\n', "application/json")
+                self.reply(502, b'{"error": "source indisponible"}\n', JSON)
                 return
             self.reply(200, json.dumps(summary, ensure_ascii=False).encode(), "application/json; charset=utf-8")
 

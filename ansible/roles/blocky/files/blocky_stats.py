@@ -140,7 +140,7 @@ def save_state(path, state):
     os.replace(tmp, path)
 
 
-def main(argv):
+def main(argv):  # NOSONAR: toujours 0, l'unité ne doit jamais échouer (statistiques seulement)
     if len(argv) != 2:
         print("usage: blocky_stats.py <url des métriques>", file=sys.stderr)
         return 0

@@ -112,7 +112,7 @@ def call_grocy(method, path, args, base, key, extra_headers=None):
     if "{id}" in path:
         oid = args.pop("id", "")
         # Des chiffres seulement : « .. » passerait quote() et ne sortirait pas de la liste blanche.
-        if isinstance(oid, bool) or not re.fullmatch(r"[0-9]+", str(oid)):
+        if isinstance(oid, bool) or not re.fullmatch(r"\d+", str(oid), re.ASCII):
             raise ValueError("identifiant invalide : %r" % oid)
         path = path.replace("{id}", str(oid))
     check_allowed(method, path)

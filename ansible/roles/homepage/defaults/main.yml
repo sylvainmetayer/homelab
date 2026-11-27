@@ -665,10 +665,10 @@ homepage_link_widgets_extra:
 # homepage_calendar_top_nous_ics_url (Top nous, partagé à deux). Une clé
 # absente ou vide retire son agenda ; aucune = pas de carte.
 #
-# Homepage ne lit pas ces URL : le widget affiche chaque tâche (VTODO) comme
+# Homepage ne lit pas ces URL : le widget affiche chaque tâche (VTODO) comme  # NOSONAR: composant iCalendar
 # un événement daté de l'instant présent, et Top nous en a des dizaines. Le
 # conteneur ical-filter du même projet (files/ical_filter.py) récupère chaque
-# agenda, en retire tâches et journaux (VTODO, VJOURNAL), le garde
+# agenda, en retire tâches et journaux (VTODO, VJOURNAL), le garde  # NOSONAR: composant iCalendar
 # homepage_ical_filter_cache_seconds et le sert en
 # http://ical-filter:<port>/<slug>.ics sur le réseau privé du projet. Les URL
 # de partage ne sont que dans compose.yaml (0600), jamais dans services.yaml.

@@ -34,7 +34,7 @@ REF = r"[a-z0-9][a-z0-9._\-/]*(?::[A-Za-z0-9_][A-Za-z0-9._\-]*)?(?:@sha256:[0-9a
 # `image: <ref>` in a compose file, quoted or not, optional trailing comment.
 COMPOSE_LINE = re.compile(r"""^\s*image:\s*(["']?)(?P<ref>""" + REF + r""")\1\s*(?:#.*)?$""")
 # A compose service key (two-space indent), the location of the next `image:`.
-SERVICE_LINE = re.compile(r"^  (?P<key>[A-Za-z0-9._-]+):\s*(?:#.*)?$")
+SERVICE_LINE = re.compile(r"^ {2}(?P<key>[A-Za-z0-9._-]+):\s*(?:#.*)?$")
 # `<role>_image<suffix>: "<ref>"` in role defaults or a playbook's role entry.
 VARS_LINE = re.compile(
     r"""^\s*(?P<key>[a-z0-9_]*_image[a-z0-9_]*):\s*(["']?)(?P<ref>""" + REF + r""")\2\s*(?:#.*)?$""")

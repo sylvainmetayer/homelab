@@ -196,11 +196,12 @@ class Copy(Base):
     def test_source_never_written(self):
         self.go(self.CAL, apply=True, delete=True)
         self.assertEqual(self.s.writes(), [])
+        dav = dc.Dav(self.s.url, "u", "x", read_only=True, allow_http=True)
         with self.assertRaises(dc.ReadOnlyError):
-            dc.Dav(self.s.url, "u", "x", read_only=True, allow_http=True).request("PUT", "/dav/x", "d")
+            dav.request("PUT", "/dav/x", "d")
         for m in ("DELETE", "MKCALENDAR", "PROPPATCH", "POST"):
             with self.assertRaises(dc.ReadOnlyError):
-                dc.Dav(self.s.url, "u", "x", read_only=True, allow_http=True).request(m, "/dav/x")
+                dav.request(m, "/dav/x")
 
     def test_missing_calendar_created_after_retries(self):
         self.d.colls.clear()
