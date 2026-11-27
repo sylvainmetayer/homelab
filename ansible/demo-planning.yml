@@ -1,17 +1,22 @@
 ---
-# Serveur "demo-planning" (tofu/pangolin/demo_planning.tf) : la démo publique de
-# Flip Planning, seule sur son hôte pour qu'une vague de visiteurs (Show HN,
+# VPS OVH "demo-planning" (inventory/hosts) : la démo publique de Flip
+# Planning, seule sur son hôte pour qu'une vague de visiteurs (Show HN,
 # Reddit) ne prenne rien à la production de flip. ADR 0038. Ouverte à tous les
-# pays sans SSO (tofu/pangolin_config/website_demo_planning.tf), base remise au
-# dump de référence toutes les 30 min, sans sauvegarde, sortie filtrée.
+# pays sans SSO (tofu/pangolin_config/website_demo_planning.tf), servie par son
+# newt (site demo-planning), base remise au dump de référence toutes les
+# 30 min, sans sauvegarde, sortie filtrée. SSH ouvert à Pangolin seul, par où
+# Ansible rebondit (host_vars/demo-planning).
 #
 # Jamais lancé par la CI : à la main, `ansible-playbook demo-planning.yml`.
 #
 # Ordre au premier déploiement :
-#   1. tofu/pangolin (le serveur), puis ajouter la ligne
-#      `tofu output -raw demo_planning_known_hosts_line` à ansible/known_hosts ;
-#   2. tofu/pangolin_config (site demo-planning, ressource, règle monde) ;
-#   3. ce playbook, puis 00-setup.yaml --limit demo-planning.
+#   1. commander le VPS (Debian 13, clé keys/perso.pub), décommenter son entrée
+#      dans inventory/hosts, ajouter sa clé d'hôte (lue sur l'hôte) à
+#      known_hosts ;
+#   2. `ansible-playbook demo-planning.yml --tags bootstrap -e ansible_user=debian`
+#      (compte sylvain, l'utilisateur `debian` d'OVH reste) ;
+#   3. tofu/pangolin_config (site demo-planning, ressource, règle monde) ;
+#   4. ce playbook, puis 00-setup.yaml --limit demo-planning.
 - name: Configure the public demo server of Flip Planning
   hosts: demo-planning
   pre_tasks:
@@ -38,9 +43,6 @@
           (pangolin_site.demo_planning) first.
 
   roles:
-    # First: everything after it needs the Internet.
-    - role: nat_client
-      tags: nat,setup
     # Before Docker: no container gets out before the filter is in place.
     - role: flip_planning_demo
       tags: flip_planning_demo,egress
@@ -50,6 +52,15 @@
     - role: geerlingguy.docker
       become: true
       tags: setup
+      vars:
+        # group_vars/all, plus fixed resolvers: the only ones the egress filter
+        # lets the containers reach (flip_planning_demo_dns_servers).
+        docker_daemon_options:
+          log-driver: json-file
+          log-opts:
+            max-size: 10m
+            max-file: "3"
+          dns: [9.9.9.9, 149.112.112.112]
     - role: docker_service
       tags: setup
     - role: host_tuning
@@ -98,3 +109,28 @@
       tags: flip_planning_demo,reset
       vars:
         flip_planning_demo_egress_enabled: false
+
+# Once, on a freshly delivered VPS (--tags bootstrap -e ansible_user=debian).
+- name: Create the sylvain account on a freshly delivered VPS
+  hosts: demo-planning
+  tags: [bootstrap, never]
+  become: true
+  tasks:
+    - name: Create sylvain, in sudo
+      ansible.builtin.user:
+        name: sylvain
+        groups: sudo
+        append: true
+        shell: /bin/bash
+
+    - name: Authorize the personal key for sylvain
+      ansible.posix.authorized_key:
+        user: sylvain
+        key: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../keys/perso.pub') }}"
+
+    - name: Let sylvain sudo without a password, as on the other hosts
+      ansible.builtin.copy:
+        content: "sylvain ALL=(ALL) NOPASSWD:ALL\n"
+        dest: /etc/sudoers.d/sylvain
+        mode: "0440"
+        validate: visudo -cf %s

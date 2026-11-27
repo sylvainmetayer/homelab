@@ -11,14 +11,18 @@ flip_planning_demo_db_name: festival
 
 # --- Filtre de sortie (nftables, table inet demo_egress) ---
 # L'hôte : DNS, NTP, HTTP(S) (apt, images). Les conteneurs : Pangolin seul
-# (newt, HTTPS et WireGuard de gerbil). Personne : le réseau privé (flip,
-# les ports privés de Pangolin), SMTP, IMAP, SSH sortant.
+# (newt, HTTPS et WireGuard de gerbil) et leurs résolveurs. Personne : les
+# réseaux privés, SMTP, IMAP, SSH sortant.
 flip_planning_demo_egress_enabled: true
 # IP publique de Pangolin, la seule que joignent les conteneurs (newt_endpoint).
 # Lue dans l'inventaire (hetzner.py) par le playbook.
 flip_planning_demo_pangolin_ip: ""
 flip_planning_demo_pangolin_udp_ports: [51820, 21820]
-flip_planning_demo_private_network: 10.0.0.0/16
+flip_planning_demo_private_networks: [10.0.0.0/8, 192.168.0.0/16]
+# Résolveurs que les conteneurs peuvent joindre : le DNS embarqué de Docker
+# les interroge depuis le réseau du conteneur. Les mêmes que `dns` du démon
+# Docker (ansible/demo-planning.yml) : Quad9.
+flip_planning_demo_dns_servers: [9.9.9.9, 149.112.112.112]
 flip_planning_demo_host_tcp_ports: [53, 80, 443]
 flip_planning_demo_host_udp_ports: [53, 123]
 

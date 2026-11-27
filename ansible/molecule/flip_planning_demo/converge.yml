@@ -3,7 +3,6 @@
   hosts: all
   vars_files:
     - ../../group_vars/all/variables.yml
-    - ../../host_vars/demo-planning/variables.yaml
   roles:
     # Lingering et répertoire des unités user, que le timer suppose.
     - role: docker_service

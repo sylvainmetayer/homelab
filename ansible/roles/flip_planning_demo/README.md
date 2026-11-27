@@ -5,12 +5,13 @@ The host side of the public Flip Planning demo (`ansible/demo-planning.yml`, ADR
 ## Egress filter
 
 - **Where:** the nftables table `inet demo_egress`, file `/etc/demo-egress.nft`, loaded by `demo-egress.service` before `docker.service`.
+- **Ordering:** the unit is `After=nftables.service`: Debian's `nftables.service` starts with `flush ruleset` and would wipe the filter if it ran later.
 - **Why its own table:** it is replaced in one block (`delete table` then the definition), so Docker's and ufw's tables are never touched. That is also why it is never loaded by `nftables.service`: Debian's `/etc/nftables.conf` starts with `flush ruleset`.
 - **Host (output chain):**
   - allowed: DNS, NTP, HTTP(S), for apt and the images;
   - blocked: the private network. The SSH replies to the bastion are `established`.
 - **Containers (forward chain):**
-  - allowed: the Docker bridges, and Pangolin's public IP on TCP 443 and on gerbil's UDP ports. That is what Newt uses.
+  - allowed: the Docker bridges, the DNS resolvers `flip_planning_demo_dns_servers` (Docker's embedded DNS queries from the container's namespace, so Newt could not resolve Pangolin without them), and Pangolin's public IP on TCP 443 and on gerbil's UDP ports. That is what Newt uses.
   - blocked: everything else. Whatever the app's environment says, no SMTP, webhook or third-party API gets out.
 - **Pangolin's IP** comes from the inventory (`hostvars['pangolin'].ansible_host`). After a Pangolin rebuild with a new IP, rerun `--tags egress`.
 - **To check it:** `sudo nft list table inet demo_egress`.
@@ -28,7 +29,7 @@ The host side of the public Flip Planning demo (`ansible/demo-planning.yml`, ADR
    - `plain` format: `psql -v ON_ERROR_STOP=1`;
 
    A failure leaves the database as it was.
-4. runs `docker compose start app`, whether the restore succeeded or not.
+4. runs `docker compose start app`, whether the restore succeeded or not. An `EXIT` trap also starts it when the script is killed (systemd `TimeoutStartSec`) after the stop, and removes the temporary container and dump.
 
 The outage is about 20 s. Uptime Kuma's monitor (300 s interval, one retry at 60 s) tolerates it.
 

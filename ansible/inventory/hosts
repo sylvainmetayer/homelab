@@ -31,3 +31,10 @@ nas ansible_host=192.168.1.137 ansible_user=sylvain
 # proxmox_ve, pas pve : un groupe du nom de l'hôte fait avertir Ansible.
 [proxmox_ve]
 pve ansible_host=192.168.1.26
+
+# VPS OVH de la démo publique de Flip Planning (demo-planning.yml, lancé à la
+# main ; ADR 0038). Commandé à la main dans la console OVH (stock irrégulier),
+# Debian 13 avec keys/perso.pub. À décommenter avec son IP une fois livré :
+# tant qu'il est commenté, aucun playbook ne le vise.
+# [demo_planning]
+# demo-planning ansible_host=<IPv4 du VPS>

@@ -10,8 +10,8 @@ table inet demo_egress {
   set host_udp { type inet_service; elements = { {{ flip_planning_demo_host_udp_ports | join(', ') }} } }
   set pangolin_udp { type inet_service; elements = { {{ flip_planning_demo_pangolin_udp_ports | join(', ') }} } }
 
-  # L'hôte : apt, images, DNS, NTP. Rien vers le réseau privé (flip, les ports
-  # privés de Pangolin) : les réponses SSH au bastion sont `established`.
+  # L'hôte : apt, images, DNS, NTP. Rien vers les réseaux privés ; les
+  # réponses SSH à Pangolin (le rebond d'Ansible) sont `established`.
   chain output {
     type filter hook output priority filter; policy drop;
     oif lo accept
@@ -19,19 +19,23 @@ table inet demo_egress {
     udp dport 67 accept
     oifname "docker0" accept
     oifname "br-*" accept
-    ip daddr {{ flip_planning_demo_private_network }} drop
+    ip daddr { {{ flip_planning_demo_private_networks | join(', ') }} } drop
     tcp dport @host_tcp accept
     udp dport @host_udp accept
   }
 
-  # Les conteneurs : entre eux (ponts Docker), et vers Pangolin seul — le newt,
-  # en HTTPS et en WireGuard (gerbil). L'appli n'atteint rien d'autre : ni
-  # SMTP, ni webhook, ni API tierce, quoi que dise son environnement.
+  # Les conteneurs : entre eux (ponts Docker), vers les résolveurs DNS (le DNS
+  # embarqué de Docker interroge depuis l'espace de noms du conteneur : sans
+  # cette règle le newt ne résout pas Pangolin), et vers Pangolin seul — le
+  # newt, en HTTPS et en WireGuard (gerbil). L'appli n'atteint rien d'autre :
+  # ni SMTP, ni webhook, ni API tierce, quoi que dise son environnement.
   chain forward {
     type filter hook forward priority filter; policy drop;
     ct state established,related accept
     oifname "docker0" accept
     oifname "br-*" accept
+    ip daddr { {{ flip_planning_demo_dns_servers | join(', ') }} } udp dport 53 accept
+    ip daddr { {{ flip_planning_demo_dns_servers | join(', ') }} } tcp dport 53 accept
     ip daddr {{ flip_planning_demo_pangolin_ip }} tcp dport 443 accept
     ip daddr {{ flip_planning_demo_pangolin_ip }} udp dport @pangolin_udp accept
   }

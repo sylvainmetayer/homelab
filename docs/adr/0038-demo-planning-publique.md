@@ -11,12 +11,10 @@ La démo existante, sur flip, est en pause depuis le 2026-11-11 : flip (cx23, 2 
 
 ## Décision
 
-**Un serveur à lui**, `demo-planning` (cx23, `tofu/pangolin/demo_planning.tf`), sur le modèle de flip :
-- pas d'IP publique ;
-- sortie par le NAT de Pangolin ;
-- SSH par rebond ;
-- son propre site Newt (`pangolin_site.demo_planning`) ;
-- configuré à la main par `ansible/demo-planning.yml`, jamais par la CI.
+**Un serveur à lui** : un VPS-1 d'OVH (2 vCPU, 4 Go, x86, environ 5,40 € TTC par mois sans engagement), commandé à la main dans la console, car le stock est irrégulier. Il est configuré à la main par `ansible/demo-planning.yml`, jamais par la CI.
+- Il a une IP publique, mais rien n'y écoute pour le public : le trafic web arrive par son propre newt (site `demo-planning`, connexion sortante vers Pangolin).
+- SSH n'est ouvert qu'à l'IP de Pangolin (ufw), par où Ansible rebondit comme pour flip.
+- Sa clé d'hôte se lit sur l'hôte.
 
 Le rôle `flip_planning` s'y applique avec le mode démo de l'application (`DEMO_INSTANCE`, `PUBLIC_INSTANCE`). Ce mode accepte les mots de passe affichés sans permettre de les changer, coupe la météo, les webhooks, les clés MCP et les vrais courriels, affiche un bandeau, et passe un calcul à la fois (40 s au plus, file de 3, environ 30 par heure).
 
@@ -27,14 +25,18 @@ Le rôle `flip_planning` s'y applique avec le mode démo de l'application (`DEMO
 **Sortie filtrée sur l'hôte** (nftables, table `demo_egress`, chargée avant Docker) :
 - les conteneurs ne joignent que Pangolin (Newt, HTTPS et WireGuard) ;
 - l'hôte ne joint que DNS, NTP et HTTP(S) ;
-- personne ne joint le réseau privé.
+- personne ne joint les réseaux privés (10/8, 192.168/16), ni SMTP, IMAP ou SSH sortant.
 
-Les pare-feu Hetzner ne couvrent pas le réseau privé, d'où le filtre sur l'hôte.
+Le filtre est sur l'hôte, en plus du pare-feu d'entrée (ufw) : un conteneur compromis ne doit rien pouvoir envoyer.
 
 **Bugsink** : un projet à part pour la démo (DSN vide tant qu'il n'est pas créé), pour que son trafic ne consomme pas le quota de la production.
 
 ## Alternatives écartées
 
+- **Un cx23 Hetzner sans IP publique, sur le modèle de flip** (première version de cette ADR) : le cx23 n'est plus en vente (7,19 € TTC quand il l'était), ni le cx33. Le cpx22 coûte environ 24 € TTC. Le cax11 (ARM, environ 7,80 € TTC) demande une image arm64 que l'application ne publie pas.
+- **Scaleway DEV1-S** : 2 Go seulement, et environ 12 € TTC avec l'IPv4.
+- **Contabo, Netcup** (allemands) : plus chers à 4 Go, ou avec des disques et un CPU réputés irréguliers, et sans provider Tofu officiel.
+- **AWS** (EC2 en spot, CloudFormation) : environ 13 à 16 € TTC. **Cloud Run** : PostgreSQL y demande Cloud SQL, la JVM démarre à froid à chaque réveil, et la remise à zéro par timer ne s'y prête pas.
 - **Rallumer la démo sur flip avec `cpu_shares`** : pas de mémoire disponible, et le disque et les deux vCPU restent partagés. La production ne serait pas protégée d'une vague HN.
 - **Une limite `cpus:`** : la doctrine l'interdit sur un service interactif, et elle ne protège ni la mémoire ni le disque.
 - **Ajouter des pays (US, GB…) au filtre de cette ressource** : le public de HN et de Reddit est mondial.
@@ -46,13 +48,13 @@ Les pare-feu Hetzner ne couvrent pas le réseau privé, d'où le filtre sur l'h�
 - Bon : la production de flip ne partage plus rien avec la démo, sauf Pangolin.
 - Bon : une base cassée ou un mot de passe changé ne dure pas plus de 30 min.
 - Mauvais : tout le trafic de la démo passe par la VM Pangolin, qui porte aussi Pocket ID, ntfy et le NAT de flip. À surveiller pendant une vague (Beszel).
-- Mauvais : un serveur de plus à payer (cx23) et à tenir à jour, à la main.
+- Mauvais : un hôte de plus, hors de Hetzner, à payer (VPS-1) et à tenir à jour à la main. Son IP publique est connue d'OVH et de quiconque scanne : SSH est fermé à tous sauf Pangolin, et aucun port web n'y est ouvert.
 - Mauvais : la ressource est ouverte à tous les pays. Tout ce que le filtre FR/DE arrêtait passe : seuls CrowdSec et le mode démo de l'application la gardent.
 - Mauvais : une coupure d'environ 20 s toutes les 30 min. Le moniteur Uptime Kuma (300 s, une reprise à 60 s) la tolère.
 - L'ancienne démo, en pause sur flip, est à décommissionner (`decommission_app` sur flip, puis retirer son entrée de `flip.yml`). Son dépôt Borg est exclu du test de restauration d'ici là.
 
 ## Liens
 
-- `tofu/pangolin/demo_planning.tf`, `tofu/pangolin_config/website_demo_planning.tf`, `tofu/pangolin_config/nodes.tf`, `ansible/demo-planning.yml`, `ansible/roles/flip_planning_demo/`.
+- `ansible/inventory/hosts`, `tofu/pangolin_config/website_demo_planning.tf`, `tofu/pangolin_config/nodes.tf`, `ansible/demo-planning.yml`, `ansible/roles/flip_planning_demo/`.
 - ADR de l'application sur son mode démo (dépôt `planning-equipes`).
 - [0037](0037-ntfy-sur-la-vm-pangolin.md) (charge de la VM Pangolin).

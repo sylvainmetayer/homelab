@@ -40,8 +40,9 @@ PLAYBOOKS = {p.name: p for p in ANSIBLE_DIR.glob("*.y*ml")}
 # Playbooks never run by the deploy workflow: nas.yml and pve.yml (no key of
 # the NAS nor of the Proxmox host in the GitHub secrets), lxc.yml (the Newt LXC
 # carries the CI's own way into the LAN), pc-support.yml (the workstation,
-# localhost) and 00-setup.yaml (every host at once).
-MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml", "lxc.yml", "pc-support.yml", "00-setup.yaml"]
+# localhost), demo-planning.yml (the public demo server, by hand only, ADR 0038)
+# and 00-setup.yaml (every host at once).
+MANUAL_PLAYBOOKS = ["nas.yml", "pve.yml", "lxc.yml", "pc-support.yml", "demo-planning.yml", "00-setup.yaml"]
 # ansible-playbook --tags all: every task except those tagged never.
 WHOLE_PLAYBOOK = "all"
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
