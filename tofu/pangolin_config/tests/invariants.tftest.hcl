@@ -1021,6 +1021,11 @@ override_resource {
 }
 
 override_resource {
+  target = uptimekuma_monitor_push.ssh_login["demo-planning"]
+  values = { push_token = "push-ssh-demo-planning" }
+}
+
+override_resource {
   target = uptimekuma_monitor_push.ssh_login["flip"]
   values = { push_token = "push-ssh-flip" }
 }
@@ -3470,12 +3475,13 @@ run "ssh_login_monitors_alert_on_every_login" {
 
   assert {
     condition = output.uptime_ssh_login_urls == {
-      docker     = "https://uptime.example.test/api/push/push-ssh-docker"
-      flip       = "https://uptime.example.test/api/push/push-ssh-flip"
-      "newt-lxc" = "https://uptime.example.test/api/push/push-ssh-newt-lxc"
-      pangolin   = "https://uptime.example.test/api/push/push-ssh-pangolin"
-      pi         = "https://uptime.example.test/api/push/push-ssh-pi"
-      pve        = "https://uptime.example.test/api/push/push-ssh-pve"
+      "demo-planning" = "https://uptime.example.test/api/push/push-ssh-demo-planning"
+      docker          = "https://uptime.example.test/api/push/push-ssh-docker"
+      flip            = "https://uptime.example.test/api/push/push-ssh-flip"
+      "newt-lxc"      = "https://uptime.example.test/api/push/push-ssh-newt-lxc"
+      pangolin        = "https://uptime.example.test/api/push/push-ssh-pangolin"
+      pi              = "https://uptime.example.test/api/push/push-ssh-pi"
+      pve             = "https://uptime.example.test/api/push/push-ssh-pve"
     }
     error_message = "uptime_ssh_login_urls doit donner à chaque hôte l'URL de SON moniteur push."
   }

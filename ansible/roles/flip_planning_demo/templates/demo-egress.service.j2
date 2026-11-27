@@ -16,3 +16,6 @@ ExecStop=/usr/sbin/nft delete table inet demo_egress
 
 [Install]
 WantedBy=multi-user.target
+# Docker ne démarre pas si le filtre n'a pas pu se charger : `Before=` seul
+# ordonne sans lier, et docker démarrerait sans filtre après un échec de nft.
+RequiredBy=docker.service

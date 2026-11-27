@@ -127,6 +127,7 @@ par `smart_check` (alerte hebdomadaire de `nas.yml`, déployée : dernier passag
 |---|---|---|---|---|---|---|
 | Flip Planning, production | 2 | Borg `flip_planning` : `compose.yaml` + dumps PostgreSQL (appli et Keycloak) ; pas d'image Hetzner (`backups = false`) | oui | ~1 h (est.), plus la reconstruction de la VM | CI | — |
 | Flip Planning, démo (**en pause**) | 3 | Borg `demo_planning` (sa propre archive, figée au 2026-11-11) | oui | ~1 h (est.) | CI | — |
+| Flip Planning, démo publique (VPS OVH) | 3 | aucune : base remise au dump de référence toutes les 30 min (ADR 0038) | sans objet | le temps d'un `demo-planning.yml` | non | rien (données fictives) |
 | Promptoramix | 3 | aucune ; son volume est un journal de coups, hors sauvegarde | non | sans objet | non | ce journal |
 | OpenPost (publications planifiées) | 3 | Borg `openpost` : `data` (médias), `compose.yaml`, `.env` + copie SQLite | oui | ~30 min (est.) | CI | publications planifiées depuis la dernière nuit |
 

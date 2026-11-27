@@ -16,6 +16,10 @@ security_fail2ban_ignoreip:
   - ::1
   - "{{ hostvars['pangolin'].ansible_host }}"
   - 172.16.0.0/12
+# Les seuls résolveurs du démon Docker et des conteneurs : le filtre de sortie
+# (flip_planning_demo_dns_servers) et `dns` du démon (demo-planning.yml) lisent
+# tous deux cette liste. Quad9.
+demo_planning_dns_servers: [9.9.9.9, 149.112.112.112]
 # Aucun courrier ne sort de cet hôte (filtre de sortie du rôle flip_planning_demo).
 security_mta_enabled: false
 security_unattended_reboot_time: "05:00"

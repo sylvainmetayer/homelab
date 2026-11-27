@@ -5,9 +5,9 @@
 
 ## Contexte
 
-Sylvain veut présenter Flip Planning sur Show HN et Reddit avec une instance de démo en libre accès. Il y faut quatre comptes affichés sur la page (dont `admin/admin`), le scénario du site déjà chargé avec un plan calculé, un calcul de 40 s au plus, et une remise à zéro toutes les 30 min.
+Mise en place d'une démo publique de Flip Planning, en libre accès. Il y faut quatre comptes affichés sur la page (dont `admin/admin`), le scénario du site déjà chargé avec un plan calculé, un calcul de 40 s au plus, et une remise à zéro toutes les 30 min.
 
-La démo existante, sur flip, est en pause depuis le 2026-11-11 : flip (cx23, 2 vCPU, 4 Gio) n'a pas de mémoire à lui donner à côté de la production, d'OpenPost et de Promptoramix. Une vague de visiteurs prendrait du CPU, de la mémoire et du disque à la production. Toutes les ressources Pangolin publiques ne laissent passer que FR et DE, alors que le public visé est surtout américain.
+La démo existante, sur flip, est en pause depuis le 2026-11-11 : flip (cx23, 2 vCPU, 4 Gio) n'a pas de mémoire à lui donner à côté de la production, d'OpenPost et de Promptoramix. Une vague de visiteurs prendrait du CPU, de la mémoire et du disque à la production. Toutes les ressources Pangolin publiques ne laissent passer que FR et DE, alors que le public d'une démo publique vient de partout.
 
 ## Décision
 
@@ -37,9 +37,9 @@ Le filtre est sur l'hôte, en plus du pare-feu d'entrée (ufw) : un conteneur co
 - **Scaleway DEV1-S** : 2 Go seulement, et environ 12 € TTC avec l'IPv4.
 - **Contabo, Netcup** (allemands) : plus chers à 4 Go, ou avec des disques et un CPU réputés irréguliers, et sans provider Tofu officiel.
 - **AWS** (EC2 en spot, CloudFormation) : environ 13 à 16 € TTC. **Cloud Run** : PostgreSQL y demande Cloud SQL, la JVM démarre à froid à chaque réveil, et la remise à zéro par timer ne s'y prête pas.
-- **Rallumer la démo sur flip avec `cpu_shares`** : pas de mémoire disponible, et le disque et les deux vCPU restent partagés. La production ne serait pas protégée d'une vague HN.
+- **Rallumer la démo sur flip avec `cpu_shares`** : pas de mémoire disponible, et le disque et les deux vCPU restent partagés. La production ne serait pas protégée d'un afflux de visiteurs.
 - **Une limite `cpus:`** : la doctrine l'interdit sur un service interactif, et elle ne protège ni la mémoire ni le disque.
-- **Ajouter des pays (US, GB…) au filtre de cette ressource** : le public de HN et de Reddit est mondial.
+- **Ajouter des pays (US, GB…) au filtre de cette ressource** : le public d'une démo publique vient de partout.
 - **Remise à zéro par la route de dump de l'application** : c'est un outil de test, à ne pas ouvrir sur une instance publique.
 - **Un conteneur cron pour la remise à zéro** : il lui faudrait le socket Docker.
 

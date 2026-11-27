@@ -1,7 +1,7 @@
 ---
 # VPS OVH "demo-planning" (inventory/hosts) : la démo publique de Flip
-# Planning, seule sur son hôte pour qu'une vague de visiteurs (Show HN,
-# Reddit) ne prenne rien à la production de flip. ADR 0038. Ouverte à tous les
+# Planning, seule sur son hôte pour qu'un afflux de visiteurs ne prenne
+# rien à la production de flip. ADR 0038. Ouverte à tous les
 # pays sans SSO (tofu/pangolin_config/website_demo_planning.tf), servie par son
 # newt (site demo-planning), base remise au dump de référence toutes les
 # 30 min, sans sauvegarde, sortie filtrée. SSH ouvert à Pangolin seul, par où
@@ -49,18 +49,20 @@
       vars:
         flip_planning_demo_reset_enabled: false
         flip_planning_demo_pangolin_ip: "{{ hostvars['pangolin'].ansible_host }}"
+        flip_planning_demo_dns_servers: "{{ demo_planning_dns_servers }}"
     - role: geerlingguy.docker
       become: true
       tags: setup
       vars:
-        # group_vars/all, plus fixed resolvers: the only ones the egress filter
-        # lets the containers reach (flip_planning_demo_dns_servers).
+        # group_vars/all/geerlingguy.docker.yml (keep in step: a role-entry var
+        # cannot extend itself), plus the only resolvers the egress filter lets
+        # the containers reach.
         docker_daemon_options:
           log-driver: json-file
           log-opts:
             max-size: 10m
             max-file: "3"
-          dns: [9.9.9.9, 149.112.112.112]
+          dns: "{{ demo_planning_dns_servers }}"
     - role: docker_service
       tags: setup
     - role: host_tuning

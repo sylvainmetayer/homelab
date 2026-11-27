@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 
 locals {
-  ssh_login_hosts = toset(["docker", "flip", "newt-lxc", "pangolin", "pi", "pve"])
+  ssh_login_hosts = toset(["demo-planning", "docker", "flip", "newt-lxc", "pangolin", "pi", "pve"])
 }
 
 resource "uptimekuma_monitor_group" "ssh_logins" {
