@@ -335,7 +335,7 @@ def authorize(sess, client_id, redirect_uri, scope="openid profile email groups"
     location = ""
     for _ in range(8):
         result, path, location = authorize_hop(sess, path)
-        if result:
+        if result is not None:
             return (*result, verifier, nonce, state)
     return None, location, verifier, nonce, state
 
@@ -419,13 +419,13 @@ def login_session(admin, user):
 def check_exchange_refusals(sess, cid_a, sec_a, cid_b, sec_b, code, where):
     check_refused("PKCE : mauvais vérificateur refusé", code, where, cid_a, sec_a, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
 
-    code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
     check_refused("code d'un client échangé par un autre", code, where, cid_b, sec_b, redirect_uri=CALLBACK, code_verifier=verifier)
 
-    code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
     check_refused("token : redirect_uri différente refusée", code, where, cid_a, sec_a, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
 
-    code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
     check_refused("token : secret client faux refusé", code, where, cid_a, "faux-" + secrets.token_hex(16), redirect_uri=CALLBACK, code_verifier=verifier)
 
 
@@ -458,8 +458,8 @@ def check_replay(cid_a, sec_a, tok, code, verifier):
 
 
 def fresh_refresh_token(sess, cid_a, sec_a):
-    code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-    status, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
+    code, _, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    _, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
     return tok.get("refresh_token")
 
 
