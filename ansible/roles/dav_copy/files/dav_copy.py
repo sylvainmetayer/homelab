@@ -23,6 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from types import SimpleNamespace
 from xml.sax.saxutils import escape
 
 READ_METHODS = {"PROPFIND", "REPORT", "GET", "OPTIONS"}
@@ -251,6 +252,27 @@ def _bday(v):
     return "--" + d[-4:]
 
 
+def _photo_digest(value):
+    m = re.match(r"data:[^;]*;base64,(.*)", value, re.S)
+    try:
+        return "sha256:" + hashlib.sha256(base64.b64decode(m.group(1) if m else value)).hexdigest()
+    except ValueError:
+        return value
+
+
+def _vcard_prop(n, ps, value):
+    """Paramètres et valeur d'une propriété vCard, ramenés à une forme comparable."""
+    types = sorted({t.casefold() for t in ps.get("TYPE", [])} - {"voice", "pref"})
+    ps = {"TYPE": types} if types else {}
+    if n == "PHOTO":
+        return {}, _photo_digest(value)
+    if n == "BDAY":
+        return ps, _bday(value)
+    if n == "TEL":
+        return ps, re.sub(r"^tel:", "", value, flags=re.I)
+    return ps, value
+
+
 def normalize(text, vcard=False):
     """Représentation comparable : propriétés triées, noms en majuscules, repliage défait."""
     items, stack = [], []
@@ -258,25 +280,16 @@ def normalize(text, vcard=False):
         name, ps, value = parse_prop(line)
         n = name.split(".")[-1].upper()  # groupe retiré (item1.TEL)
         if n == "BEGIN":
-            stack.append(value.upper()); continue
+            stack.append(value.upper())
+            continue
         if n == "END":
-            stack and stack.pop(); continue
+            if stack:
+                stack.pop()
+            continue
         if n == "PRODID" or (vcard and n in ("VERSION", "REV")):
             continue
         if vcard:
-            types = sorted({t.casefold() for k in ("TYPE",) for v in ps.get(k, []) for t in [v]} - {"voice", "pref"})
-            ps = {"TYPE": types} if types else {}
-            if n == "PHOTO":
-                ps = {}
-                m = re.match(r"data:[^;]*;base64,(.*)", value, re.S)
-                try:
-                    value = "sha256:" + hashlib.sha256(base64.b64decode(m.group(1) if m else value)).hexdigest()
-                except ValueError:
-                    pass
-            elif n == "BDAY":
-                value = _bday(value)
-            elif n == "TEL":
-                value = re.sub(r"^tel:", "", value, flags=re.I)
+            ps, value = _vcard_prop(n, ps, value)
         else:
             ps = {k: [x.casefold() for x in v] for k, v in ps.items()}
         items.append(("/".join(stack), n, tuple(sorted((k, tuple(sorted(v))) for k, v in ps.items())), value))
@@ -304,35 +317,129 @@ def write(dav, method, url, body, headers, retries, delay, fresh):
         time.sleep(delay)
 
 
+def _create_calendar(dst, sc, dest_name, dest_home, sobjs, o, rep):
+    """Crée l'agenda absent chez la destination. (collection, objets) ou None : rien à copier ensuite."""
+    if sc["kind"] == "addressbook":
+        rep["errors"].append("carnet absent chez la destination : à créer à la main")
+        return None
+    rep["created"] = len(sobjs)
+    if not o.apply:
+        return None
+    seg = re.sub(r"[^a-z0-9]+", "-", dest_name.casefold()).strip("-") or \
+        hashlib.sha256(dest_name.encode()).hexdigest()[:12]  # jamais un MKCALENDAR sur le dossier lui-même
+    url = dest_home + seg + "/"
+    comps = "".join(f'<c:comp name="{c}"/>' for c in (sc["comps"] or ["VEVENT", "VTODO"]))
+    color = f"<a:calendar-color>{sc['color']}</a:calendar-color>" if sc["color"] else ""
+    body = ('<?xml version="1.0"?><c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
+            'xmlns:a="http://apple.com/ns/ical/"><d:set><d:prop>'
+            f"<d:displayname>{escape(dest_name)}</d:displayname>"
+            f"{color}<c:supported-calendar-component-set>{comps}</c:supported-calendar-component-set>"
+            "</d:prop></d:set></c:mkcalendar>")
+    st, _ = write(dst, "MKCALENDAR", url, body, {"Content-Type": "application/xml"}, 0, 0, False)
+    rep["created"] = 0  # recompté écriture par écriture
+    if st >= 400 or st == 0:
+        rep["errors"].append(f"MKCALENDAR refusé ({st})")
+        return None
+    return {"url": url}, {}
+
+
+def _read_source(c, name):
+    """Texte UTF-8 de l'objet source, ou None (erreur notée)."""
+    code, _, raw = c.src.request("GET", c.sc["url"] + urllib.parse.quote(name))
+    if code != 200:
+        c.rep["errors"].append(f"lecture source {short(name)} : {code}")
+        return None
+    try:  # décodage strict : un octet UTF-8 coupé par le repliage n'est jamais remplacé par U+FFFD
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError:
+        try:
+            text = re.sub(rb"\r?\n[ \t]", b"", raw).decode("utf-8")
+        except UnicodeDecodeError:
+            c.rep["errors"].append(f"lecture source {short(name)} : UTF-8 invalide")
+            return None
+    return text if c.vcard else add_schedule_agent(text)
+
+
+def _plan_put(c, name, etag, durl, text):
+    """(en-têtes, compteur) de l'écriture à faire, ou None si l'objet reste tel quel."""
+    if name not in c.dobjs:
+        return {"If-None-Match": "*"}, "created"
+    code, _, draw = c.dst.request("GET", durl)
+    if code == 200 and normalize(draw.decode("utf-8", "replace"), c.vcard) == normalize(text, c.vcard):
+        c.rep["unchanged"] += 1
+        c.st_coll[name] = [etag, c.dobjs[name], name in c.owned]
+        return None
+    if name not in c.owned:
+        c.rep["errors"].append(f"conflit {short(name)} : déjà chez la destination, pas écrit par l'outil, "
+                               "laissé tel quel")
+        return None
+    return ({"If-Match": c.dobjs[name]} if c.dobjs[name] else {}), "modified"
+
+
+def _copy_object(c, name, etag):
+    """Copie un objet ; vrai si écrit chez la destination."""
+    prev = c.st_coll.get(name)
+    if name in c.dobjs and prev and prev[:2] == [etag, c.dobjs[name]]:
+        c.rep["unchanged"] += 1
+        return False
+    text = _read_source(c, name)
+    if text is None:
+        return False
+    durl = c.dcoll["url"] + urllib.parse.quote(name)
+    plan = _plan_put(c, name, etag, durl, text)
+    if plan is None:
+        return False
+    hdr, field = plan
+    if not c.o.apply:
+        c.rep[field] += 1
+        return False
+    ctype = "text/vcard; charset=utf-8" if c.vcard else "text/calendar; charset=utf-8"
+    st, h = write(c.dst, "PUT", durl, text, {**hdr, "Content-Type": ctype}, c.o.retries, c.o.retry_delay, c.fresh)
+    if st >= 400 or st == 0:
+        c.rep["errors"].append(f"écriture {short(name)} : {st}")
+        return False
+    c.rep[field] += 1
+    c.st_coll[name] = [etag, h.get("ETag") or "", True]  # à l'outil dès l'écriture, même si la suite échoue
+    return True
+
+
+def _delete_gone(c, gone):
+    if not (c.o.delete and c.o.apply):
+        return
+    for name in gone:
+        # If-Match sur l'ETag de notre dernière écriture : un objet retouché chez la destination reste
+        recorded = c.st_coll[name][1] or c.dobjs[name]
+        st, _ = write(c.dst, "DELETE", c.dcoll["url"] + urllib.parse.quote(name), None,
+                      {"If-Match": recorded} if recorded else {}, 0, 0, False)
+        if st >= 400 or st == 0:
+            c.rep["errors"].append(f"suppression {short(name)} : {st}")
+        else:
+            c.rep["deleted"] += 1
+            c.st_coll.pop(name, None)
+
+
+def _refresh_etags(c, written):
+    if not (c.o.apply and written):
+        return
+    try:
+        after = list_objects(c.dst, c.dcoll["url"])
+    except (RuntimeError, ET.ParseError):
+        after = {}  # ETag inconnu : la passe suivante compare le contenu
+    for name in written:
+        if name in after:
+            c.st_coll[name][1] = after[name]
+
+
 def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
     kind, vcard = sc["kind"], sc["kind"] == "addressbook"
     sobjs = list_objects(src, sc["url"])
     rep["source"] = len(sobjs)
     fresh = False
     if dcoll is None:
-        if vcard:
-            rep["errors"].append("carnet absent chez la destination : à créer à la main")
+        made = _create_calendar(dst, sc, dest_name, dest_home, sobjs, o, rep)
+        if made is None:
             return
-        rep["created"] = len(sobjs)
-        if not o.apply:
-            return
-        seg = re.sub(r"[^a-z0-9]+", "-", dest_name.casefold()).strip("-") or \
-            hashlib.sha256(dest_name.encode()).hexdigest()[:12]  # jamais un MKCALENDAR sur le dossier lui-même
-        url = dest_home + seg + "/"
-        comps = "".join(f'<c:comp name="{c}"/>' for c in (sc["comps"] or ["VEVENT", "VTODO"]))
-        color = f"<a:calendar-color>{sc['color']}</a:calendar-color>" if sc["color"] else ""
-        body = ('<?xml version="1.0"?><c:mkcalendar xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" '
-                'xmlns:a="http://apple.com/ns/ical/"><d:set><d:prop>'
-                f"<d:displayname>{escape(dest_name)}</d:displayname>"
-                f"{color}<c:supported-calendar-component-set>{comps}</c:supported-calendar-component-set>"
-                "</d:prop></d:set></c:mkcalendar>")
-        st, _ = write(dst, "MKCALENDAR", url, body, {"Content-Type": "application/xml"}, 0, 0, False)
-        if st >= 400 or st == 0:
-            rep["errors"].append(f"MKCALENDAR refusé ({st})")
-            rep["created"] = 0
-            return
-        rep["created"] = 0  # recompté écriture par écriture
-        dcoll, fresh, dobjs = {"url": url}, True, {}
+        (dcoll, dobjs), fresh = made, True
     else:
         dobjs = list_objects(dst, dcoll["url"])
     rep["destination"] = len(dobjs)
@@ -350,70 +457,11 @@ def copy_collection(src, dst, sc, dcoll, dest_name, dest_home, o, state, rep):
                              f"(> {o.max_delete_pct} %), collection sautée ; à voir : {', '.join(short(g) for g in gone[:5])}")
         rep["created"] = rep["modified"] = 0
         return
-    ctype = "text/vcard; charset=utf-8" if vcard else "text/calendar; charset=utf-8"
-    written = []
-    for name, etag in sobjs.items():
-        durl = dcoll["url"] + urllib.parse.quote(name)
-        prev = st_coll.get(name)
-        if name in dobjs and prev and prev[:2] == [etag, dobjs[name]]:
-            rep["unchanged"] += 1
-            continue
-        code, _, raw = src.request("GET", sc["url"] + urllib.parse.quote(name))
-        if code != 200:
-            rep["errors"].append(f"lecture source {short(name)} : {code}")
-            continue
-        try:  # décodage strict : un octet UTF-8 coupé par le repliage n'est jamais remplacé par U+FFFD
-            text = raw.decode("utf-8")
-        except UnicodeDecodeError:
-            try:
-                text = re.sub(rb"\r?\n[ \t]", b"", raw).decode("utf-8")
-            except UnicodeDecodeError:
-                rep["errors"].append(f"lecture source {short(name)} : UTF-8 invalide")
-                continue
-        text = text if vcard else add_schedule_agent(text)
-        if name in dobjs:
-            code, _, draw = dst.request("GET", durl)
-            if code == 200 and normalize(draw.decode("utf-8", "replace"), vcard) == normalize(text, vcard):
-                rep["unchanged"] += 1
-                st_coll[name] = [etag, dobjs[name], name in owned]
-                continue
-            if name not in owned:
-                rep["errors"].append(f"conflit {short(name)} : déjà chez la destination, pas écrit par l'outil, "
-                                     "laissé tel quel")
-                continue
-            hdr = {"If-Match": dobjs[name]} if dobjs[name] else {}
-            field = "modified"
-        else:
-            hdr, field = {"If-None-Match": "*"}, "created"
-        if not o.apply:
-            rep[field] += 1
-            continue
-        st, h = write(dst, "PUT", durl, text, {**hdr, "Content-Type": ctype}, o.retries, o.retry_delay, fresh)
-        if st >= 400 or st == 0:
-            rep["errors"].append(f"écriture {short(name)} : {st}")
-        else:
-            rep[field] += 1
-            st_coll[name] = [etag, h.get("ETag") or "", True]  # à l'outil dès l'écriture, même si la suite échoue
-            written.append(name)
-    if o.delete and o.apply:
-        for name in gone:
-            # If-Match sur l'ETag de notre dernière écriture : un objet retouché chez la destination reste
-            recorded = st_coll[name][1] or dobjs[name]
-            st, _ = write(dst, "DELETE", dcoll["url"] + urllib.parse.quote(name), None,
-                          {"If-Match": recorded} if recorded else {}, 0, 0, False)
-            if st >= 400 or st == 0:
-                rep["errors"].append(f"suppression {short(name)} : {st}")
-            else:
-                rep["deleted"] += 1
-                st_coll.pop(name, None)
-    if o.apply and written:
-        try:
-            after = list_objects(dst, dcoll["url"])
-        except (RuntimeError, ET.ParseError):
-            after = {}  # ETag inconnu : la passe suivante compare le contenu
-        for name in written:
-            if name in after:
-                st_coll[name][1] = after[name]
+    c = SimpleNamespace(src=src, dst=dst, sc=sc, dcoll=dcoll, dobjs=dobjs, st_coll=st_coll, owned=owned,
+                        vcard=vcard, fresh=fresh, o=o, rep=rep)
+    written = [name for name, etag in sobjs.items() if _copy_object(c, name, etag)]
+    _delete_gone(c, gone)
+    _refresh_etags(c, written)
 
 
 def save_state(path, state):

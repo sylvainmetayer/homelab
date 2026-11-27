@@ -78,25 +78,31 @@ def finding(key, text, priority, level):
     return {"key": key, "text": text, "priority": priority, "level": level}
 
 
-def inspect(data):
-    """Les constats d'un disque. Le niveau est la valeur brute d'un compteur,
-    ou 1 (racheter) / 2 (sans attendre) pour un seuil : il sert à n'annoncer
-    que ce qui monte."""
+def _inspect_nvme(log):
     found = []
-    if data.get("smart_status", {}).get("passed") is False:
-        found.append(finding("verdict", "verdict S.M.A.R.T. FAILED", PRIORITY_NOW, 1))
+    used, spare, errors = log.get("percentage_used", 0), log.get("available_spare", 100), log.get("media_errors", 0)
+    if used > NVME_USED_BUY:
+        found.append(finding("used", f"Percentage Used {used} % (racheter au-delà de {NVME_USED_BUY})", PRIORITY_BUY, 1))
+    if spare < NVME_SPARE_NOW:
+        found.append(finding("spare", f"Available Spare {spare} % (sous {NVME_SPARE_NOW})", PRIORITY_NOW, 1))
+    if errors > 0:
+        found.append(finding("media_errors", f"{errors} erreur(s) d'intégrité", PRIORITY_NOW, errors))
+    return found
 
-    log = data.get("nvme_smart_health_information_log")
-    if log:
-        used, spare, errors = log.get("percentage_used", 0), log.get("available_spare", 100), log.get("media_errors", 0)
-        if used > NVME_USED_BUY:
-            found.append(finding("used", f"Percentage Used {used} % (racheter au-delà de {NVME_USED_BUY})", PRIORITY_BUY, 1))
-        if spare < NVME_SPARE_NOW:
-            found.append(finding("spare", f"Available Spare {spare} % (sous {NVME_SPARE_NOW})", PRIORITY_NOW, 1))
-        if errors > 0:
-            found.append(finding("media_errors", f"{errors} erreur(s) d'intégrité", PRIORITY_NOW, errors))
-        return found
 
+def _inspect_wear(number, attribute):
+    """Le constat d'usure d'un attribut SSD, ou None s'il est encore bon."""
+    if attribute is None or attribute["value"] >= WEAR_BUY:
+        return None
+    level = 2 if attribute["value"] < WEAR_NOW else 1
+    return finding(
+        f"wear{number}", f"{attribute['name']} ({number}) à {attribute['value']}, 100 neuf",
+        PRIORITY_NOW if level == 2 else PRIORITY_BUY, level,
+    )
+
+
+def _inspect_ata(data):
+    found = []
     attributes = {a["id"]: a for a in data.get("ata_smart_attributes", {}).get("table", [])}
     counters = {
         5: ("réalloués", PRIORITY_BUY),
@@ -109,15 +115,23 @@ def inspect(data):
         if raw > 0:
             found.append(finding(f"attr{number}", f"{number} {label} : {raw}", priority, raw))
     if data.get("rotation_rate") == 0:  # SSD ; un disque dur n'a pas d'attribut d'usure
-        for number in SSD_WEAR_IDS:
-            attribute = attributes.get(number)
-            if attribute is not None and attribute["value"] < WEAR_BUY:
-                level = 2 if attribute["value"] < WEAR_NOW else 1
-                found.append(finding(
-                    f"wear{number}", f"{attribute['name']} ({number}) à {attribute['value']}, 100 neuf",
-                    PRIORITY_NOW if level == 2 else PRIORITY_BUY, level,
-                ))
+        wear = (_inspect_wear(number, attributes.get(number)) for number in SSD_WEAR_IDS)
+        found.extend(f for f in wear if f)
     return found
+
+
+def inspect(data):
+    """Les constats d'un disque. Le niveau est la valeur brute d'un compteur,
+    ou 1 (racheter) / 2 (sans attendre) pour un seuil : il sert à n'annoncer
+    que ce qui monte."""
+    found = []
+    if data.get("smart_status", {}).get("passed") is False:
+        found.append(finding("verdict", "verdict S.M.A.R.T. FAILED", PRIORITY_NOW, 1))
+
+    log = data.get("nvme_smart_health_information_log")
+    if log:
+        return found + _inspect_nvme(log)
+    return found + _inspect_ata(data)
 
 
 def disk_name(data):

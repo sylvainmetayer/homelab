@@ -121,23 +121,31 @@ def features(text):
             found.append((service["key"], set()))
             key = ""
         elif found:
-            risky = found[-1][1]
-            if match := SERVICE_KEY.match(line):
-                key = match["key"]
-                value = line.split(":", 1)[1].split("#")[0].strip().strip("\"'")
-                if key == "privileged" and value != "false":
-                    risky.add("privileged")
-                if key in HOST_NAMESPACES and value == "host":
-                    risky.add(f"{key}: host")
-                if flow := FLOW_LIST.match(line):
-                    for item in flow["items"].split(","):
-                        if item := item.strip().strip("\"'"):
-                            if feature := feature_of(flow["key"], item):
-                                risky.add(feature)
-            elif (item := LIST_ITEM.match(line)) and key in ("cap_add", "devices", "volumes", "security_opt"):
-                if feature := feature_of(key, item["value"].strip()):
-                    risky.add(feature)
+            key = line_features(line, key, found[-1][1])
     return found
+
+
+def line_features(line, key, risky):
+    """Adds the risky features of one line of a service to `risky`; returns the
+    key the following list items belong to."""
+    if match := SERVICE_KEY.match(line):
+        key = match["key"]
+        value = line.split(":", 1)[1].split("#")[0].strip().strip("\"'")
+        if key == "privileged" and value != "false":
+            risky.add("privileged")
+        if key in HOST_NAMESPACES and value == "host":
+            risky.add(f"{key}: host")
+        if flow := FLOW_LIST.match(line):
+            risky.update(flow_features(flow))
+    elif (item := LIST_ITEM.match(line)) and key in ("cap_add", "devices", "volumes", "security_opt"):
+        if feature := feature_of(key, item["value"].strip()):
+            risky.add(feature)
+    return key
+
+
+def flow_features(flow):
+    items = (item.strip().strip("\"'") for item in flow["items"].split(","))
+    return {feature for item in items if item and (feature := feature_of(flow["key"], item))}
 
 
 def compose_files(root):

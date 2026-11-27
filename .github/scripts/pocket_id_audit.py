@@ -299,6 +299,30 @@ class Session:
         return status, out, data
 
 
+def foreign(target):
+    """True when a redirect leaves the Pocket ID host."""
+    return bool(target.netloc) and target.netloc != HOST
+
+
+def code_of(target):
+    return (urllib.parse.parse_qs(target.query).get("code") or [None])[0]
+
+
+def complete_interaction(sess, interaction, location):
+    """Passe les étapes d'une interaction OIDC. Renvoie (Location, erreur|None)."""
+    for _ in range(4):
+        st, _, data = sess.call("GET", f"/api/oidc/interactions/{interaction}")
+        info = as_json(data) or {}
+        step = info.get("currentStep") or (info.get("requiredSteps") or ["consent"])[0]
+        st, _, data = sess.call("POST", f"/api/oidc/interactions/{interaction}/complete", {"step": step, "scopes": info.get("scopes", [])})
+        done = as_json(data) or {}
+        if st >= 400:
+            return location, f"interaction {step} : HTTP {st} {data[:120]!r}"
+        if done.get("redirectUrl"):
+            return done["redirectUrl"], None
+    return location, None
+
+
 def authorize(sess, client_id, redirect_uri, scope="openid profile email groups", pkce=True, method="S256", extra=None):
     """Va jusqu'au code ou jusqu'au refus. Renvoie (code|None, Location finale, vérificateur, nonce, state)."""
     verifier, challenge = pkce_pair()
@@ -310,35 +334,31 @@ def authorize(sess, client_id, redirect_uri, scope="openid profile email groups"
     path = "/authorize?" + urllib.parse.urlencode(params)
     location = ""
     for _ in range(8):
-        status, hdrs, _ = sess.call("GET", path)
-        location = header(hdrs, "location")
-        if status not in (301, 302, 303) or not location:
-            return None, f"HTTP {status}", verifier, nonce, state
-        target = urllib.parse.urlsplit(location)
-        query = urllib.parse.parse_qs(target.query)
-        if target.netloc and target.netloc != HOST:
-            return (query.get("code") or [None])[0], location, verifier, nonce, state
-        if target.path == "/interaction" and "interaction" in query:
-            interaction = query["interaction"][0]
-            for _ in range(4):
-                st, _, data = sess.call("GET", f"/api/oidc/interactions/{interaction}")
-                info = as_json(data) or {}
-                step = info.get("currentStep") or (info.get("requiredSteps") or ["consent"])[0]
-                st, _, data = sess.call("POST", f"/api/oidc/interactions/{interaction}/complete", {"step": step, "scopes": info.get("scopes", [])})
-                done = as_json(data) or {}
-                if st >= 400:
-                    return None, f"interaction {step} : HTTP {st} {data[:120]!r}", verifier, nonce, state
-                if done.get("redirectUrl"):
-                    location = done["redirectUrl"]
-                    break
-            target = urllib.parse.urlsplit(location)
-            if target.netloc and target.netloc != HOST:
-                query = urllib.parse.parse_qs(target.query)
-                return (query.get("code") or [None])[0], location, verifier, nonce, state
-            path = target.path + ("?" + target.query if target.query else "")
-            continue
-        return None, location, verifier, nonce, state
+        result, path, location = authorize_hop(sess, path)
+        if result is not None:
+            return (*result, verifier, nonce, state)
     return None, location, verifier, nonce, state
+
+
+def authorize_hop(sess, path):
+    """Un saut de /authorize. Renvoie (résultat (code|None, Location|erreur) ou None s'il faut continuer, chemin suivant, Location)."""
+    status, hdrs, _ = sess.call("GET", path)
+    location = header(hdrs, "location")
+    if status not in (301, 302, 303) or not location:
+        return (None, f"HTTP {status}"), path, location
+    target = urllib.parse.urlsplit(location)
+    query = urllib.parse.parse_qs(target.query)
+    if foreign(target):
+        return (code_of(target), location), path, location
+    if target.path != "/interaction" or "interaction" not in query:
+        return (None, location), path, location
+    location, error = complete_interaction(sess, query["interaction"][0], location)
+    if error:
+        return (None, error), path, location
+    target = urllib.parse.urlsplit(location)
+    if foreign(target):
+        return (code_of(target), location), path, location
+    return None, target.path + ("?" + target.query if target.query else ""), location
 
 
 def token(client_id, secret, **form):
@@ -361,36 +381,147 @@ def userinfo(access_token):
     return status
 
 
+def create_test_objects(admin, run, created):
+    """Groupe, deux clients (a, b) et utilisateur de test ; les identifiants vont dans `created`."""
+    group = admin.call("POST", "/api/user-groups", {"name": run, "friendlyName": run})
+    created.add(group["id"])
+    clients = {}
+    for suffix in ("a", "b"):
+        client = admin.call("POST", CLIENTS, {
+            "id": f"{run}-{suffix}", "name": f"{run}-{suffix}", "callbackURLs": [CALLBACK],
+            "isPublic": False, "pkceEnabled": True, "isGroupRestricted": True,
+        })
+        created.add(client["id"])
+        admin.call("PUT", f"/api/oidc/clients/{client['id']}/allowed-user-groups", {"userGroupIds": [group["id"]]})
+        secret = admin.call("POST", f"/api/oidc/clients/{client['id']}/secrets", {})
+        clients[suffix] = (client["id"], secret.get("secret") or secret.get("value"))
+    user = admin.call("POST", USERS, {
+        "username": run, "email": f"{run}@example.invalid", "emailVerified": True,
+        "firstName": "Audit", "lastName": "Pocket ID", "displayName": run, "isAdmin": False, "userGroupIds": [],
+    })
+    created.add(user["id"])
+    return group, clients, user
+
+
+def login_session(admin, user):
+    login = admin.call("POST", f"/api/users/{user['id']}/one-time-access-token", {})
+    sess = Session()
+    status, hdrs, _ = sess.call("POST", f"/api/one-time-access-token/{login['token']}")
+    record("connexion par code à usage unique", "PASS" if status == 200 and sess.cookies else "FAIL", f"HTTP {status}")
+    for raw in hdrs.get("set-cookie", []):
+        name = raw.split("=", 1)[0]
+        flags = raw.lower()
+        missing = [f for f in ("secure", "httponly", "samesite") if f not in flags]
+        record(f"cookie {name} : Secure, HttpOnly, SameSite", "WARN" if missing else "PASS", "manque " + ", ".join(missing) if missing else "")
+    return sess
+
+
+def check_exchange_refusals(sess, cid_a, sec_a, cid_b, sec_b, code, where):
+    check_refused("PKCE : mauvais vérificateur refusé", code, where, cid_a, sec_a, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
+
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    check_refused("code d'un client échangé par un autre", code, where, cid_b, sec_b, redirect_uri=CALLBACK, code_verifier=verifier)
+
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    check_refused("token : redirect_uri différente refusée", code, where, cid_a, sec_a, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
+
+    code, where, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    check_refused("token : secret client faux refusé", code, where, cid_a, "faux-" + secrets.token_hex(16), redirect_uri=CALLBACK, code_verifier=verifier)
+
+
+def check_id_token(tok, group, cid_a, nonce):
+    head, claims = jwt_parts(tok["id_token"])
+    record("id_token : algorithme signé", "PASS" if head.get("alg") not in (None, "none") else "FAIL", head.get("alg", ""))
+    aud = claims.get("aud")
+    aud = aud if isinstance(aud, list) else [aud]
+    record("id_token : iss, aud, nonce", "PASS" if claims.get("iss") == BASE and aud == [cid_a] and claims.get("nonce") == nonce else "FAIL",
+           f"iss={claims.get('iss')} aud={aud} nonce={'ok' if claims.get('nonce') == nonce else 'KO'}")
+    record("id_token : groupes", "PASS" if group["name"] in (claims.get("groups") or []) else "WARN", str(claims.get("groups")))
+
+
+def check_access_token(tok):
+    try:
+        _, access_claims = jwt_parts(tok["access_token"])
+        access_aud = access_claims.get("aud")
+        audiences = access_aud if isinstance(access_aud, list) else [access_aud]
+        record("access token : audience non détournable", "FAIL" if EVIL in audiences else "PASS", str(access_aud))
+        record("access token : durée", "INFO", f"{(access_claims.get('exp', 0) - access_claims.get('iat', 0)) // 60} min")
+    except ValueError:
+        record("access token : opaque", "INFO", f"expires_in={tok.get('expires_in')}")
+
+
+def check_replay(cid_a, sec_a, tok, code, verifier):
+    status, again = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier)
+    record("rejeu du code refusé", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {again.get('error', '')}")
+    revoked = userinfo(tok["access_token"])
+    record("rejeu : jetons du premier échange révoqués", "PASS" if revoked == 401 else "WARN", f"userinfo HTTP {revoked}")
+
+
+def fresh_refresh_token(sess, cid_a, sec_a):
+    code, _, verifier, *_ = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
+    _, tok = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
+    return tok.get("refresh_token")
+
+
+def check_refresh_rotation(sess, cid_a, sec_a):
+    r1 = fresh_refresh_token(sess, cid_a, sec_a)
+    if not r1:
+        record("refresh : rotation", "WARN", "pas de refresh_token au second échange, non vérifié")
+        return
+    status, _ = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
+    record("refresh : fonctionne", "PASS" if status == 200 else "WARN", f"HTTP {status}")
+    # Pocket ID garde l'ancien jeton une minute après la rotation (refreshTokenGracePeriod,
+    # rafraîchissements parallèles) : refusé seulement au-delà.
+    time.sleep(65)
+    status, reuse = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
+    record("refresh : ancien jeton refusé 65 s après rotation", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {reuse.get('error', '')}")
+
+
+def check_refresh_after_group_removal(admin, sess, user, group, cid_a, sec_a):
+    # Chaîne neuve : la réutilisation de r1 a pu révoquer toute la précédente, le refus ne prouverait alors rien sur le groupe.
+    r3 = fresh_refresh_token(sess, cid_a, sec_a)
+    if not r3:
+        record("refresh : refusé après retrait du groupe", "WARN", "aucun refresh_token obtenu, non vérifié")
+        return
+    admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": []})
+    status, after = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r3)
+    record("refresh : refusé après retrait du groupe", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {after.get('error', '')}")
+    admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": [group["id"]]})
+
+
+def check_pkce_and_client(sess, cid_a):
+    code, where, *_ = authorize(sess, cid_a, CALLBACK, pkce=False)
+    record("PKCE : demande sans code_challenge refusée", "PASS" if not code else "FAIL", where[:120])
+    code, where, *_ = authorize(sess, cid_a, CALLBACK, method="plain")
+    # Activée en dur en v2.19.1 (EnablePKCEPlainChallengeMethod) : rien à régler ici, les applis envoient S256.
+    record("PKCE : méthode plain refusée", "PASS" if not code else "WARN", "acceptée (en dur dans Pocket ID)" if code else where[:120])
+    code, where, *_ = authorize(sess, "pid-audit-inconnu", CALLBACK)
+    record("client inconnu : pas de code", "PASS" if not code else "FAIL", where[:120])
+
+
+def check_redirect_variants(sess, cid_a):
+    for variant in ("https://evil.example/callback", "https://audit.invalid.evil.example/callback", "https://audit.invalid@evil.example/callback",
+                    # Variante http : on vérifie que Pocket ID la refuse.
+                    "https://evil.example\\@audit.invalid/callback", CALLBACK.replace("https://", "http://", 1), "https://AUDIT.invalid/callback",  # NOSONAR
+                    "https://audit.invalid/callback/autre", "https://audit.invalid/callback?x=1", "https://audit.invalid/callback/",
+                    "https://audit.invalid/callback/../evil", "https://audit.invalid:8443/callback"):
+        code, where, *_ = authorize(sess, cid_a, variant)
+        parts = urllib.parse.urlsplit(where)
+        target = parts.hostname or ""  # déjà en minuscules : la casse d'un hôte ne compte pas
+        same = target == "audit.invalid" and parts.scheme == "https" and parts.port is None and parts.path == "/callback"
+        if target not in ("", HOST) and not same:
+            status = "FAIL"  # code ou erreur envoyés vers un autre hôte ou chemin
+        else:
+            status = "INFO" if code else "PASS"  # code vers le même hôte (casse différente) : équivalent
+        record(f"redirect_uri piégée : {variant}", status, "code délivré au même hôte" if code else where[:100])
+
+
 def check_flow(admin):
     run = PREFIX + time.strftime("%Y%m%d%H%M%S")
     created = set()
     try:
-        group = admin.call("POST", "/api/user-groups", {"name": run, "friendlyName": run})
-        created.add(group["id"])
-        clients = {}
-        for suffix in ("a", "b"):
-            client = admin.call("POST", CLIENTS, {
-                "id": f"{run}-{suffix}", "name": f"{run}-{suffix}", "callbackURLs": [CALLBACK],
-                "isPublic": False, "pkceEnabled": True, "isGroupRestricted": True,
-            })
-            created.add(client["id"])
-            admin.call("PUT", f"/api/oidc/clients/{client['id']}/allowed-user-groups", {"userGroupIds": [group["id"]]})
-            secret = admin.call("POST", f"/api/oidc/clients/{client['id']}/secrets", {})
-            clients[suffix] = (client["id"], secret.get("secret") or secret.get("value"))
-        user = admin.call("POST", USERS, {
-            "username": run, "email": f"{run}@example.invalid", "emailVerified": True,
-            "firstName": "Audit", "lastName": "Pocket ID", "displayName": run, "isAdmin": False, "userGroupIds": [],
-        })
-        created.add(user["id"])
-        login = admin.call("POST", f"/api/users/{user['id']}/one-time-access-token", {})
-        sess = Session()
-        status, hdrs, _ = sess.call("POST", f"/api/one-time-access-token/{login['token']}")
-        record("connexion par code à usage unique", "PASS" if status == 200 and sess.cookies else "FAIL", f"HTTP {status}")
-        for raw in hdrs.get("set-cookie", []):
-            name = raw.split("=", 1)[0]
-            flags = raw.lower()
-            missing = [f for f in ("secure", "httponly", "samesite") if f not in flags]
-            record(f"cookie {name} : Secure, HttpOnly, SameSite", "WARN" if missing else "PASS", "manque " + ", ".join(missing) if missing else "")
+        group, clients, user = create_test_objects(admin, run, created)
+        sess = login_session(admin, user)
 
         (cid_a, sec_a), (cid_b, sec_b) = clients["a"], clients["b"]
 
@@ -405,16 +536,7 @@ def check_flow(admin):
         returned_state = urllib.parse.parse_qs(urllib.parse.urlsplit(where).query).get("state", [""])[0]
         record("flux : state renvoyé", "PASS" if returned_state == state else "FAIL")
 
-        check_refused("PKCE : mauvais vérificateur refusé", code, where, cid_a, sec_a, redirect_uri=CALLBACK, code_verifier="faux-" + secrets.token_urlsafe(40))
-
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-        check_refused("code d'un client échangé par un autre", code, where, cid_b, sec_b, redirect_uri=CALLBACK, code_verifier=verifier)
-
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-        check_refused("token : redirect_uri différente refusée", code, where, cid_a, sec_a, redirect_uri=CALLBACK + "/autre", code_verifier=verifier)
-
-        code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-        check_refused("token : secret client faux refusé", code, where, cid_a, "faux-" + secrets.token_hex(16), redirect_uri=CALLBACK, code_verifier=verifier)
+        check_exchange_refusals(sess, cid_a, sec_a, cid_b, sec_b, code, where)
 
         code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
         if not code:
@@ -424,79 +546,20 @@ def check_flow(admin):
         record("flux : échange du code", "PASS" if status == 200 else "FAIL", f"HTTP {status} {tok.get('error', '')}")
         if status != 200:
             return
-        head, claims = jwt_parts(tok["id_token"])
-        record("id_token : algorithme signé", "PASS" if head.get("alg") not in (None, "none") else "FAIL", head.get("alg", ""))
-        aud = claims.get("aud")
-        aud = aud if isinstance(aud, list) else [aud]
-        record("id_token : iss, aud, nonce", "PASS" if claims.get("iss") == BASE and aud == [cid_a] and claims.get("nonce") == nonce else "FAIL",
-               f"iss={claims.get('iss')} aud={aud} nonce={'ok' if claims.get('nonce') == nonce else 'KO'}")
-        record("id_token : groupes", "PASS" if group["name"] in (claims.get("groups") or []) else "WARN", str(claims.get("groups")))
-        try:
-            _, access_claims = jwt_parts(tok["access_token"])
-            access_aud = access_claims.get("aud")
-            audiences = access_aud if isinstance(access_aud, list) else [access_aud]
-            record("access token : audience non détournable", "FAIL" if EVIL in audiences else "PASS", str(access_aud))
-            record("access token : durée", "INFO", f"{(access_claims.get('exp', 0) - access_claims.get('iat', 0)) // 60} min")
-        except ValueError:
-            record("access token : opaque", "INFO", f"expires_in={tok.get('expires_in')}")
+        check_id_token(tok, group, cid_a, nonce)
+        check_access_token(tok)
         record("userinfo avec l'access token", "PASS" if userinfo(tok["access_token"]) == 200 else "FAIL")
 
-        status, again = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier)
-        record("rejeu du code refusé", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {again.get('error', '')}")
-        revoked = userinfo(tok["access_token"])
-        record("rejeu : jetons du premier échange révoqués", "PASS" if revoked == 401 else "WARN", f"userinfo HTTP {revoked}")
+        check_replay(cid_a, sec_a, tok, code, verifier)
 
-        refresh = tok.get("refresh_token")
-        if refresh:
-            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-            status, tok2 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
-            r1 = tok2.get("refresh_token")
-            if r1:
-                status, _ = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
-                record("refresh : fonctionne", "PASS" if status == 200 else "WARN", f"HTTP {status}")
-                # Pocket ID garde l'ancien jeton une minute après la rotation (refreshTokenGracePeriod,
-                # rafraîchissements parallèles) : refusé seulement au-delà.
-                time.sleep(65)
-                status, reuse = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r1)
-                record("refresh : ancien jeton refusé 65 s après rotation", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {reuse.get('error', '')}")
-            else:
-                record("refresh : rotation", "WARN", "pas de refresh_token au second échange, non vérifié")
-            # Chaîne neuve : la réutilisation de r1 a pu révoquer toute la précédente, le refus ne prouverait alors rien sur le groupe.
-            code, where, verifier, nonce, state = authorize(sess, cid_a, CALLBACK, scope=SCOPE_OFFLINE)
-            status, tok3 = token(cid_a, sec_a, grant_type="authorization_code", code=code, redirect_uri=CALLBACK, code_verifier=verifier) if code else (0, {})
-            r3 = tok3.get("refresh_token")
-            if r3:
-                admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": []})
-                status, after = token(cid_a, sec_a, grant_type="refresh_token", refresh_token=r3)
-                record("refresh : refusé après retrait du groupe", "PASS" if status >= 400 else "FAIL", f"HTTP {status} {after.get('error', '')}")
-                admin.call("PUT", f"/api/users/{user['id']}/user-groups", {"userGroupIds": [group["id"]]})
-            else:
-                record("refresh : refusé après retrait du groupe", "WARN", "aucun refresh_token obtenu, non vérifié")
+        if tok.get("refresh_token"):
+            check_refresh_rotation(sess, cid_a, sec_a)
+            check_refresh_after_group_removal(admin, sess, user, group, cid_a, sec_a)
         else:
             record("refresh", "SKIP", "aucun refresh_token délivré (offline_access)")
 
-        code, where, *_ = authorize(sess, cid_a, CALLBACK, pkce=False)
-        record("PKCE : demande sans code_challenge refusée", "PASS" if not code else "FAIL", where[:120])
-        code, where, *_ = authorize(sess, cid_a, CALLBACK, method="plain")
-        # Activée en dur en v2.19.1 (EnablePKCEPlainChallengeMethod) : rien à régler ici, les applis envoient S256.
-        record("PKCE : méthode plain refusée", "PASS" if not code else "WARN", "acceptée (en dur dans Pocket ID)" if code else where[:120])
-        code, where, *_ = authorize(sess, "pid-audit-inconnu", CALLBACK)
-        record("client inconnu : pas de code", "PASS" if not code else "FAIL", where[:120])
-
-        for variant in ("https://evil.example/callback", "https://audit.invalid.evil.example/callback", "https://audit.invalid@evil.example/callback",
-                        # Variante http : on vérifie que Pocket ID la refuse.
-                        "https://evil.example\\@audit.invalid/callback", CALLBACK.replace("https://", "http://", 1), "https://AUDIT.invalid/callback",  # NOSONAR
-                        "https://audit.invalid/callback/autre", "https://audit.invalid/callback?x=1", "https://audit.invalid/callback/",
-                        "https://audit.invalid/callback/../evil", "https://audit.invalid:8443/callback"):
-            code, where, *_ = authorize(sess, cid_a, variant)
-            parts = urllib.parse.urlsplit(where)
-            target = parts.hostname or ""  # déjà en minuscules : la casse d'un hôte ne compte pas
-            same = target == "audit.invalid" and parts.scheme == "https" and parts.port is None and parts.path == "/callback"
-            if target not in ("", HOST) and not same:
-                status = "FAIL"  # code ou erreur envoyés vers un autre hôte ou chemin
-            else:
-                status = "INFO" if code else "PASS"  # code vers le même hôte (casse différente) : équivalent
-            record(f"redirect_uri piégée : {variant}", status, "code délivré au même hôte" if code else where[:100])
+        check_pkce_and_client(sess, cid_a)
+        check_redirect_variants(sess, cid_a)
     finally:
         try:
             admin.cleanup(only=created)

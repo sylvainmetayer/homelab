@@ -64,6 +64,97 @@ def get_tofu_state():
         return None
 
 
+def _add_storage_box(inventory, values):
+    name = values.get("name", "unknown")
+
+    # Get IPv4 address from Hetzner server
+    ipv4_address = values.get("server")
+    user = values.get("username")
+
+    if ipv4_address and ipv4_address != "127.0.0.1":
+        inventory["hetzner"]["hosts"].append(name)
+        inventory["_meta"]["hostvars"][name] = {
+            "ansible_host": ipv4_address,
+            "ansible_user": user,
+            # Storage Boxes use port 23 for SSH access
+            "ansible_port": 23,
+            "location": values.get("location"),
+            "datacenter": values.get("datacenter")
+        }
+
+
+def _add_server(inventory, state, values, private_only):
+    name = values.get("name", "unknown")
+
+    # Get IPv4 address from Hetzner server
+    ipv4_address = values.get("ipv4_address")
+    role = (values.get("labels") or {}).get("role")
+    has_public_ip = ipv4_address and ipv4_address != "127.0.0.1"
+
+    if role == "drill":
+        # Copie jetable : son seul groupe est `drill` (ni hetzner, ni
+        # pangolin, ni flip), voir tofu/pangolin/drill.tf.
+        outputs = state.get("values", {}).get("outputs", {})
+        inventory["drill"]["hosts"].append(name)
+        inventory["_meta"]["hostvars"][name] = {
+            "ansible_host": ipv4_address,
+            "ansible_user": "sylvain",
+            # En plus de known_hosts : la clé de l'hôte vient du state.
+            "ansible_ssh_common_args": f"-o GlobalKnownHostsFile={DRILL_KNOWN_HOSTS}",
+            "drill_borg_user": outputs.get("storage_box_restore_test_username", {}).get("value"),
+            "drill_borg_server": outputs.get("storage_box_restore_test_server", {}).get("value"),
+            "server_type": values.get("server_type"),
+            "location": values.get("location")
+        }
+    elif role == "bench" and has_public_ip:
+        # Un serveur de mesure n'a jamais d'IP publique (bench.tf) : en
+        # voir une, c'est un state qu'on ne reconnaît pas, et il ne doit
+        # tomber dans aucun groupe.
+        print(f"hetzner.py: {name!r} est étiqueté bench et a une IPv4 publique, ignoré", file=sys.stderr)
+    elif has_public_ip:
+        inventory["hetzner"]["hosts"].append(name)
+        inventory["_meta"]["hostvars"][name] = {
+            "ansible_host": ipv4_address,
+            "ansible_user": "sylvain",
+            "server_type": values.get("server_type"),
+            "location": values.get("location"),
+            "datacenter": values.get("datacenter")
+        }
+    else:
+        private_ips = [n.get("ip") for n in values.get("network") or [] if n.get("ip")]
+        if private_ips:
+            private_only.append((name, private_ips[0], values))
+
+
+def _add_private_hosts(inventory, private_only):
+    # Second pass: the bastion's public address is only known once every
+    # server has been read, whatever their order in the state.
+    bastion = inventory["_meta"]["hostvars"].get(BASTION, {}).get("ansible_host")
+    for name, private_ip, values in private_only:
+        if not bastion:
+            print(f"hetzner.py: no public bastion {BASTION!r} to reach {name!r}, skipping", file=sys.stderr)
+            continue
+        # Serveur de mesure du solveur : son seul groupe est `bench` (aucun
+        # playbook ne le vise), sa clé d'hôte vient du state.
+        bench = (values.get("labels") or {}).get("role") == "bench"
+        inventory["bench" if bench else "hetzner"]["hosts"].append(name)
+        inventory["_meta"]["hostvars"][name] = {
+            "ansible_host": private_ip,
+            "ansible_user": "sylvain",
+            # ProxyCommand plutôt que ProxyJump : le ssh du saut ne reçoit
+            # pas les -o d'Ansible, il vérifierait le bastion contre
+            # ~/.ssh/known_hosts au lieu de ansible/known_hosts.
+            "ansible_ssh_common_args": (
+                f'-o ProxyCommand="ssh -o UserKnownHostsFile={KNOWN_HOSTS} '
+                f'-o StrictHostKeyChecking=yes -W %h:%p sylvain@{bastion}"'
+                + (f" -o GlobalKnownHostsFile={BENCH_KNOWN_HOSTS}" if bench else "")
+            ),
+            "server_type": values.get("server_type"),
+            "location": values.get("location"),
+            "datacenter": values.get("datacenter")
+        }
+
+
 def get_inventory():
     """Generate Ansible inventory from tofu state."""
     inventory = {
@@ -93,94 +184,12 @@ def get_inventory():
 
     for resource in resources:
         resource_type = resource.get("type")
-
         if resource_type == "hcloud_storage_box":
-            values = resource.get("values", {})
-            name = values.get("name", "unknown")
+            _add_storage_box(inventory, resource.get("values", {}))
+        elif resource_type == "hcloud_server":
+            _add_server(inventory, state, resource.get("values", {}), private_only)
 
-            # Get IPv4 address from Hetzner server
-            ipv4_address = values.get("server")
-            user = values.get("username")
-
-            if ipv4_address and ipv4_address != "127.0.0.1":
-                inventory["hetzner"]["hosts"].append(name)
-                inventory["_meta"]["hostvars"][name] = {
-                    "ansible_host": ipv4_address,
-                    "ansible_user": user,
-                    # Storage Boxes use port 23 for SSH access
-                    "ansible_port": 23,
-                    "location": values.get("location"),
-                    "datacenter": values.get("datacenter")
-                }
-
-        if resource_type == "hcloud_server":
-            values = resource.get("values", {})
-            name = values.get("name", "unknown")
-
-            # Get IPv4 address from Hetzner server
-            ipv4_address = values.get("ipv4_address")
-
-            if (values.get("labels") or {}).get("role") == "drill":
-                # Copie jetable : son seul groupe est `drill` (ni hetzner, ni
-                # pangolin, ni flip), voir tofu/pangolin/drill.tf.
-                outputs = state.get("values", {}).get("outputs", {})
-                inventory["drill"]["hosts"].append(name)
-                inventory["_meta"]["hostvars"][name] = {
-                    "ansible_host": ipv4_address,
-                    "ansible_user": "sylvain",
-                    # En plus de known_hosts : la clé de l'hôte vient du state.
-                    "ansible_ssh_common_args": f"-o GlobalKnownHostsFile={DRILL_KNOWN_HOSTS}",
-                    "drill_borg_user": outputs.get("storage_box_restore_test_username", {}).get("value"),
-                    "drill_borg_server": outputs.get("storage_box_restore_test_server", {}).get("value"),
-                    "server_type": values.get("server_type"),
-                    "location": values.get("location")
-                }
-            elif (values.get("labels") or {}).get("role") == "bench" and ipv4_address and ipv4_address != "127.0.0.1":
-                # Un serveur de mesure n'a jamais d'IP publique (bench.tf) : en
-                # voir une, c'est un state qu'on ne reconnaît pas, et il ne doit
-                # tomber dans aucun groupe.
-                print(f"hetzner.py: {name!r} est étiqueté bench et a une IPv4 publique, ignoré", file=sys.stderr)
-            elif ipv4_address and ipv4_address != "127.0.0.1":
-                inventory["hetzner"]["hosts"].append(name)
-                inventory["_meta"]["hostvars"][name] = {
-                    "ansible_host": ipv4_address,
-                    "ansible_user": "sylvain",
-                    "server_type": values.get("server_type"),
-                    "location": values.get("location"),
-                    "datacenter": values.get("datacenter")
-                }
-            else:
-                private_ips = [n.get("ip") for n in values.get("network") or [] if n.get("ip")]
-                if private_ips:
-                    private_only.append((name, private_ips[0], values))
-
-    # Second pass: the bastion's public address is only known once every
-    # server has been read, whatever their order in the state.
-    bastion = inventory["_meta"]["hostvars"].get(BASTION, {}).get("ansible_host")
-    for name, private_ip, values in private_only:
-        if not bastion:
-            print(f"hetzner.py: no public bastion {BASTION!r} to reach {name!r}, skipping", file=sys.stderr)
-            continue
-        # Serveur de mesure du solveur : son seul groupe est `bench` (aucun
-        # playbook ne le vise), sa clé d'hôte vient du state.
-        bench = (values.get("labels") or {}).get("role") == "bench"
-        inventory["bench" if bench else "hetzner"]["hosts"].append(name)
-        inventory["_meta"]["hostvars"][name] = {
-            "ansible_host": private_ip,
-            "ansible_user": "sylvain",
-            # ProxyCommand plutôt que ProxyJump : le ssh du saut ne reçoit
-            # pas les -o d'Ansible, il vérifierait le bastion contre
-            # ~/.ssh/known_hosts au lieu de ansible/known_hosts.
-            "ansible_ssh_common_args": (
-                f'-o ProxyCommand="ssh -o UserKnownHostsFile={KNOWN_HOSTS} '
-                f'-o StrictHostKeyChecking=yes -W %h:%p sylvain@{bastion}"'
-                + (f" -o GlobalKnownHostsFile={BENCH_KNOWN_HOSTS}" if bench else "")
-            ),
-            "server_type": values.get("server_type"),
-            "location": values.get("location"),
-            "datacenter": values.get("datacenter")
-        }
-
+    _add_private_hosts(inventory, private_only)
     return inventory
 
 
