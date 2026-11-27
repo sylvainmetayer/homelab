@@ -64,6 +64,26 @@ locals {
       port    = 8080
     }
   }
+  # Tools site of Neonova (fourth container of the role neonova, tag outils):
+  # same PIN, its own SSO role like the help site.
+  neonova_outils_website = {
+    name      = "Neonova Outils"
+    subdomain = "outils-neonova"
+    domain_id = local.domain_ids["sylvain.dev"]
+    role      = "neonova-outils"
+
+    homepage = {
+      group       = "Divers"
+      description = "Site d'outils de Neonova"
+      icon        = "mdi-tools"
+    }
+
+    target = {
+      site_id = pangolin_site.proxmox_docker.id
+      ip      = "neonova-outils"
+      port    = 8080
+    }
+  }
 }
 
 resource "pangolin_resource_pincode" "neonova" {
@@ -84,6 +104,14 @@ resource "pangolin_resource_pincode" "neonova_aide" {
 
 resource "pangolin_resource_pincode" "neonova_apercu" {
   resource_id = pangolin_resource.website["neonova_apercu"].id
+  # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
+  # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
+  pincode_wo         = tostring(local.neonova_pin)
+  pincode_wo_version = 1
+}
+
+resource "pangolin_resource_pincode" "neonova_outils" {
+  resource_id = pangolin_resource.website["neonova_outils"].id
   # Write-only : le PIN n'entre ni dans le plan ni dans l'état. Il ne part vers
   # Pangolin que si pincode_wo_version change : nouveau PIN dans SOPS = version + 1.
   pincode_wo         = tostring(local.neonova_pin)

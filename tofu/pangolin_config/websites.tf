@@ -83,6 +83,7 @@ locals {
     neonova                 = local.neonova_website
     neonova_aide            = local.neonova_aide_website
     neonova_apercu          = local.neonova_apercu_website
+    neonova_outils          = local.neonova_outils_website
     nextcloud               = local.nextcloud_website
     ntfy                    = local.ntfy_website
     openwebui               = local.openwebui_website

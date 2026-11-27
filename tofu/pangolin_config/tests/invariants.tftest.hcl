@@ -627,6 +627,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource.website["neonova_outils"]
+  values = { id = 140 }
+}
+
+override_resource {
   target = pangolin_resource.website["vitrine_asso"]
   values = { id = 101 }
 }
