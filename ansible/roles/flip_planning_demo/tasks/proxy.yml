@@ -1,0 +1,33 @@
+---
+# Traefik devant l'appli : newt -> Traefik -> appli, sur le réseau de newt.
+# La cible Pangolin de la démo (tofu/pangolin_config/website_demo_planning.tf)
+# pointe sur ce conteneur. Fournisseur fichier seul : pas de socket Docker.
+- name: Create the proxy directories
+  ansible.builtin.file:
+    path: "{{ docker_base_path }}/{{ flip_planning_demo_proxy_service }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop: ["", dynamic, page]
+  when: flip_planning_demo_proxy_enabled | bool
+
+- name: Write the proxy files
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ docker_base_path }}/{{ flip_planning_demo_proxy_service }}/{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: compose.yaml.j2, dest: compose.yaml }
+    - { src: proxy-traefik.yml.j2, dest: traefik.yml }
+    - { src: proxy-dynamic.yml.j2, dest: dynamic/demo.yml }
+    - { src: demo-saturee.html.j2, dest: page/index.html }
+  notify: Restart the demo proxy
+  when: flip_planning_demo_proxy_enabled | bool
+
+- name: Make sure the demo proxy is running
+  ansible.builtin.systemd:
+    name: "dc@{{ flip_planning_demo_proxy_service }}"
+    scope: user
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: flip_planning_demo_proxy_enabled | bool

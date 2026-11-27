@@ -8,6 +8,13 @@
     mode: "0750"
   when: flip_planning_demo_reset_enabled | bool
 
+- name: Install curl, for the warm-up
+  become: true
+  ansible.builtin.apt:
+    name: curl
+    state: present
+  when: flip_planning_demo_reset_enabled | bool
+
 - name: Write the reset script
   ansible.builtin.template:
     src: demo-planning-reset.sh.j2

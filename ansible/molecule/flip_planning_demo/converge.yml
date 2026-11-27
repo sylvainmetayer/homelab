@@ -9,8 +9,11 @@
     - role: flip_planning_demo
       vars:
         flip_planning_demo_reset_enabled: false
+        flip_planning_demo_proxy_enabled: false
         # TEST-NET-3, comme une IP publique de Pangolin.
         flip_planning_demo_pangolin_ip: 203.0.113.7
     - role: flip_planning_demo
       vars:
         flip_planning_demo_egress_enabled: false
+        # Pas de Docker ici : le Traefik de la démo n'est pas démarré.
+        flip_planning_demo_proxy_enabled: false

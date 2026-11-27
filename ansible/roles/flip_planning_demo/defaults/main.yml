@@ -34,3 +34,21 @@ flip_planning_demo_reset_schedule: "*:00/30"
 # fabriqué une fois sur l'hôte par scripts/demo/generer-dump.sh de l'appli
 # (README du rôle) : ni dans l'image, ni dans ce dépôt.
 flip_planning_demo_reset_dir: "{{ docker_base_path }}/{{ flip_planning_demo_service }}_reset"
+
+# --- Plafond devant l'appli (Traefik de l'hôte, entre newt et l'appli) ---
+# Le test de charge (2 vCPU, 4 Go, appli à 2 Go) : ~20 visiteurs tiennent, un
+# pic de 60 arrivées en une minute tue l'appli (OOM). Au-delà de
+# flip_planning_demo_proxy_max_in_flight requêtes en cours, tous visiteurs
+# confondus, une page statique « démo saturée » (429) au lieu d'un OOM.
+flip_planning_demo_proxy_enabled: true
+flip_planning_demo_proxy_service: demo_planning_proxy
+flip_planning_demo_proxy_container: demo-planning-proxy
+flip_planning_demo_proxy_max_in_flight: 30
+# Doit suivre flip_planning_newt_network (réseau de newt et de l'appli).
+flip_planning_demo_newt_network: newt
+
+# --- Préchauffage après la remise ---
+# Connexion admin (le mot de passe affiché sur la démo, public), puis Accueil
+# et Planning : la première minute d'une JVM froide fait un p95 de 8 s.
+flip_planning_demo_warmup_password: admin
+flip_planning_demo_warmup_rounds: 5

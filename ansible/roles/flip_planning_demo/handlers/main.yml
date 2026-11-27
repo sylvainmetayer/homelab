@@ -5,3 +5,9 @@
     name: demo-egress
     state: reloaded
     daemon_reload: true
+
+- name: Restart the demo proxy
+  ansible.builtin.systemd:
+    name: "dc@{{ flip_planning_demo_proxy_service }}"
+    scope: user
+    state: restarted

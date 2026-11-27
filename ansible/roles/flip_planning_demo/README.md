@@ -47,6 +47,19 @@ systemctl --user start demo-planning-reset
 
 Take the tag of the deployed image (`flip_planning_image_release`) and the PostgreSQL major of the role's `compose.yaml`. The password never goes into the repo nor into a variable of the playbook: it lives only in the dump, as a hash.
 
+## Visitor cap
+
+A Traefik of its own (`dc@demo_planning_proxy`, file provider only, no Docker socket, no access log) sits between newt and the app: the Pangolin target of the demo is `demo-planning-proxy:8080`. Load test of 2026-11-27 (2 vCPU, 4 GB, app at 2 GB): about 20 visitors hold (p95 < 1.5 s), a peak of 60 arrivals in one minute kills the app (OOM).
+
+- `inFlightReq` with `sourceCriterion.requestHost`: one counter for the whole demo, `flip_planning_demo_proxy_max_in_flight` (30) requests in flight. Past it, `errors` answers 429 with the static page `demo-saturee.html.j2` (served by its own nginx, it reloads itself every 60 s).
+- `/api/jobs/stream` (the solver's SSE stream, open as long as the screen is) has its own router outside the cap: counted in it, a handful of open screens would block everyone.
+- Uptime Kuma goes through Pangolin, so a saturated demo shows as down (429) for the time it lasts.
+- **To change the cap:** `flip_planning_demo_proxy_max_in_flight`, then `--tags proxy`.
+
+## Warm-up
+
+After recreating the app, `reset.sh` waits for it to be healthy, then signs in as `admin` (the password shown on the demo, `flip_planning_demo_warmup_password`) and reads the home page and `/api/planning/persisted` `flip_planning_demo_warmup_rounds` (5) times, straight to the container (host to Docker bridge, allowed by the egress filter). A failed warm-up is logged and does not fail the reset.
+
 ## Molecule
 
 The `flip_planning_demo` scenario checks:

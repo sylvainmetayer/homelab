@@ -2966,7 +2966,8 @@ run "demo_and_production_planning_share_nothing" {
         pangolin_target.website["demo_planning"].ip,
         pangolin_target.website["demo_planning_assets"].ip,
         ]) == toset([
-        "demo-planning", "demo-planning-assets",
+        # demo-planning-proxy: the visitor cap in front of the demo's app.
+        "demo-planning-proxy", "demo-planning-assets",
       ])
     )
     error_message = "Une cible vise un conteneur de l'autre instance : les noms doivent suivre flip_planning_container_prefix de chaque environnement."

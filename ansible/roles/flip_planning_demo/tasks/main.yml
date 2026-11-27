@@ -14,3 +14,7 @@
 - name: Database reset
   ansible.builtin.import_tasks: reset.yml
   tags: reset
+
+- name: Visitor cap in front of the app
+  ansible.builtin.import_tasks: proxy.yml
+  tags: proxy

@@ -1,0 +1,37 @@
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+http:
+  routers:
+    app:
+      entryPoints: [web]
+      rule: "PathPrefix(`/`)"
+      service: app
+      # errors d'abord : il enveloppe le 429 du plafond.
+      middlewares: [saturee, plafond]
+    # Le flux SSE du calcul reste ouvert tant que l'écran l'est : compté dans
+    # le plafond, une poignée de visiteurs le bloqueraient pour tous.
+    stream:
+      entryPoints: [web]
+      rule: "PathPrefix(`/api/jobs/stream`)"
+      priority: 1000
+      service: app
+  middlewares:
+    plafond:
+      inFlightReq:
+        amount: {{ flip_planning_demo_proxy_max_in_flight }}
+        # Un seul compteur pour toute la démo, pas un par IP.
+        sourceCriterion:
+          requestHost: true
+    saturee:
+      errors:
+        status: ["429"]
+        service: page
+        query: /index.html
+  services:
+    app:
+      loadBalancer:
+        servers:
+          - url: "http://{{ flip_planning_demo_container_prefix }}:8080"
+    page:
+      loadBalancer:
+        servers:
+          - url: "http://{{ flip_planning_demo_proxy_container }}-page:80"

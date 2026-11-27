@@ -26,8 +26,10 @@ locals {
 
     # Catch-all target, must have a lower priority than the sub-path ones.
     target = {
-      site_id  = pangolin_site.demo_planning.id
-      ip       = "demo-planning"
+      site_id = pangolin_site.demo_planning.id
+      # The visitor cap (Traefik of the flip_planning_demo role), in front of
+      # the app: past 30 requests in flight, a static « demo saturated » page.
+      ip       = "demo-planning-proxy"
       port     = 8080
       path     = "/"
       priority = 1
