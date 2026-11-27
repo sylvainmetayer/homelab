@@ -20,6 +20,9 @@ security_fail2ban_ignoreip:
 # (flip_planning_demo_dns_servers) et `dns` du démon (demo-planning.yml) lisent
 # tous deux cette liste. Quad9.
 demo_planning_dns_servers: [9.9.9.9, 149.112.112.112]
+# Projet Bugsink de la démo, à part de la production (son quota). Un DSN
+# n'ouvre que l'envoi d'événements à ce projet : public, comme celui de la prod.
+demo_planning_sentry_dsn: "https://1a0d3d326bae4313900a164f4e894125@sylvainmetayer.bugsink.com/2"
 # Aucun courrier ne sort de cet hôte (filtre de sortie du rôle flip_planning_demo).
 security_mta_enabled: false
 security_unattended_reboot_time: "05:00"
