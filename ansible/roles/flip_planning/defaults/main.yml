@@ -217,15 +217,15 @@ flip_planning_branding_client_palette: true
 # not in host_vars, which would brand every instance on the host.
 #
 # Basenames must be unique across the five: they share one directory.
-# BRANDING_LOGO_URL — toolbars and the login card
+# BRANDING_IMAGES logo — toolbars and the login card
 flip_planning_branding_logo: ""
-# BRANDING_PDF_LOGO — header of the PDFs and of the HTML mails
+# BRANDING_IMAGES pdf-logo — header of the PDFs and of the HTML mails
 flip_planning_branding_pdf_logo: ""
-# BRANDING_PDF_STRIP — decorative bandeau on the first page of the individual planning
+# BRANDING_IMAGES pdf-strip — decorative bandeau on the first page of the individual planning
 flip_planning_branding_pdf_strip: ""
-# BRANDING_MASCOT_URL — full-size mascot behind the Konami code
+# BRANDING_IMAGES mascot — full-size mascot behind the Konami code
 flip_planning_branding_mascot: ""
-# BRANDING_MASCOT_ICON_URL — the same mascot cut small, spinning during a solve
+# BRANDING_IMAGES mascot-icon — the same mascot cut small, spinning during a solve
 flip_planning_branding_mascot_icon: ""
 
 # The non-empty sources above, as one list for the copy and the cleanup. A

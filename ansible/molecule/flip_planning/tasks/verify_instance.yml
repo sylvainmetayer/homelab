@@ -97,7 +97,13 @@
       - ("\nPLANNING_MCP_PANGOLIN_ACCESS_TOKEN=" ~ flip_instance.mcp_pangolin_access_token ~ "\n") in env_content
       - ("\nMAIL_FROM=" ~ flip_instance.prefix ~ "@localhost\n") in env_content
       - ("\nCLOUDFLARE_WEB_ANALYTICS_TOKEN=" ~ flip_instance.analytics_token ~ "\n") in env_content
-      - ("\nBRANDING_LOGO_URL=" ~ flip_instance.logo_url ~ "\n") in env_content
+      # Clé `logo` de BRANDING_IMAGES ; une image vide n'y figure pas.
+      - >-
+        env_content is search('(?m)^BRANDING_IMAGES=(.*;)?logo=' ~ (flip_instance.logo_url | regex_escape) ~ '(;|$)')
+        if flip_instance.logo_url else
+        env_content is not search('(?m)^BRANDING_IMAGES=(.*;)?logo=')
+      # Plus aucun nom d'avant la 4.0 (lus jusqu'à la 5.0, avec un avertissement).
+      - env_content is not search('(?m)^(BRANDING_(LOGO_URL|PDF_|MASCOT|ACCENT)|LEGAL_(EDITEUR|DIRECTEUR|HEBERGEUR|CONTACT|RESPONSABLE|BASE_LEGALE|CONSERVATION))')
       - ("\nHORLOGE_SIMULEE_AUTORISEE=true\n") in env_content
       # Sous-réseau du réseau newt lu au déploiement : jamais vide.
       - ("\nCONNEXION_PROXYS_FIABLES=" ~ flip_planning_newt_subnet ~ "\n") in env_content
