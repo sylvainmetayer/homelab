@@ -38,9 +38,9 @@ Made once on the host by the application's `scripts/demo/generer-dump.sh` (a thr
 
 ```bash
 sudo apt-get install -y jq
-git clone --depth 1 --branch v4.2.1 https://github.com/sylvainmetayer/planning-equipes.git /tmp/pe
+git clone --depth 1 --branch v4.2.2 https://github.com/sylvainmetayer/planning-equipes.git /tmp/pe
 read -rs DEMO_PASSWORD && export DEMO_PASSWORD   # the password shown on /demo, 12 characters at least
-APP_IMAGE=ghcr.io/sylvainmetayer/planning-equipes:4.2.1 POSTGRES_IMAGE=postgres:19.0 \
+APP_IMAGE=ghcr.io/sylvainmetayer/planning-equipes:4.2.2 POSTGRES_IMAGE=postgres:19.0 \
   /tmp/pe/scripts/demo/generer-dump.sh /opt/apps/demo_planning_reset/reference.dump
 unset DEMO_PASSWORD; rm -rf /tmp/pe
 systemctl --user start demo-planning-reset
