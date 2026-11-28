@@ -1,0 +1,9 @@
+# {{ ansible_managed }} — rôle flip_planning_demo.
+[Unit]
+Description=Reset the public demo database to its reference dump
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh {{ flip_planning_demo_reset_dir }}/reset.sh
+# Une restauration bloquée ne doit pas enchaîner avec la suivante.
+TimeoutStartSec=10min

@@ -1,0 +1,17 @@
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+entryPoints:
+  web:
+    address: ":8080"
+  # La sonde du conteneur, à part : sans entryPoint, ping prendrait l'entrée
+  # interne `traefik`, qui écoute elle aussi sur :8080 par défaut.
+  ping:
+    address: ":8082"
+ping:
+  entryPoint: ping
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+log:
+  level: WARN
+# Pas de journal d'accès : les IP des visiteurs ne sont gardées nulle part ici.

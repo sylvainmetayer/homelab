@@ -402,9 +402,12 @@ class Repository(unittest.TestCase):
             self.assertEqual(version[1], oc.PROVIDER_VERSION, f"{module.name}: re-read the provider's routes, then bump")
             for tf in module.glob("*.tf"):
                 text = tf.read_text(encoding="utf-8")
-                self.assertEqual(re.findall(r'^data "(ovh_[a-z0-9_]+)"', text, re.MULTILINE), [], tf)
+                self.assertLessEqual(set(re.findall(r'^data "(ovh_[a-z0-9_]+)"', text, re.MULTILINE)), oc.COVERED_DATA_SOURCES, tf)
                 self.assertLessEqual(set(re.findall(r'^resource "(ovh_[a-z0-9_]+)"', text, re.MULTILINE)), oc.COVERED_RESOURCES, tf)
         self.assertLessEqual(set(oc.PROVIDER_INIT), rules)
+        # The demo VPS: read and rename only, never an order or a termination.
+        self.assertLessEqual({("GET", "/vps/*"), ("PUT", "/vps/*")}, rules)
+        self.assertFalse({p for m, p in rules if m == "POST" and (p.startswith("/vps") or p.startswith("/order") or p.startswith("/me"))})
 
     def test_zones_match_the_tofu_modules(self):
         found, refs = set(), set()

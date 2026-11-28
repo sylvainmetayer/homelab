@@ -1,0 +1,42 @@
+---
+# Remise de la base au dump de référence, toutes les 30 min : une unité user
+# de sylvain (groupe docker), comme dc@ et docker-image-prune (docker_service).
+- name: Create the reset directory
+  ansible.builtin.file:
+    path: "{{ flip_planning_demo_reset_dir }}"
+    state: directory
+    mode: "0750"
+  when: flip_planning_demo_reset_enabled | bool
+
+- name: Install curl, for the warm-up
+  become: true
+  ansible.builtin.apt:
+    name: curl
+    state: present
+  when: flip_planning_demo_reset_enabled | bool
+
+- name: Write the reset script
+  ansible.builtin.template:
+    src: demo-planning-reset.sh.j2
+    dest: "{{ flip_planning_demo_reset_dir }}/reset.sh"
+    mode: "0750"
+  when: flip_planning_demo_reset_enabled | bool
+
+- name: Write the reset units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "~/.config/systemd/user/{{ item }}"
+    mode: "0644"
+  loop:
+    - demo-planning-reset.service
+    - demo-planning-reset.timer
+  when: flip_planning_demo_reset_enabled | bool
+
+- name: Enable the reset timer
+  ansible.builtin.systemd:
+    name: demo-planning-reset.timer
+    scope: user
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: flip_planning_demo_reset_enabled | bool

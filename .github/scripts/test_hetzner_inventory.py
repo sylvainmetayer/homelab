@@ -89,6 +89,19 @@ class HetznerInventory(unittest.TestCase):
         self.assertNotIn("flip-bench-cx23", inv["hetzner"]["hosts"])
         self.assertNotIn("flip-bench-cx23", inv["_meta"]["hostvars"])
 
+    def test_demo_vps_from_its_output(self):
+        state = {"values": {"outputs": {"demo_planning_ipv4": {"value": "198.51.100.4"}},
+                            "root_module": {"resources": [server("pangolin", "203.0.113.1")]}}}
+        inv = self.inventory(state)
+        self.assertEqual(inv["demo_planning"]["hosts"], ["demo-planning"])
+        self.assertEqual(inv["_meta"]["hostvars"]["demo-planning"], {"ansible_host": "198.51.100.4"})
+        self.assertNotIn("demo-planning", inv["hetzner"]["hosts"])
+
+    def test_demo_vps_not_imported_yet(self):
+        state = {"values": {"outputs": {"demo_planning_ipv4": {"value": ""}},
+                            "root_module": {"resources": [server("pangolin", "203.0.113.1")]}}}
+        self.assertEqual(self.inventory(state)["demo_planning"]["hosts"], [])
+
     def test_without_drill_the_group_is_empty(self):
         state = {"values": {"root_module": {"resources": [server("pangolin", "203.0.113.1")]}}}
         inv = self.inventory(state)

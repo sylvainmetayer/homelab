@@ -77,6 +77,7 @@ PLAYBOOK_HOSTS = {
     "ansible/docker.yml": "docker",
     "ansible/pi.yml": "pi",
     "ansible/flip.yml": "flip",
+    "ansible/demo-planning.yml": "demo-planning",
     "ansible/pangolin.yaml": "pangolin",
     "ansible/nas.yml": "nas",
     "ansible/lxc.yml": "newt-lxc",

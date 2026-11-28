@@ -75,15 +75,19 @@ PROVIDER_VERSION = "2.25.0"
 # GET /auth/details au démarrage, refusée = provider en erreur, donc tout plan.
 # GET /auth/time (go-ovh, dérive d'horloge) est sans authentification : pas de règle.
 PROVIDER_INIT = (("GET", "/auth/details"),)
-# Les seules ressources ovh des modules (aucune data source) ; le test échoue
-# sur une autre. Leurs routes, lues dans le source de la version ci-dessus :
+# Les seules ressources ovh des modules ; le test échoue sur une autre. Leurs routes, lues dans le source de la version ci-dessus :
 #   domain_zone_record       /domain/zone/{z}/record, /record/{id}, POST /refresh
 #   domain_zone_redirection  /domain/zone/{z}/redirection, /redirection/{id}
 #   cloud_project_user (+ _s3_credential, _s3_policy)
 #                            /cloud/project/{p}/user, /user/{id}/…, GET /role
 #   cloud_project_storage (+ _object_bucket_lifecycle_configuration)
 #                            /cloud/project/{p}/region/{r}/storage/…
+#   vps (+ data source vps)  GET /vps/{s}, /ips, /datacenter ; PUT /vps/{s}
+#                            (display_name). Ni commande ni résiliation : le
+#                            VPS de la démo est commandé à la console, importé
+#                            (tofu/pangolin/demo_planning.tf).
 COVERED_RESOURCES = {
+    "ovh_vps",
     "ovh_domain_zone_record",
     "ovh_domain_zone_redirection",
     "ovh_cloud_project_user",
@@ -92,6 +96,7 @@ COVERED_RESOURCES = {
     "ovh_cloud_project_storage",
     "ovh_cloud_project_storage_object_bucket_lifecycle_configuration",
 }
+COVERED_DATA_SOURCES = {"ovh_vps"}
 # Identifiant temporaire de list : lire les identifiants, s'expirer lui-même.
 # Celui de revoke est plus étroit (revoke_rules) : le seul identifiant visé.
 LOGOUT = ("POST", "/auth/logout")
@@ -119,6 +124,9 @@ def access_rules(project):
     pairs += [("GET", f"{cloud}/role"), ("GET", f"{cloud}/user"), ("POST", f"{cloud}/user")]
     pairs += [(m, f"{cloud}/user/*") for m in WRITE]
     pairs += [(m, f"{cloud}/region/*") for m in WRITE]
+    # Le VPS de la démo : lecture et renommage, pas de POST (réinstallation,
+    # résiliation).
+    pairs += [("GET", "/vps/*"), ("PUT", "/vps/*")]
     return _rules(pairs)
 
 

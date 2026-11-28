@@ -216,6 +216,11 @@ override_resource {
 }
 
 override_resource {
+  target = pangolin_resource_rule.demo_planning_worldwide
+  values = { id = 2015 }
+}
+
+override_resource {
   target = pangolin_resource_access_token.rss_site_build
   values = { id = "tok-rss-build", token = "jeton-rss-build" }
 }
@@ -350,7 +355,7 @@ override_data {
         {"resourceId": 65, "niceId": "beszel", "name": "Beszel", "fullDomain": "monitoring.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 21, "niceId": "betisier", "name": "Betisier", "fullDomain": "betisier.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 60, "niceId": "dawarich", "name": "Dawarich", "fullDomain": "tracks.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
-        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
+        {"resourceId": 81, "niceId": "demo-planning", "name": "Demo Planning", "fullDomain": "demo-planning.sylvain.dev", "sso": false, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 80, "niceId": "flip-planning", "name": "Flip Planning", "fullDomain": "flip-planning.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},
         {"resourceId": 10, "niceId": "immich", "name": "Immich", "fullDomain": "photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": 7, "headerAuthId": null, "enabled": true},
         {"resourceId": 23, "niceId": "immich-swipe", "name": "Immich Swipe", "fullDomain": "swipe-photos.sylvain.cloud", "sso": true, "passwordId": null, "pincodeId": null, "headerAuthId": null, "enabled": true},

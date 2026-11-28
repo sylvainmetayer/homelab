@@ -1,0 +1,72 @@
+---
+- name: Verify
+  hosts: all
+  vars_files:
+    - ../../group_vars/all/variables.yml
+    - ../../roles/flip_planning_demo/defaults/main.yml
+  tasks:
+    - name: Read the demo-egress unit
+      become: true
+      ansible.builtin.systemd:
+        name: demo-egress
+      register: flip_planning_demo_egress_unit
+
+    - name: Assert the egress filter is enabled, loaded and ordered before Docker
+      ansible.builtin.assert:
+        that:
+          - flip_planning_demo_egress_unit.status.UnitFileState == 'enabled'
+          - flip_planning_demo_egress_unit.status.ActiveState == 'active'
+          - "'docker.service' in flip_planning_demo_egress_unit.status.Before"
+
+    - name: List the demo_egress table
+      become: true
+      ansible.builtin.command: nft list table inet demo_egress
+      register: flip_planning_demo_table
+      changed_when: false
+
+    # Les conteneurs ne sortent que vers Pangolin ; rien vers le réseau privé.
+    - name: Assert the rules the filter is for
+      ansible.builtin.assert:
+        that:
+          - "'hook forward priority filter; policy drop;' in flip_planning_demo_table.stdout"
+          - "'hook output priority filter; policy drop;' in flip_planning_demo_table.stdout"
+          - "'ip daddr 203.0.113.7 tcp dport 443 accept' in flip_planning_demo_table.stdout"
+          - "'ip daddr { 10.0.0.0/8, 192.168.0.0/16 } drop' in flip_planning_demo_table.stdout"
+          - "'9.9.9.9' in flip_planning_demo_table.stdout and 'udp dport 53 accept' in flip_planning_demo_table.stdout"
+          - "'ip daddr 127.0.0.1 tcp dport 443 accept' in flip_planning_demo_table.stdout"
+
+    # Rechargé, le filtre se remplace d'un bloc : une seule table, mêmes règles.
+    - name: Reload the egress filter
+      become: true
+      ansible.builtin.systemd:
+        name: demo-egress
+        state: reloaded
+
+    - name: Count the demo_egress tables after a reload
+      become: true
+      ansible.builtin.shell: set -o pipefail && nft list tables | grep -c 'inet demo_egress'
+      args:
+        executable: /bin/bash
+      register: flip_planning_demo_tables
+      changed_when: false
+
+    - name: Assert one table only
+      ansible.builtin.assert:
+        that:
+          - flip_planning_demo_tables.stdout == '1'
+
+    - name: Check the reset script syntax
+      ansible.builtin.command: sh -n {{ flip_planning_demo_reset_dir }}/reset.sh
+      changed_when: false
+
+    - name: Read the reset timer
+      ansible.builtin.systemd:
+        name: demo-planning-reset.timer
+        scope: user
+      register: flip_planning_demo_timer
+
+    - name: Assert the reset timer is enabled and waiting
+      ansible.builtin.assert:
+        that:
+          - flip_planning_demo_timer.status.UnitFileState == 'enabled'
+          - flip_planning_demo_timer.status.ActiveState == 'active'

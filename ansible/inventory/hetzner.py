@@ -24,6 +24,11 @@ bastion, but goes into the group `bench` and nowhere else; its host key comes
 from the bench_known_hosts_lines output, in the git-ignored
 ansible/known_hosts.bench.
 
+The OVH VPS of the public Flip Planning demo (tofu/pangolin/demo_planning.tf,
+imported) is the host demo-planning of the group `demo_planning`, at the
+demo_planning_ipv4 output; its user and its jump through Pangolin are in
+host_vars/demo-planning.
+
 Environment:
   HETZNER_BASTION   name of the server to jump through (default: pangolin)
 """
@@ -71,7 +76,7 @@ def get_inventory():
             "hostvars": {}
         },
         "all": {
-            "children": ["hetzner", "drill", "bench"]
+            "children": ["hetzner", "drill", "bench", "demo_planning"]
         },
         "hetzner": {
             "hosts": []
@@ -80,6 +85,9 @@ def get_inventory():
             "hosts": []
         },
         "bench": {
+            "hosts": []
+        },
+        "demo_planning": {
             "hosts": []
         }
     }
@@ -180,6 +188,11 @@ def get_inventory():
             "location": values.get("location"),
             "datacenter": values.get("datacenter")
         }
+
+    demo_ip = (state.get("values", {}).get("outputs", {}).get("demo_planning_ipv4") or {}).get("value")
+    if demo_ip:
+        inventory["demo_planning"]["hosts"].append("demo-planning")
+        inventory["_meta"]["hostvars"]["demo-planning"] = {"ansible_host": demo_ip}
 
     return inventory
 

@@ -1,0 +1,20 @@
+---
+- name: Check the demo host parameters
+  ansible.builtin.assert:
+    that:
+      - not (flip_planning_demo_egress_enabled | bool) or flip_planning_demo_pangolin_ip | length > 0
+    fail_msg: >-
+      flip_planning_demo : IP publique de Pangolin absente, voir
+      defaults/main.yml.
+
+- name: Egress filter
+  ansible.builtin.import_tasks: egress.yml
+  tags: egress
+
+- name: Database reset
+  ansible.builtin.import_tasks: reset.yml
+  tags: reset
+
+- name: Visitor cap in front of the app
+  ansible.builtin.import_tasks: proxy.yml
+  tags: proxy

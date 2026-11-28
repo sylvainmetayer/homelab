@@ -1,0 +1,12 @@
+# {{ ansible_managed }} — rôle flip_planning_demo.
+[Unit]
+Description=Reset the public demo database every 30 minutes
+
+[Timer]
+OnCalendar={{ flip_planning_demo_reset_schedule }}
+# Pas de rattrapage : une remise manquée attend la suivante.
+Persistent=false
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

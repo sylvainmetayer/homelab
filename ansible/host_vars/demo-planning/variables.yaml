@@ -1,0 +1,28 @@
+---
+# VPS OVH de la démo publique de Flip Planning (ansible/demo-planning.yml,
+# ADR 0038). IP publique, mais rien n'y écoute pour le public : le trafic web
+# arrive par le newt (sortant), et SSH n'est ouvert qu'à Pangolin, par où
+# Ansible rebondit comme pour flip. Sa clé d'hôte se lit sur l'hôte (console
+# OVH ou premier accès), jamais par ssh-keyscan : docs/runbooks/cle-hote-ssh-changee.md.
+ansible_user: sylvain
+ansible_ssh_common_args: >-
+  -o ProxyCommand="ssh -o UserKnownHostsFile={{ inventory_dir }}/../known_hosts
+  -o StrictHostKeyChecking=yes -W %h:%p sylvain@{{ hostvars['pangolin'].ansible_host }}"
+
+security_ufw_allowed_ports:
+  - { port: "22", proto: tcp, from: "{{ hostvars['pangolin'].ansible_host }}" }
+security_fail2ban_ignoreip:
+  - 127.0.0.1/8
+  - ::1
+  - "{{ hostvars['pangolin'].ansible_host }}"
+  - 172.16.0.0/12
+# Les seuls résolveurs du démon Docker et des conteneurs : le filtre de sortie
+# (flip_planning_demo_dns_servers) et `dns` du démon (demo-planning.yml) lisent
+# tous deux cette liste. Quad9.
+demo_planning_dns_servers: [9.9.9.9, 149.112.112.112]
+# Projet Bugsink de la démo, à part de la production (son quota). Un DSN
+# n'ouvre que l'envoi d'événements à ce projet : public, comme celui de la prod.
+demo_planning_sentry_dsn: "https://1a0d3d326bae4313900a164f4e894125@sylvainmetayer.bugsink.com/2"
+# Aucun courrier ne sort de cet hôte (filtre de sortie du rôle flip_planning_demo).
+security_mta_enabled: false
+security_unattended_reboot_time: "05:00"

@@ -1,0 +1,40 @@
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+services:
+  traefik:
+    # Même version que le Traefik de Pangolin (rôle pangolin).
+    image: docker.io/traefik:v3.8.0@sha256:cd3078e07dfe0c551b1df6fca2697c52f35da0a18c7bd81da4d3b1f012405098
+    container_name: {{ flip_planning_demo_proxy_container }}
+    mem_limit: 128m
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic:/etc/traefik/dynamic:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - {{ flip_planning_demo_newt_network }}
+
+  page:
+    # La page « démo saturée », seule : nginx ne sert que ce fichier.
+    image: nginx:1.31.10-alpine@sha256:aceb952b920393b7d0bc7b978927fc283370bea89fb082c6fef0ce18c60f96a9
+    container_name: {{ flip_planning_demo_proxy_container }}-page
+    mem_limit: 32m
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - ./page:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    networks:
+      - {{ flip_planning_demo_newt_network }}
+
+networks:
+  {{ flip_planning_demo_newt_network }}:
+    external: true

@@ -1,0 +1,58 @@
+---
+# Ce qui distingue l'hôte de la démo publique de Flip Planning (ADR 0038) :
+# un filtre de sortie et la remise à zéro périodique de la base. L'instance
+# elle-même est le rôle flip_planning (ansible/demo-planning.yml).
+
+# Doivent suivre la role entry flip_planning de ansible/demo-planning.yml.
+flip_planning_demo_service: demo_planning
+flip_planning_demo_container_prefix: demo-planning
+flip_planning_demo_db_user: festival
+flip_planning_demo_db_name: festival
+
+# --- Filtre de sortie (nftables, table inet demo_egress) ---
+# L'hôte : DNS, NTP, HTTP(S) (apt, images). Les conteneurs : Pangolin seul
+# (newt, HTTPS et WireGuard de gerbil) et leurs résolveurs. Personne : les
+# réseaux privés, SMTP, IMAP, SSH sortant.
+flip_planning_demo_egress_enabled: true
+# IP publique de Pangolin, la seule que joignent les conteneurs (newt_endpoint).
+# Lue dans l'inventaire (hetzner.py) par le playbook.
+flip_planning_demo_pangolin_ip: ""
+flip_planning_demo_pangolin_udp_ports: [51820, 21820]
+flip_planning_demo_private_networks: [10.0.0.0/8, 192.168.0.0/16]
+# Résolveurs que les conteneurs peuvent joindre : le DNS embarqué de Docker
+# les interroge depuis le réseau du conteneur. Les mêmes que `dns` du démon
+# Docker (ansible/demo-planning.yml) : Quad9.
+flip_planning_demo_dns_servers: [9.9.9.9, 149.112.112.112]
+flip_planning_demo_host_tcp_ports: [53, 80, 443]
+# Seules exceptions pour les conteneurs : HTTPS vers ces noms (Bugsink, pour
+# les erreurs de la démo). Résolus en IPv4 sur l'hôte à chaque run du tag
+# egress : une IP changée entre deux runs perd les envois jusqu'au suivant.
+flip_planning_demo_https_hosts: [sylvainmetayer.bugsink.com]
+flip_planning_demo_host_udp_ports: [53, 123]
+
+# --- Remise à zéro ---
+flip_planning_demo_reset_enabled: true
+# systemd OnCalendar : toutes les 30 min.
+flip_planning_demo_reset_schedule: "*:00/30"
+# Le dump de référence est {{ flip_planning_demo_reset_dir }}/reference.dump,
+# fabriqué une fois sur l'hôte par scripts/demo/generer-dump.sh de l'appli
+# (README du rôle) : ni dans l'image, ni dans ce dépôt.
+flip_planning_demo_reset_dir: "{{ docker_base_path }}/{{ flip_planning_demo_service }}_reset"
+
+# --- Plafond devant l'appli (Traefik de l'hôte, entre newt et l'appli) ---
+# Le test de charge (2 vCPU, 4 Go, appli à 2 Go) : ~20 visiteurs tiennent, un
+# pic de 60 arrivées en une minute tue l'appli (OOM). Au-delà de
+# flip_planning_demo_proxy_max_in_flight requêtes en cours, tous visiteurs
+# confondus, une page statique « démo saturée » (429) au lieu d'un OOM.
+flip_planning_demo_proxy_enabled: true
+flip_planning_demo_proxy_service: demo_planning_proxy
+flip_planning_demo_proxy_container: demo-planning-proxy
+flip_planning_demo_proxy_max_in_flight: 30
+# Doit suivre flip_planning_newt_network (réseau de newt et de l'appli).
+flip_planning_demo_newt_network: newt
+
+# --- Préchauffage après la remise ---
+# Connexion admin (le mot de passe affiché sur la démo, public), puis Accueil
+# et Planning : la première minute d'une JVM froide fait un p95 de 8 s.
+flip_planning_demo_warmup_password: admin
+flip_planning_demo_warmup_rounds: 5

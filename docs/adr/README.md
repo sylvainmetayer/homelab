@@ -82,3 +82,4 @@ au plus :
 | [0035](0035-plan-opentofu-en-ci.md) | Plan et apply OpenTofu en CI (#704) : plan de dérive de `pangolin_config` sur `main`, pas d'apply | rejetée (les jetons d'admin iraient chez GitHub) |
 | [0036](0036-verrou-des-actions-github.md) | Verrou des actions GitHub (`actions.lock`, `gh actions-lock`) en plus des SHA en ligne, actions locales laissées en `./` | acceptée |
 | [0037](0037-ntfy-sur-la-vm-pangolin.md) | ntfy sur la VM Pangolin, hors de la maison : cible sur le site local, sans sonde Pangolin | acceptée |
+| [0038](0038-demo-planning-publique.md) | Démo publique de Flip Planning sur son propre serveur, ouverte au monde, remise à zéro toutes les 30 min | proposée |

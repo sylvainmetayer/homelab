@@ -1,0 +1,7 @@
+---
+# Configuration commune : .config/molecule/config.yml (racine du dépôt).
+# Le rôle comme ansible/demo-planning.yml : filtre de sortie avant Docker, puis
+# le timer de remise à zéro. Le verify lit la table nftables chargée et rend
+# le script ; il ne lance pas de restauration (pas d'instance ici).
+scenario:
+  name: flip_planning_demo

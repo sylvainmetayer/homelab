@@ -1,0 +1,21 @@
+# {{ ansible_managed }} — rôle flip_planning_demo.
+[Unit]
+Description=Egress filter of the public demo host (nftables table demo_egress)
+# Avant Docker : aucun conteneur ne sort avant que le filtre soit en place.
+Before=docker.service
+# nftables.service (Debian) commence par `flush ruleset` : lancé après, il
+# effacerait le filtre, qui laisserait tout passer sans un mot.
+After=nftables.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f /etc/demo-egress.nft
+ExecReload=/usr/sbin/nft -f /etc/demo-egress.nft
+ExecStop=/usr/sbin/nft delete table inet demo_egress
+
+[Install]
+WantedBy=multi-user.target
+# Docker ne démarre pas si le filtre n'a pas pu se charger : `Before=` seul
+# ordonne sans lier, et docker démarrerait sans filtre après un échec de nft.
+RequiredBy=docker.service

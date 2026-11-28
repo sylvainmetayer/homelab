@@ -1,0 +1,56 @@
+#!/bin/sh
+# {{ ansible_managed }} — rôle flip_planning_demo, ADR 0038.
+# Remet la démo publique au dump de référence, comme le dit la doc de l'appli
+# (installer/instance-de-demo.md) : arrêt de l'appli, base supprimée puis
+# recréée (un `pg_restore --clean` laisserait une table plus récente que le
+# dump, qui ferait échouer la migration suivante), restauration, puis appli
+# recréée, échec ou non : ses journaux ne couvrent ainsi qu'une demi-heure.
+# Enfin un préchauffage (connexion admin, Accueil, Planning) : une JVM froide
+# fait un p95 de 8 s la première minute.
+set -eu
+cd "{{ docker_base_path }}/{{ flip_planning_demo_service }}"
+app="{{ flip_planning_demo_container_prefix }}"
+db="{{ flip_planning_demo_container_prefix }}-db"
+dump="{{ flip_planning_demo_reset_dir }}/reference.dump"
+user="{{ flip_planning_demo_db_user }}"
+name="{{ flip_planning_demo_db_name }}"
+[ -s "$dump" ] || { echo "demo-planning-reset : $dump absent, voir le README du rôle" >&2; exit 1; }
+stopped=0
+# Quelle que soit la sortie (échec d'une commande, arrêt par systemd après
+# TimeoutStartSec) : l'appli n'est jamais laissée arrêtée jusqu'à la remise suivante.
+cleanup() {
+  [ "$stopped" -eq 0 ] || docker compose up --detach --force-recreate --no-deps app || true
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+stopped=1
+docker compose stop app
+# --force : coupe aussi une restauration d'une remise tuée (tuer `docker exec`
+# laisse tourner pg_restore dans le conteneur).
+docker exec "$db" dropdb -U "$user" --if-exists --force "$name"
+docker exec "$db" createdb -U "$user" -O "$user" "$name"
+docker exec -i "$db" pg_restore -U "$user" -d "$name" --no-owner --role="$user" --exit-on-error < "$dump"
+stopped=0
+docker compose up --detach --force-recreate --no-deps app
+
+# Préchauffage : son échec ne fait pas échouer la remise (la démo est servie).
+for _ in $(seq 90); do
+  [ "$(docker inspect --format '{{ '{{' }}.State.Health.Status{{ '}}' }}' "$app")" = healthy ] && break
+  sleep 2
+done
+ip=$(docker inspect --format '{{ '{{' }}range .NetworkSettings.Networks{{ '}}' }}{{ '{{' }}.IPAddress{{ '}}' }} {{ '{{' }}end{{ '}}' }}' "$app" | cut -d' ' -f1)
+base="http://$ip:8080"
+jar=$(mktemp)
+warm() {
+  curl -fsS -o /dev/null -c "$jar" --data-urlencode j_username=admin \
+    --data-urlencode "j_password={{ flip_planning_demo_warmup_password }}" "$base/j_security_check" || return 1
+  edition=$(curl -fsS -b "$jar" "$base/api/editions" | grep -o '"id":"[^"]*"' | head -n1 | cut -d'"' -f4)
+  [ -n "$edition" ] || return 1
+  for _ in $(seq {{ flip_planning_demo_warmup_rounds }}); do
+    curl -fsS -o /dev/null -b "$jar" "$base/" &&
+    curl -fsS -o /dev/null -b "$jar" -H "X-Edition-Id: $edition" "$base/api/planning/persisted" || return 1
+  done
+}
+warm || echo "demo-planning-reset : préchauffage incomplet" >&2
+rm -f "$jar"

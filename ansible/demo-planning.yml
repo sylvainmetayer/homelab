@@ -1,0 +1,141 @@
+---
+# VPS OVH "demo-planning" (tofu/pangolin/demo_planning.tf, émis par
+# inventory/hetzner.py) : la démo publique de Flip
+# Planning, seule sur son hôte pour qu'un afflux de visiteurs ne prenne
+# rien à la production de flip. ADR 0038. Ouverte à tous les
+# pays sans SSO (tofu/pangolin_config/website_demo_planning.tf), servie par son
+# newt (site demo-planning), base remise au dump de référence toutes les
+# 30 min, sans sauvegarde, sortie filtrée. SSH ouvert à Pangolin seul, par où
+# Ansible rebondit (host_vars/demo-planning).
+#
+# Jamais lancé par la CI : à la main, `ansible-playbook demo-planning.yml`.
+#
+# Ordre au premier déploiement :
+#   1. commander le VPS à la console (Debian 13, clé keys/perso.pub), l'importer
+#      dans tofu/pangolin (README, « The demo VPS ») : hetzner.py l'émet alors ;
+#      ajouter sa clé d'hôte (lue sur l'hôte) à known_hosts ;
+#   2. `ansible-playbook demo-planning.yml --tags bootstrap -e ansible_user=debian`
+#      (compte sylvain, l'utilisateur `debian` d'OVH reste) ;
+#   3. tofu/pangolin_config (site demo-planning, ressource, règle monde) ;
+#   4. ce playbook, puis 00-setup.yaml --limit demo-planning.
+- name: Configure the public demo server of Flip Planning
+  hosts: demo-planning
+  pre_tasks:
+    - name: Load secrets and the pangolin_config state outputs
+      ansible.builtin.import_tasks: tasks/pangolin_config_outputs.yml
+
+    # no_log: newt_client_secret, which -v would write to run.log.
+    - name: Load the newt credentials from the pangolin_config state outputs
+      tags: always
+      no_log: true
+      ansible.builtin.set_fact:
+        newt_client_id: "{{ terraform_outputs.demo_planning_newt_id.value | default('') }}"
+        newt_client_secret: "{{ terraform_outputs.demo_planning_newt_secret.value | default('') }}"
+
+    - name: Fail clearly when the demo-planning site has no newt credentials
+      tags: newt,setup
+      ansible.builtin.assert:
+        that:
+          - newt_client_id | length > 0
+          - newt_client_secret | length > 0
+        fail_msg: >-
+          demo_planning_newt_id / demo_planning_newt_secret are missing from the
+          pangolin_config state: apply tofu/pangolin_config
+          (pangolin_site.demo_planning) first.
+
+  roles:
+    # Before Docker: no container gets out before the filter is in place.
+    - role: flip_planning_demo
+      tags: flip_planning_demo,egress
+      vars:
+        flip_planning_demo_reset_enabled: false
+        flip_planning_demo_pangolin_ip: "{{ hostvars['pangolin'].ansible_host }}"
+        flip_planning_demo_proxy_enabled: false
+        flip_planning_demo_dns_servers: "{{ demo_planning_dns_servers }}"
+    - role: geerlingguy.docker
+      become: true
+      tags: setup
+      vars:
+        # group_vars/all/geerlingguy.docker.yml (keep in step: a role-entry var
+        # cannot extend itself), plus the only resolvers the egress filter lets
+        # the containers reach.
+        docker_daemon_options:
+          log-driver: json-file
+          log-opts:
+            max-size: 10m
+            max-file: "3"
+          dns: "{{ demo_planning_dns_servers }}"
+    - role: docker_service
+      tags: setup
+    - role: host_tuning
+      tags: tuning,setup
+    - role: security
+      become: true
+      tags: security,setup
+    - role: newt
+      tags: newt,setup
+    # The demo: the same role as production on flip, its own secrets
+    # (demo_planning_*, never a flip_planning_* SOPS key, which would beat these
+    # `vars:`), unbranded, the application's public demo mode.
+    - role: flip_planning
+      tags: demo_planning,app
+      vars:
+        flip_planning_service: demo_planning
+        flip_planning_container_prefix: demo-planning
+        flip_planning_domain: demo-planning.sylvain.dev
+        # The production release: the demo shows what organisers install.
+        flip_planning_image: "{{ flip_planning_image_release }}"
+        flip_planning_sentry_environment: demo
+        # Its own Bugsink project (host_vars/demo-planning).
+        flip_planning_sentry_dsn: "{{ demo_planning_sentry_dsn }}"
+        flip_planning_branding_product_name: "Flip Planning — Démo"
+        flip_planning_cloudflare_web_analytics_token: ""
+        flip_planning_horloge_simulee_autorisee: true
+        flip_planning_solver_engine: hand
+        # Public demo mode: displayed passwords accepted and frozen, weather,
+        # webhooks, MCP keys and real mail off, a banner, one solve at a time.
+        flip_planning_demo_instance: true
+        flip_planning_public_instance: true
+        flip_planning_legal_demo_instance: true
+        flip_planning_webhooks_enabled: false
+        flip_planning_solver_seconds_limit: 40
+        flip_planning_solver_seconds_limit_max: 40
+        flip_planning_solver_max_solves_per_hour: 30
+        flip_planning_solver_max_queued_jobs: 3
+        # Shown on the page: admin/admin. The other accounts come from the dump.
+        flip_planning_admin_password: admin
+        flip_planning_db_password: "{{ demo_planning_db_password }}"
+        flip_planning_session_encryption_key: "{{ demo_planning_session_encryption_key }}"
+        flip_planning_mcp_api_key: "{{ demo_planning_mcp_api_key }}"
+        # Reset every 30 min from the reference dump: nothing to back up.
+        flip_planning_backup_enabled: false
+    # Once the instance exists: the reset timer.
+    - role: flip_planning_demo
+      tags: flip_planning_demo,reset
+      vars:
+        flip_planning_demo_egress_enabled: false
+
+# Once, on a freshly delivered VPS (--tags bootstrap -e ansible_user=debian).
+- name: Create the sylvain account on a freshly delivered VPS
+  hosts: demo-planning
+  tags: [bootstrap, never]
+  become: true
+  tasks:
+    - name: Create sylvain, in sudo
+      ansible.builtin.user:
+        name: sylvain
+        groups: sudo
+        append: true
+        shell: /bin/bash
+
+    - name: Authorize the personal key for sylvain
+      ansible.posix.authorized_key:
+        user: sylvain
+        key: "{{ lookup('ansible.builtin.file', playbook_dir ~ '/../keys/perso.pub') }}"
+
+    - name: Let sylvain sudo without a password, as on the other hosts
+      ansible.builtin.copy:
+        content: "sylvain ALL=(ALL) NOPASSWD:ALL\n"
+        dest: /etc/sudoers.d/sylvain
+        mode: "0440"
+        validate: visudo -cf %s
